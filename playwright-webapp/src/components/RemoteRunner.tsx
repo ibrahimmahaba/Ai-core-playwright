@@ -117,26 +117,50 @@ export default function RemoteRunner() {
     const data: ScreenshotResponse = await res.json();
     setShot(data);
   }
+const [scriptName, setScriptName] = useState("script-1");
 
-  return (
-    <div style={{ padding: 16 }}>
-      <h2>Remote Playwright Runner</h2>
-      <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-        <input value={url} onChange={e => setUrl(e.target.value)} style={{ width: 420 }} />
-        <button onClick={createSession}>Open</button>
-        <button onClick={replay} disabled={!sessionId}>Replay Steps</button>
-        <span>Steps: {steps.length}</span>
-      </div>
+async function save() {
+  if (!sessionId) return;
+  const name = window.prompt("Save as (name or filename.json):", scriptName) || scriptName;
+  const res = await fetch(`${API}/${sessionId}/save?name=${encodeURIComponent(name)}`, {
+    method: "POST"
+  });
+  const data = await res.json();
+  setScriptName(name);
+  alert(`Saved to: ${data.file}`);
+}
 
-      {shot && (
-        <img
-          ref={imgRef}
-          onClick={handleClick}
-          src={`data:image/png;base64,${shot.base64Png}`}
-          alt="remote"
-          style={{ border: "1px solid #ccc", maxWidth: "100%", cursor: "crosshair" }}
-        />
-      )}
+async function replayFromFile() {
+  if (!sessionId) return;
+  const name = window.prompt("Replay file (name in 'recordings' or absolute path):", scriptName) || scriptName;
+  const res = await fetch(`${API}/${sessionId}/replay/file?name=${encodeURIComponent(name)}`, {
+    method: "POST"
+  });
+  const data: ScreenshotResponse = await res.json();
+  setShot(data);
+}
+
+return (
+  <div style={{ padding: 16 }}>
+    <h2>Remote Playwright Runner</h2>
+    <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+      <input value={url} onChange={e => setUrl(e.target.value)} style={{ width: 420 }} />
+      <button onClick={createSession}>Open</button>
+      <button onClick={replay} disabled={!sessionId}>Replay (Current Steps)</button>
+      <button onClick={save} disabled={!sessionId}>Save</button>
+      <button onClick={replayFromFile} disabled={!sessionId}>Replay From File</button>
+      <span>Steps: {steps.length}</span>
     </div>
-  );
+
+    {shot && (
+      <img
+        ref={imgRef}
+        onClick={handleClick}
+        src={`data:image/png;base64,${shot.base64Png}`}
+        alt="remote"
+        style={{ border: "1px solid #ccc", maxWidth: "100%", cursor: "crosshair" }}
+      />
+    )}
+  </div>
+);
 }

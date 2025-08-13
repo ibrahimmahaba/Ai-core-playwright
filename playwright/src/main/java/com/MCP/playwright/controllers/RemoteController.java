@@ -6,6 +6,10 @@ import com.MCP.playwright.dtos.*;
 import com.MCP.playwright.services.SessionService;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/remote")
 @CrossOrigin // configure allowed origins in prod
@@ -37,4 +41,24 @@ public class RemoteController {
     public StepsEnvelope history(@PathVariable String sessionId) {
         return svc.history(sessionId);
     }
+
+    @PostMapping("/{sessionId}/save")
+    public Map<String, String> save(@PathVariable String sessionId,
+                                    @RequestParam(defaultValue = "") String name,
+                                    @RequestParam(defaultValue = "false") boolean overwrite) {
+        Path file = svc.saveHistoryToFile(sessionId, name, overwrite);
+        return Map.of("file", file.toAbsolutePath().toString());
+    }
+
+    @GetMapping("/recordings")
+    public List<String> listRecordings() {
+        return svc.listRecordings();
+    }
+
+    @PostMapping("/{sessionId}/replay/file")
+    public ScreenshotResponse replayFile(@PathVariable String sessionId,
+                                         @RequestParam String name) {
+        return svc.replayFromFile(sessionId, name);
+    }
 }
+

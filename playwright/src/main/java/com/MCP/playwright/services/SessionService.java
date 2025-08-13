@@ -1,10 +1,18 @@
 package com.MCP.playwright.services;
 
 import com.MCP.playwright.dtos.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.microsoft.playwright.*;
 import com.microsoft.playwright.options.WaitUntilState;
 import org.springframework.stereotype.Service;
 
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.Map;
 import java.util.UUID;
@@ -16,6 +24,8 @@ public class SessionService {
     private final Browser browser = pw.chromium().launch(
             new BrowserType.LaunchOptions().setHeadless(true)
     );
+    private final ObjectMapper json = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
+    private final Path recordingsDir = initRecordingsDir();
 
     static class Session {
         final BrowserContext ctx;
@@ -41,6 +51,8 @@ public class SessionService {
                 .setDeviceScaleFactor(dpr);
 
         BrowserContext ctx = browser.newContext(ctxOps);
+        ctx.setDefaultTimeout(60_000);
+        ctx.setDefaultNavigationTimeout(60_000);
         Page page = ctx.newPage();
 
         if (req.url() != null && !req.url().isBlank()) {
@@ -119,20 +131,39 @@ public class SessionService {
         try {
             switch (step.type()) {
                 case NAVIGATE -> {
-                    Page.NavigateOptions opts = new Page.NavigateOptions();
-                    if ("networkidle".equalsIgnoreCase(step.waitUntil())) {
-                        opts.setWaitUntil(WaitUntilState.NETWORKIDLE);
-                    } else if ("domcontentloaded".equalsIgnoreCase(step.waitUntil())) {
-                        opts.setWaitUntil(WaitUntilState.DOMCONTENTLOADED);
-                    } else if ("load".equalsIgnoreCase(step.waitUntil())) {
-                        opts.setWaitUntil(WaitUntilState.LOAD);
-                    }
+                    var opts = new Page.NavigateOptions()
+                            .setWaitUntil(com.microsoft.playwright.options.WaitUntilState.LOAD)
+                            .setTimeout(60_000);
                     page.navigate(step.url(), opts);
+
+                    // Optional short polish: try network idle without blocking forever
+                    try {
+                        page.waitForLoadState(com.microsoft.playwright.options.LoadState.NETWORKIDLE,
+                                new Page.WaitForLoadStateOptions().setTimeout(4_000));
+                    } catch (PlaywrightException ignored) {}
                 }
                 case CLICK -> {
-                    // Coordinates are in CSS pixels relative to the page viewport.
+                    String before = page.url();
+
+                    // Perform the click
                     page.mouse().move(step.coords().x(), step.coords().y());
                     page.mouse().click(step.coords().x(), step.coords().y());
+
+                    // If navigation happens, wait for it (URL changed)
+                    try {
+                        page.waitForURL(u -> !u.equals(before),
+                                new Page.WaitForURLOptions().setTimeout(6_000)); // waits if it navigates
+                    } catch (PlaywrightException ignored) {
+                        // No URL change → stay on same page; that's fine
+                    }
+
+                    // Then wait for DOM content to be ready and visible
+                    try {
+                        page.waitForLoadState(com.microsoft.playwright.options.LoadState.LOAD,
+                                new Page.WaitForLoadStateOptions().setTimeout(3_000));
+                    } catch (PlaywrightException ignored) {
+                        // LOAD didn't come in time; continue (we'll still screenshot)
+                    }
                 }
                 case TYPE -> {
                     page.mouse().click(step.coords().x(), step.coords().y());
@@ -154,5 +185,78 @@ public class SessionService {
         } catch (Exception e) {
             throw new RuntimeException("Failed to apply step: " + step.type(), e);
         }
+    }
+
+    private Path initRecordingsDir() {
+        try {
+            // Try: folder next to the running JAR (or target/classes when in IDE)
+            Path jarDir = Paths.get(SessionService.class.getProtectionDomain()
+                    .getCodeSource().getLocation().toURI()).getParent();
+            Path dir = jarDir.resolve("recordings");
+            Files.createDirectories(dir); // creates parents if missing
+            return dir;
+        } catch (Exception ignore) {
+            // Fallback: working dir ./recordings
+            try {
+                Path dir = Paths.get("recordings");
+                Files.createDirectories(dir);
+                return dir;
+            } catch (Exception e2) {
+                throw new RuntimeException("Cannot create recordings dir", e2);
+            }
+        }
+    }
+
+    private static String sanitize(String name) {
+        return name.replaceAll("[^a-zA-Z0-9._-]", "_");
+    }
+
+    private static String timestamp() {
+        return DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss").format(LocalDateTime.now());
+    }
+
+    public Path saveHistoryToFile(String sessionId, String name, boolean overwrite) {
+        StepsEnvelope env = history(sessionId);
+        String base = sanitize(name == null || name.isBlank() ? ("script-" + timestamp()) : name);
+        Path file = recordingsDir.resolve(base.endsWith(".json") ? base : (base + ".json"));
+
+        try {
+            if (!overwrite && Files.exists(file)) {
+                // add suffix if exists
+                file = recordingsDir.resolve(base + "-" + timestamp() + ".json");
+            }
+            json.writeValue(file.toFile(), env);
+            return file;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to save script to: " + file, e);
+        }
+    }
+
+    public java.util.List<String> listRecordings() {
+        try (var stream = Files.list(recordingsDir)) {
+            return stream.filter(p -> p.getFileName().toString().endsWith(".json"))
+                    .map(p -> p.getFileName().toString())
+                    .sorted()
+                    .toList();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to list recordings", e);
+        }
+    }
+
+    public StepsEnvelope loadStepsFromFile(String nameOrPath) {
+        Path file = nameOrPath.contains(FileSystems.getDefault().getSeparator())
+                ? Paths.get(nameOrPath)
+                : recordingsDir.resolve(nameOrPath.endsWith(".json") ? nameOrPath : nameOrPath + ".json");
+
+        try {
+            return json.readValue(file.toFile(), StepsEnvelope.class);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to read: " + file, e);
+        }
+    }
+
+    public ScreenshotResponse replayFromFile(String sessionId, String nameOrPath) {
+        StepsEnvelope env = loadStepsFromFile(nameOrPath);
+        return replay(sessionId, env); // your existing deterministic replay
     }
 }

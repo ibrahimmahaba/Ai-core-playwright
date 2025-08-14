@@ -60,5 +60,15 @@ public class RemoteController {
                                          @RequestParam String name) {
         return svc.replayFromFile(sessionId, name);
     }
+
+    @GetMapping("/{sessionId}/selections")
+    public SelectionsResponse getSelections(@PathVariable String sessionId) {
+        return new SelectionsResponse(svc.selections(sessionId));
+    }
+
+    @DeleteMapping("/{sessionId}/selections")
+    public void clearSelections(@PathVariable String sessionId) {
+        svc.clearSelections(sessionId);
+    }
 }
 

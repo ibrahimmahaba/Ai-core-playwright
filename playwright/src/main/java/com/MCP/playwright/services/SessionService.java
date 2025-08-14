@@ -31,6 +31,7 @@ public class SessionService {
         final BrowserContext ctx;
         final Page page;
         StepsEnvelope history = new StepsEnvelope("1.0", new java.util.ArrayList<>());
+        final java.util.List<SelectionResult> selections = new java.util.ArrayList<>(); // NEW
 
         Session(BrowserContext ctx, Page page) {
             this.ctx = ctx; this.page = page;
@@ -178,6 +179,12 @@ public class SessionService {
                     int ms = step.waitAfterMs() != null ? step.waitAfterMs() : 300;
                     page.waitForTimeout(ms);
                 }
+                case SELECT_TEXT -> {
+                    // Reuse step.text() as an optional label for this capture
+                    SelectionResult sel = selectTextAt(s, step.coords(), step.text());
+                    s.selections.add(sel);
+                    // (No waiting needed; we still honor step.waitAfterMs below)
+                }
             }
             if (step.waitAfterMs() != null && step.waitAfterMs() > 0) {
                 page.waitForTimeout(step.waitAfterMs());
@@ -258,5 +265,76 @@ public class SessionService {
     public ScreenshotResponse replayFromFile(String sessionId, String nameOrPath) {
         StepsEnvelope env = loadStepsFromFile(nameOrPath);
         return replay(sessionId, env); // your existing deterministic replay
+    }
+
+    @SuppressWarnings("unchecked")
+    private SelectionResult selectTextAt(Session s, Coords coords, String label) {
+        // JS: elementFromPoint for the topmost element; try caretRangeFromPoint/caretPositionFromPoint for exact word
+        String script = """
+        ({x, y}) => {
+          const el = document.elementFromPoint(x, y);
+          if (!el) return null;
+          const getCssPath = (e) => {
+            const path = [];
+            let cur = e, depth = 0;
+            while (cur && cur.nodeType === 1 && depth < 8) {
+              let s = cur.nodeName.toLowerCase();
+              if (cur.id) { s += '#' + cur.id; path.unshift(s); break; }
+              let i = 1, sib = cur;
+              while ((sib = sib.previousElementSibling)) if (sib.nodeName === cur.nodeName) i++;
+              s += ':nth-of-type(' + i + ')';
+              path.unshift(s);
+              cur = cur.parentElement; depth++;
+            }
+            return path.join('>');
+          };
+
+          let word = '';
+          const cr = (document.caretRangeFromPoint?.(x, y)) ??
+                     (document.caretPositionFromPoint?.(x, y) ?
+                       (() => { const cp = document.caretPositionFromPoint(x, y);
+                                const r = document.createRange(); r.setStart(cp.offsetNode, cp.offset);
+                                return r; })() : null);
+          if (cr && cr.startContainer && cr.startContainer.nodeType === Node.TEXT_NODE) {
+            const text = cr.startContainer.nodeValue || '';
+            let i = cr.startOffset, L = text.length, a = i, b = i;
+            while (a > 0 && !/\\s/.test(text[a-1])) a--;
+            while (b < L && !/\\s/.test(text[b])) b++;
+            word = text.slice(a, b);
+          }
+
+          const tag = el.tagName.toLowerCase();
+          const href = el.closest('a')?.getAttribute('href') || null;
+          let full = '';
+          if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+            full = el.value || el.placeholder || '';
+          } else {
+            full = (el.innerText || el.textContent || '').trim().replace(/\\s+/g, ' ');
+          }
+
+          return { text: full, word, selector: getCssPath(el), tag, href };
+        }
+    """;
+
+        Object result = s.page.evaluate(script, java.util.Map.of("x", coords.x(), "y", coords.y()));
+        if (result == null) {
+            return new SelectionResult(label, "", "", "", "", null, System.currentTimeMillis());
+        }
+        var map = (java.util.Map<String, Object>) result;
+        String text = map.get("text") != null ? map.get("text").toString() : "";
+        String word = map.get("word") != null ? map.get("word").toString() : "";
+        String selector = map.get("selector") != null ? map.get("selector").toString() : "";
+        String tag = map.get("tag") != null ? map.get("tag").toString() : "";
+        String href = map.get("href") != null ? map.get("href").toString() : null;
+
+        return new SelectionResult(label, text, word, selector, tag, href, System.currentTimeMillis());
+    }
+
+    public java.util.List<SelectionResult> selections(String sessionId) {
+        return java.util.List.copyOf(get(sessionId).selections);
+    }
+
+    public void clearSelections(String sessionId) {
+        get(sessionId).selections.clear();
     }
 }

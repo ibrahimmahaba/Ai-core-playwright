@@ -68,7 +68,7 @@ public class SessionService {
         if (req.url() != null && !req.url().isBlank()) {
             s.history.steps().add(new Step(
                     StepType.NAVIGATE, req.url(), null, null, null, null, "networkidle", 0,
-                    new Viewport(width, height, dpr), System.currentTimeMillis()
+                    new Viewport(width, height, dpr), System.currentTimeMillis(), ""
             ));
         }
 

@@ -70,5 +70,10 @@ public class RemoteController {
     public void clearSelections(@PathVariable String sessionId) {
         svc.clearSelections(sessionId);
     }
+
+    @GetMapping("/recordings/get")
+    public StepsEnvelope getRecording(@RequestParam String name) {
+        return svc.loadStepsFromFile(name);  // you already implemented this loader
+    }
 }
 

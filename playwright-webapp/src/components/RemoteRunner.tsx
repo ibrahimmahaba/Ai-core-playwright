@@ -1,5 +1,5 @@
 // src/components/RemoteRunner.tsx
-import React, { useEffect, useRef, useState } from "react";
+import React, {useRef, useState } from "react";
 
 type SelectionResult = {
   label?: string | null;
@@ -26,7 +26,7 @@ type Viewport = { width: number; height: number; deviceScaleFactor: number };
 type Step =
   | { type: "NAVIGATE"; url: string; waitUntil?: "networkidle" | "domcontentloaded"; viewport: Viewport; waitAfterMs?: number; timestamp: number }
   | { type: "CLICK"; coords: Coords; viewport: Viewport; waitAfterMs?: number; timestamp: number }
-  | { type: "TYPE"; coords: Coords; text: string; pressEnter?: boolean; viewport: Viewport; waitAfterMs?: number; timestamp: number }
+  | { type: "TYPE"; coords: Coords; text: string; label?: string | null; pressEnter?: boolean; viewport: Viewport; waitAfterMs?: number; timestamp: number } // ← label added
   | { type: "SCROLL"; coords: Coords; deltaY?: number; viewport: Viewport; waitAfterMs?: number; timestamp: number }
   | { type: "WAIT"; waitAfterMs: number; viewport: Viewport; timestamp: number }
   | { type: "SELECT_TEXT"; coords: Coords; text?: string | null; viewport: Viewport; waitAfterMs?: number; timestamp: number };
@@ -44,6 +44,7 @@ export default function RemoteRunner() {
   const imgRef = useRef<HTMLImageElement>(null);
   const [selections, setSelections] = useState<SelectionResult[]>([]);
   const [mode, setMode] = useState<"click" | "select">("click");
+  const [inputs, setInputs] = useState<EditableInput[]>([]);
 
 
   const viewport: Viewport = {
@@ -128,8 +129,13 @@ export default function RemoteRunner() {
       await sendStep({ type: "CLICK", coords, viewport, waitAfterMs: 300, timestamp: Date.now() });
     } else if (action === "type") {
       const text = window.prompt("Text to type:", "") ?? "";
+      const label = window.prompt("Optional label for this input (e.g., username, orderId):", "") || null;
       const pressEnter = window.confirm("Press Enter after typing?");
-      await sendStep({ type: "TYPE", coords, text, pressEnter, viewport, waitAfterMs: 300, timestamp: Date.now() });
+      await sendStep({
+        type: "TYPE",
+        coords, text, label, pressEnter,
+        viewport, waitAfterMs: 300, timestamp: Date.now()
+      } as Step);
     } else if (action === "scroll") {
       await sendStep({ type: "SCROLL", coords, deltaY: 400, viewport, waitAfterMs: 300, timestamp: Date.now() });
     }
@@ -193,6 +199,59 @@ export default function RemoteRunner() {
     setSelections([]);
   }
 
+  const [showInputs, setShowInputs] = useState(false);
+  type EditableInput = { index: number; label: string; value: string };
+
+  function gatherInputs(): EditableInput[] {
+    return steps
+      .map((st, i) => st.type === "TYPE" ? ({ index: i, label: (st.label ?? `input-${i}`), value: st.text }) : null)
+      .filter((x): x is EditableInput => !!x);
+  }
+
+  async function loadRecordingFromServer() {
+    const name = window.prompt("Recording name in 'recordings' (or filename.json):", "script-1") || "script-1";
+    const res = await fetch(`${API}/recordings/get?name=${encodeURIComponent(name)}`);
+    if (!res.ok) { alert("Failed to load recording"); return; }
+    const data: StepsEnvelope = await res.json();
+
+    const loadedSteps = data.steps || [];
+    setSteps(loadedSteps);
+    setInputs(buildInputsFrom(loadedSteps));  // <-- build from the data you JUST fetched
+    setShowInputs(true);
+  }
+
+
+  function buildInputsFrom(arr: Step[]): EditableInput[] {
+    return (arr ?? [])
+      .map((st, i) =>
+        st.type === "TYPE" ? { index: i, label: st.label ?? `input-${i}`, value: st.text } : null
+      )
+      .filter((x): x is EditableInput => !!x);
+  }
+
+  function applyInputsTo(stepsArr: Step[], edits: EditableInput[]): Step[] {
+    const map = new Map(edits.map(e => [e.index, e]));
+    return stepsArr.map((st, i) => {
+      const e = map.get(i);
+      if (!e || st.type !== "TYPE") return st;
+      return { ...st, label: e.label, text: e.value } as Step;
+    });
+  }
+
+  async function replayWith(stepsToRun: Step[]) {
+    if (!sessionId) return;
+    const envelope: StepsEnvelope = { version: "1.0", steps: stepsToRun };
+    const res = await fetch(`${API}/${sessionId}/replay`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ steps: envelope })
+    });
+    const data: ScreenshotResponse = await res.json();
+    setShot(data);
+  }
+
+
+
   return (
     <div style={{ padding: 16 }}>
       <h2>Remote Playwright Runner</h2>
@@ -207,7 +266,10 @@ export default function RemoteRunner() {
         </button>
         <button onClick={getSelections} disabled={!sessionId}>Get Selections</button>
         <button onClick={clearSelections} disabled={!sessionId || selections.length === 0}>Clear Selections</button>
-
+        <button onClick={loadRecordingFromServer} disabled={!sessionId}>Load Recording (Edit)</button>
+        <button onClick={() => { setInputs(gatherInputs()); setShowInputs(true); }} disabled={!sessionId}>
+          Edit Inputs
+        </button>
         <span>Steps: {steps.length}</span>
       </div>
 
@@ -246,6 +308,50 @@ export default function RemoteRunner() {
           )}
         </>
       )}
+
+
+      {showInputs && (
+        <div style={{ marginTop: 12, padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>
+          <h4>Edit Inputs ({inputs.length})</h4>
+          {inputs.length === 0 ? <div>No TYPE steps found.</div> : (
+            <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 1fr auto", gap: 8, alignItems: "center" }}>
+              <div style={{ fontWeight: 600 }}>Idx</div>
+              <div style={{ fontWeight: 600 }}>Label</div>
+              <div style={{ fontWeight: 600 }}>Value</div>
+              <div />
+              {inputs.map((it, row) => (
+                <React.Fragment key={it.index}>
+                  <div>#{it.index}</div>
+                  <input
+                    value={it.label}
+                    onChange={e => setInputs(cur => cur.map(c => c.index === it.index ? { ...c, label: e.target.value } : c))}
+                  />
+                  <input
+                    value={it.value}
+                    onChange={e => setInputs(cur => cur.map(c => c.index === it.index ? { ...c, value: e.target.value } : c))}
+                  />
+                  <button onClick={() => setInputs(cur => cur.filter(c => c.index !== it.index))}>Remove</button>
+                </React.Fragment>
+              ))}
+            </div>
+          )}
+          <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
+            // Run With These
+            <button onClick={async () => {
+              const next = applyInputsTo(steps, inputs); // compute
+              setSteps(next);                             // update state for the UI
+              await replayWith(next);                     // run with the computed array (no race)
+              setShowInputs(false);
+            }}>
+              Run With These
+            </button>
+            <button onClick={() => setShowInputs(false)}>Cancel</button>
+
+          </div>
+        </div>
+      )}
+
     </div>
+
   );
 }

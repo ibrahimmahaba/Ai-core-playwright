@@ -75,5 +75,16 @@ public class RemoteController {
     public StepsEnvelope getRecording(@RequestParam String name) {
         return svc.loadStepsFromFile(name);  // you already implemented this loader
     }
+
+    @PostMapping("/{sessionId}/replay/run")
+    public SessionService.ReplayFrame run(@PathVariable String sessionId, @RequestBody StepsEnvelope envelope) {
+        return svc.replayRun(sessionId, envelope);
+    }
+
+    @PostMapping("/{sessionId}/replay/continue")
+    public SessionService.ReplayFrame cont(@PathVariable String sessionId) {
+        return svc.replayContinue(sessionId);
+    }
+    
 }
 

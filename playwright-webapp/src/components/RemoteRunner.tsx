@@ -1,5 +1,5 @@
 // src/components/RemoteRunner.tsx
-import React, {useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 
 type SelectionResult = {
   label?: string | null;
@@ -29,10 +29,19 @@ type Step =
   | { type: "TYPE"; coords: Coords; text: string; label?: string | null; pressEnter?: boolean; viewport: Viewport; waitAfterMs?: number; timestamp: number } // ← label added
   | { type: "SCROLL"; coords: Coords; deltaY?: number; viewport: Viewport; waitAfterMs?: number; timestamp: number }
   | { type: "WAIT"; waitAfterMs: number; viewport: Viewport; timestamp: number }
-  | { type: "SELECT_TEXT"; coords: Coords; text?: string | null; viewport: Viewport; waitAfterMs?: number; timestamp: number };
+  | { type: "SELECT_TEXT"; coords: Coords; text?: string | null; viewport: Viewport; waitAfterMs?: number; timestamp: number }
+  | { type: "WAIT_FOR_USER"; label?: string | null; viewport: Viewport; waitAfterMs?: number; timestamp: number };
 
 
 type StepsEnvelope = { version: "1.0"; steps: Step[] };
+
+type ReplayFrame = {
+  shot: ScreenshotResponse;
+  paused: boolean;
+  pauseLabel?: string | null;
+  cursor: number;
+  done: boolean;
+};
 
 const API = "http://localhost:8080/api/remote"; // adjust
 
@@ -45,6 +54,7 @@ export default function RemoteRunner() {
   const [selections, setSelections] = useState<SelectionResult[]>([]);
   const [mode, setMode] = useState<"click" | "select">("click");
   const [inputs, setInputs] = useState<EditableInput[]>([]);
+  const [frame, setFrame] = useState<ReplayFrame | null>(null);
 
 
   const viewport: Viewport = {
@@ -250,6 +260,45 @@ export default function RemoteRunner() {
     setShot(data);
   }
 
+  async function insertPause() {
+    const label = window.prompt("Pause label (e.g., 'Enter OTP on phone'):", "Enter OTP") || null;
+    const pauseStep: Step = { type: "WAIT_FOR_USER", label, viewport, timestamp: Date.now(), waitAfterMs: 0 };
+    setSteps(prev => [...prev, pauseStep]);
+    // Optional: send to backend to record in history now
+    if (sessionId) {
+      await fetch(`${API}/${sessionId}/step`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ step: pauseStep })
+      });
+    }
+  }
+
+  async function runUntilPause() {
+    if (!sessionId) return;
+    const envelope: StepsEnvelope = { version: "1.0", steps };
+    const res = await fetch(`${API}/${sessionId}/replay/run`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(envelope)
+    });
+    const data: ReplayFrame = await res.json();
+    setShot(data.shot);
+    setFrame(data);
+    if (data.paused && data.pauseLabel) {
+      alert(`Paused: ${data.pauseLabel}\nYou can type steps, approve on phone, etc., then click Continue.`);
+    }
+  }
+
+  async function continueRun() {
+    if (!sessionId) return;
+    const res = await fetch(`${API}/${sessionId}/replay/continue`, { method: "POST" });
+    const data: ReplayFrame = await res.json();
+    setShot(data.shot);
+    setFrame(data);
+    if (data.paused && data.pauseLabel) {
+      alert(`Paused: ${data.pauseLabel}`);
+    }
+  }
 
 
   return (
@@ -270,6 +319,9 @@ export default function RemoteRunner() {
         <button onClick={() => { setInputs(gatherInputs()); setShowInputs(true); }} disabled={!sessionId}>
           Edit Inputs
         </button>
+        <button onClick={insertPause} disabled={!sessionId}>Insert Pause (Wait for User)</button>
+        <button onClick={runUntilPause} disabled={!sessionId}>Run (Until Pause)</button>
+        <button onClick={continueRun} disabled={!sessionId || !frame?.paused}>Continue</button>
         <span>Steps: {steps.length}</span>
       </div>
 

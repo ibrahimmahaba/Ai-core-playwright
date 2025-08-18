@@ -13,7 +13,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Base64;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,7 +30,13 @@ public class SessionService {
         final BrowserContext ctx;
         final Page page;
         StepsEnvelope history = new StepsEnvelope("1.0", new java.util.ArrayList<>());
-        final java.util.List<SelectionResult> selections = new java.util.ArrayList<>(); // NEW
+        final java.util.List<SelectionResult> selections = new java.util.ArrayList<>();
+
+        // --- segmented replay state (NEW) ---
+        StepsEnvelope runningScript = null;
+        int cursor = 0;
+        boolean paused = false;
+        String pauseLabel = null;
 
         Session(BrowserContext ctx, Page page) {
             this.ctx = ctx; this.page = page;
@@ -41,6 +46,7 @@ public class SessionService {
     private final Map<String, Session> sessions = new ConcurrentHashMap<>();
 
     public record CreateResult(String sessionId, ScreenshotResponse firstShot) {}
+    public record ReplayFrame(ScreenshotResponse shot, boolean paused, String pauseLabel, int cursor, boolean done) {}
 
     public CreateResult createAndOpen(CreateSessionRequest req) {
         int width  = req.width()  != null ? req.width()  : 1280;
@@ -64,7 +70,6 @@ public class SessionService {
         String id = UUID.randomUUID().toString();
         sessions.put(id, s);
 
-        // record NAVIGATE step if provided
         if (req.url() != null && !req.url().isBlank()) {
             s.history.steps().add(new Step(
                     StepType.NAVIGATE, req.url(), null, null, null, null, "networkidle", 0,
@@ -76,29 +81,75 @@ public class SessionService {
     }
 
     public ScreenshotResponse screenshot(String sessionId) {
-        Session s = get(sessionId);
-        byte[] buf = s.page.screenshot(new Page.ScreenshotOptions().setFullPage(false));
-        String b64 = java.util.Base64.getEncoder().encodeToString(buf);
-
-        int vpW = s.page.viewportSize().width;
-        int vpH = s.page.viewportSize().height;
-
-        // devicePixelRatio can come back as Integer or Double — always treat as Number
-        Object raw = s.page.evaluate("() => Number.isFinite(window.devicePixelRatio) ? window.devicePixelRatio : 1");
-        double dpr = (raw instanceof Number) ? ((Number) raw).doubleValue() : 1.0;
-
-        return new ScreenshotResponse(b64, vpW, vpH, dpr);
+        return screenshotSession(get(sessionId));
     }
 
-    public ScreenshotResponse executeStep(String sessionId, Step step) {
+    // --- segmented replay API (NEW) ---
+
+    /** Start a segmented run: reset page, then run until WAIT_FOR_USER or end. */
+    public ReplayFrame replayRun(String sessionId, StepsEnvelope steps) {
+        // Recreate a fresh context for deterministic replay
+        Session old = get(sessionId);
+        old.ctx.close();
+
+        BrowserContext ctx = browser.newContext(new Browser.NewContextOptions()
+                .setViewportSize(steps.steps().get(0).viewport().width(),
+                        steps.steps().get(0).viewport().height())
+                .setDeviceScaleFactor(steps.steps().get(0).viewport().deviceScaleFactor())
+        );
+        Page page = ctx.newPage();
+
+        Session s = new Session(ctx, page);
+        sessions.put(sessionId, s);
+
+        s.runningScript = steps;
+        s.cursor = 0;
+        s.paused = false;
+        s.pauseLabel = null;
+
+        return advanceUntilPauseOrEnd(s);
+    }
+
+    /** Continue a segmented run from the last cursor. */
+    public ReplayFrame replayContinue(String sessionId) {
         Session s = get(sessionId);
-        applyStep(s, step);
-        s.history.steps().add(step);
-        return screenshot(sessionId);
+        if (s.runningScript == null) {
+            throw new RuntimeException("No pending segmented replay for session " + sessionId);
+        }
+        s.paused = false;
+        s.pauseLabel = null;
+        return advanceUntilPauseOrEnd(s);
+    }
+
+    /** Core segmented runner: apply steps until WAIT_FOR_USER or end. */
+    private ReplayFrame advanceUntilPauseOrEnd(Session s) {
+        var steps = s.runningScript.steps();
+        for (; s.cursor < steps.size(); s.cursor++) {
+            Step st = steps.get(s.cursor);
+
+            if (st.type() == StepType.WAIT_FOR_USER) {
+                // Move past the pause marker; surface label to the client
+                s.cursor++;
+                s.paused = true;
+                s.pauseLabel = st.label() != null ? st.label()
+                        : (st.text() != null ? st.text() : "Waiting for user");
+                return new ReplayFrame(screenshotSession(s), true, s.pauseLabel, s.cursor, false);
+            }
+
+            applyStep(s, st);
+            s.history.steps().add(st);
+        }
+
+        // Done
+        ScreenshotResponse shot = screenshotSession(s);
+        s.runningScript = null;
+        s.paused = false;
+        s.pauseLabel = null;
+        return new ReplayFrame(shot, false, null, s.cursor, true);
     }
 
     public ScreenshotResponse replay(String sessionId, StepsEnvelope steps) {
-        // Reset context to a fresh page so replay is deterministic
+        // existing "run all at once" (kept for compatibility)
         Session sOld = get(sessionId);
         sOld.ctx.close();
 
@@ -113,17 +164,32 @@ public class SessionService {
 
         for (Step st : steps.steps()) applyStep(s, st);
         s.history = steps;
-        return screenshot(sessionId);
+        return screenshotSession(s);
     }
 
     public StepsEnvelope history(String sessionId) {
         return get(sessionId).history;
     }
 
+    // --- internals ---
+
     private Session get(String id) {
         Session s = sessions.get(id);
         if (s == null) throw new RuntimeException("Unknown session: " + id);
         return s;
+    }
+
+    private ScreenshotResponse screenshotSession(Session s) {
+        byte[] buf = s.page.screenshot(new Page.ScreenshotOptions().setFullPage(false));
+        String b64 = java.util.Base64.getEncoder().encodeToString(buf);
+
+        int vpW = s.page.viewportSize().width;
+        int vpH = s.page.viewportSize().height;
+
+        Object raw = s.page.evaluate("() => Number.isFinite(window.devicePixelRatio) ? window.devicePixelRatio : 1");
+        double dpr = (raw instanceof Number) ? ((Number) raw).doubleValue() : 1.0;
+
+        return new ScreenshotResponse(b64, vpW, vpH, dpr);
     }
 
     private void applyStep(Session s, Step step) {
@@ -136,8 +202,6 @@ public class SessionService {
                             .setWaitUntil(com.microsoft.playwright.options.WaitUntilState.LOAD)
                             .setTimeout(60_000);
                     page.navigate(step.url(), opts);
-
-                    // Optional short polish: try network idle without blocking forever
                     try {
                         page.waitForLoadState(com.microsoft.playwright.options.LoadState.NETWORKIDLE,
                                 new Page.WaitForLoadStateOptions().setTimeout(4_000));
@@ -145,26 +209,16 @@ public class SessionService {
                 }
                 case CLICK -> {
                     String before = page.url();
-
-                    // Perform the click
                     page.mouse().move(step.coords().x(), step.coords().y());
                     page.mouse().click(step.coords().x(), step.coords().y());
-
-                    // If navigation happens, wait for it (URL changed)
                     try {
                         page.waitForURL(u -> !u.equals(before),
-                                new Page.WaitForURLOptions().setTimeout(6_000)); // waits if it navigates
-                    } catch (PlaywrightException ignored) {
-                        // No URL change → stay on same page; that's fine
-                    }
-
-                    // Then wait for DOM content to be ready and visible
+                                new Page.WaitForURLOptions().setTimeout(6_000));
+                    } catch (PlaywrightException ignored) {}
                     try {
                         page.waitForLoadState(com.microsoft.playwright.options.LoadState.LOAD,
                                 new Page.WaitForLoadStateOptions().setTimeout(3_000));
-                    } catch (PlaywrightException ignored) {
-                        // LOAD didn't come in time; continue (we'll still screenshot)
-                    }
+                    } catch (PlaywrightException ignored) {}
                 }
                 case TYPE -> {
                     page.mouse().click(step.coords().x(), step.coords().y());
@@ -180,10 +234,12 @@ public class SessionService {
                     page.waitForTimeout(ms);
                 }
                 case SELECT_TEXT -> {
-                    // Reuse step.text() as an optional label for this capture
                     SelectionResult sel = selectTextAt(s, step.coords(), step.text());
                     s.selections.add(sel);
-                    // (No waiting needed; we still honor step.waitAfterMs below)
+                }
+                case WAIT_FOR_USER -> {
+                    // No-op here. In segmented mode, pause happens in advanceUntilPauseOrEnd().
+                    // When recording one-by-one, this simply marks the pause in history.
                 }
             }
             if (step.waitAfterMs() != null && step.waitAfterMs() > 0) {
@@ -196,14 +252,12 @@ public class SessionService {
 
     private Path initRecordingsDir() {
         try {
-            // Try: folder next to the running JAR (or target/classes when in IDE)
             Path jarDir = Paths.get(SessionService.class.getProtectionDomain()
                     .getCodeSource().getLocation().toURI()).getParent();
             Path dir = jarDir.resolve("recordings");
-            Files.createDirectories(dir); // creates parents if missing
+            Files.createDirectories(dir);
             return dir;
         } catch (Exception ignore) {
-            // Fallback: working dir ./recordings
             try {
                 Path dir = Paths.get("recordings");
                 Files.createDirectories(dir);
@@ -229,7 +283,6 @@ public class SessionService {
 
         try {
             if (!overwrite && Files.exists(file)) {
-                // add suffix if exists
                 file = recordingsDir.resolve(base + "-" + timestamp() + ".json");
             }
             json.writeValue(file.toFile(), env);
@@ -264,56 +317,55 @@ public class SessionService {
 
     public ScreenshotResponse replayFromFile(String sessionId, String nameOrPath) {
         StepsEnvelope env = loadStepsFromFile(nameOrPath);
-        return replay(sessionId, env); // your existing deterministic replay
+        return replay(sessionId, env);
     }
 
     @SuppressWarnings("unchecked")
     private SelectionResult selectTextAt(Session s, Coords coords, String label) {
-        // JS: elementFromPoint for the topmost element; try caretRangeFromPoint/caretPositionFromPoint for exact word
         String script = """
-        ({x, y}) => {
-          const el = document.elementFromPoint(x, y);
-          if (!el) return null;
-          const getCssPath = (e) => {
-            const path = [];
-            let cur = e, depth = 0;
-            while (cur && cur.nodeType === 1 && depth < 8) {
-              let s = cur.nodeName.toLowerCase();
-              if (cur.id) { s += '#' + cur.id; path.unshift(s); break; }
-              let i = 1, sib = cur;
-              while ((sib = sib.previousElementSibling)) if (sib.nodeName === cur.nodeName) i++;
-              s += ':nth-of-type(' + i + ')';
-              path.unshift(s);
-              cur = cur.parentElement; depth++;
-            }
-            return path.join('>');
-          };
-
-          let word = '';
-          const cr = (document.caretRangeFromPoint?.(x, y)) ??
-                     (document.caretPositionFromPoint?.(x, y) ?
-                       (() => { const cp = document.caretPositionFromPoint(x, y);
-                                const r = document.createRange(); r.setStart(cp.offsetNode, cp.offset);
-                                return r; })() : null);
-          if (cr && cr.startContainer && cr.startContainer.nodeType === Node.TEXT_NODE) {
-            const text = cr.startContainer.nodeValue || '';
-            let i = cr.startOffset, L = text.length, a = i, b = i;
-            while (a > 0 && !/\\s/.test(text[a-1])) a--;
-            while (b < L && !/\\s/.test(text[b])) b++;
-            word = text.slice(a, b);
+      ({x, y}) => {
+        const el = document.elementFromPoint(x, y);
+        if (!el) return null;
+        const getCssPath = (e) => {
+          const path = [];
+          let cur = e, depth = 0;
+          while (cur && cur.nodeType === 1 && depth < 8) {
+            let s = cur.nodeName.toLowerCase();
+            if (cur.id) { s += '#' + cur.id; path.unshift(s); break; }
+            let i = 1, sib = cur;
+            while ((sib = sib.previousElementSibling)) if (sib.nodeName === cur.nodeName) i++;
+            s += ':nth-of-type(' + i + ')';
+            path.unshift(s);
+            cur = cur.parentElement; depth++;
           }
+          return path.join('>');
+        };
 
-          const tag = el.tagName.toLowerCase();
-          const href = el.closest('a')?.getAttribute('href') || null;
-          let full = '';
-          if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
-            full = el.value || el.placeholder || '';
-          } else {
-            full = (el.innerText || el.textContent || '').trim().replace(/\\s+/g, ' ');
-          }
-
-          return { text: full, word, selector: getCssPath(el), tag, href };
+        let word = '';
+        const cr = (document.caretRangeFromPoint?.(x, y)) ??
+                   (document.caretPositionFromPoint?.(x, y) ?
+                     (() => { const cp = document.caretPositionFromPoint(x, y);
+                              const r = document.createRange(); r.setStart(cp.offsetNode, cp.offset);
+                              return r; })() : null);
+        if (cr && cr.startContainer && cr.startContainer.nodeType === Node.TEXT_NODE) {
+          const text = cr.startContainer.nodeValue || '';
+          let i = cr.startOffset, L = text.length, a = i, b = i;
+          while (a > 0 && !/\\s/.test(text[a-1])) a--;
+          while (b < L && !/\\s/.test(text[b])) b++;
+          word = text.slice(a, b);
         }
+
+        const tag = el.tagName.toLowerCase();
+        const href = el.closest('a')?.getAttribute('href') || null;
+        let full = '';
+        if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+          full = el.value || el.placeholder || '';
+        } else {
+          full = (el.innerText || el.textContent || '').trim().replace(/\\s+/g, ' ');
+        }
+
+        return { text: full, word, selector: getCssPath(el), tag, href };
+      }
     """;
 
         Object result = s.page.evaluate(script, java.util.Map.of("x", coords.x(), "y", coords.y()));
@@ -336,5 +388,13 @@ public class SessionService {
 
     public void clearSelections(String sessionId) {
         get(sessionId).selections.clear();
+    }
+
+    public ScreenshotResponse executeStep(String sessionId, Step step) {
+        Session s = get(sessionId);
+        // Allow ad-hoc actions even during a segmented run (e.g., user types OTP)
+        applyStep(s, step);
+        s.history.steps().add(step);
+        return screenshotSession(s);
     }
 }

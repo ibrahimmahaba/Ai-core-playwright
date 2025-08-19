@@ -17,6 +17,9 @@ import java.util.Base64;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 
 @Service
 public class SessionService {
@@ -26,16 +29,30 @@ public class SessionService {
     );
     private final ObjectMapper json = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
     private final Path recordingsDir = initRecordingsDir();
-
+    private final ExecutorService replayExec = Executors.newCachedThreadPool();
+    public static record ReplayStatus(boolean running, int index, int total, String current, String error) {}
     static class Session {
         final BrowserContext ctx;
         final Page page;
         StepsEnvelope history = new StepsEnvelope("1.0", new java.util.ArrayList<>());
         final java.util.List<SelectionResult> selections = new java.util.ArrayList<>(); // NEW
+        final ReplayState replay = new ReplayState(); // ← add this
 
         Session(BrowserContext ctx, Page page) {
             this.ctx = ctx; this.page = page;
         }
+    }
+
+
+
+
+    static class ReplayState {
+        volatile boolean running = false;
+        volatile int index = 0;
+        volatile int total = 0;
+        volatile String current = null;
+        volatile String error = null;
+        final AtomicBoolean cancel = new AtomicBoolean(false);
     }
 
     private final Map<String, Session> sessions = new ConcurrentHashMap<>();
@@ -337,4 +354,57 @@ public class SessionService {
     public void clearSelections(String sessionId) {
         get(sessionId).selections.clear();
     }
+
+    public byte[] screenshotBytes(String sessionId, int quality) {
+        var s = get(sessionId);
+        return s.page.screenshot(new Page.ScreenshotOptions()
+                .setFullPage(false)
+                .setType(com.microsoft.playwright.options.ScreenshotType.JPEG)
+                .setQuality(quality));
+    }
+
+    public ReplayStatus startReplayAsync(String sessionId, StepsEnvelope steps) {
+        Session s = get(sessionId);
+        if (s.replay.running) throw new IllegalStateException("Replay already running for this session");
+        s.replay.running = true;
+        s.replay.index = 0;
+        s.replay.total = steps.steps().size();
+        s.replay.current = null;
+        s.replay.error = null;
+        s.replay.cancel.set(false);
+
+        replayExec.submit(() -> {
+            try {
+                for (int i = 0; i < steps.steps().size(); i++) {
+                    if (s.replay.cancel.get()) break;
+                    Step st = steps.steps().get(i);
+                    s.replay.index = i;
+                    s.replay.current = st.type().name();
+                    applyStep(s, st);                   // reuse your existing logic
+                    // optional: a tiny breather so the UI can poll between steps
+                    try { s.page.waitForTimeout(120); } catch (Exception ignore) {}
+                }
+                // keep the recorded history in sync (optional)
+                s.history = steps;
+            } catch (Exception ex) {
+                s.replay.error = ex.toString();
+            } finally {
+                s.replay.running = false;
+                s.replay.current = null;
+            }
+        });
+
+        return replayStatus(sessionId);
+    }
+
+    public ReplayStatus replayStatus(String sessionId) {
+        Session s = get(sessionId);
+        return new ReplayStatus(s.replay.running, s.replay.index, s.replay.total, s.replay.current, s.replay.error);
+    }
+
+    public void cancelReplay(String sessionId) {
+        Session s = get(sessionId);
+        s.replay.cancel.set(true);
+    }
+
 }

@@ -75,5 +75,23 @@ public class RemoteController {
     public StepsEnvelope getRecording(@RequestParam String name) {
         return svc.loadStepsFromFile(name);  // you already implemented this loader
     }
+    @PostMapping("/{sessionId}/replay/async")
+    public SessionService.ReplayStatus startAsync(@PathVariable String sessionId, @RequestBody StepsEnvelopeWrapper body) {
+        return svc.startReplayAsync(sessionId, body.steps());
+    }
+
+    @GetMapping("/{sessionId}/replay/status")
+    public SessionService.ReplayStatus status(@PathVariable String sessionId) {
+        return svc.replayStatus(sessionId);
+    }
+
+    @PostMapping("/{sessionId}/replay/cancel")
+    public void cancel(@PathVariable String sessionId) {
+        svc.cancelReplay(sessionId);
+    }
+
+    // helper wrapper matching your existing JSON shape
+    public static record StepsEnvelopeWrapper(StepsEnvelope steps) {}
+
 }
 

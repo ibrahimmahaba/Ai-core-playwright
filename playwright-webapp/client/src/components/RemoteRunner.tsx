@@ -1,6 +1,7 @@
 // src/components/RemoteRunner.tsx
 import React, { useRef, useState } from "react";
 import { useInsight } from "@semoss/sdk-react";
+import { runPixel } from "@semoss/sdk";
 
 type ScreenshotResponse = {
   base64Png: string;
@@ -21,10 +22,6 @@ type Step =
 
 type StepsEnvelope = { version: "1.0"; steps: Step[] };
 
-//let PixelCall = runPixel('Playwright ( endpoint = [ "session" ] , paramValues = [ {"url":"https://www.google.com"} ] )');
-const API = `http://localhost:9090/Monolith/api`; // adjust
-console.log("API URL:", API);
-
 export default function RemoteRunner() {
   const [sessionId, setSessionId] = useState<any>();
   const [shot, setShot] = useState<ScreenshotResponse>();
@@ -40,29 +37,11 @@ export default function RemoteRunner() {
   };
 
   async function createSession() {
-    // const res = await fetch(`${API}/session`, {
-    //   method: "POST",
-    //   headers: { "Content-Type": "application/json" },
-    //   body: JSON.stringify({ url, width: 1280, height: 800, deviceScaleFactor: 1 })
-    // });
 
-    // let pixel = `Playwright ( endpoint = [ "session" ] , paramValues = [ {"url":"${url}", "width": 1280, "height": 800, "deviceScaleFactor": 1} ] )`;
-    // const res = await runPixel(pixel);
-    // const { output } = await res.pixelReturn[0] as { output: { sessionId: string, firstShot: ScreenshotResponse } };
-    const res = await fetch(`${API}/engine/runPixel`, {
-      method: "POST",
-      headers: { 
-        "Content-Type": "application/json" 
-      },
-      body: JSON.stringify({ 
-        expression: `Playwright ( endpoint = [ "session" ] , paramValues = [ {"url":"${url}", "width": 1280, "height": 800, "deviceScaleFactor": 1} ] )`,
-        insightId: insightId
-      })
-    });
-    
-    const responseData = await res.json();
-    const { output } = responseData.pixelReturn[0] as { output: { sessionId: string, firstShot: ScreenshotResponse } };
-    
+    let pixel = `Playwright ( endpoint = [ "session" ] , paramValues = [ {"url":"${url}", "width": 1280, "height": 800, "deviceScaleFactor": 1} ] )`;
+    const res = await runPixel(pixel, insightId);
+    const { output } = await res.pixelReturn[0] as { output: { sessionId: string, firstShot: ScreenshotResponse } };
+
     setSessionId(output['sessionId']);
     setShot(output['firstShot']);
     // Also push NAVIGATE step locally so replay matches
@@ -77,28 +56,11 @@ export default function RemoteRunner() {
 
   async function sendStep(step: Step) {
     if (!sessionId) return;
-    // const res = await fetch(`${API}/${sessionId}/step`, {
-    //   method: "POST",
-    //   headers: { "Content-Type": "application/json" },
-    //   body: JSON.stringify({ step })
-    // });
-    // let pixelStep = `Playwright ( endpoint = [ "step" ] , sessionId = "${sessionId}", paramValues = [ ${JSON.stringify(step)} ] ) `;
-    // const res = await runPixel(pixelStep);
-    // const {output} = await res.pixelReturn[0];
 
-    const res = await fetch(`${API}/engine/runPixel`, {
-      method: "POST",
-      headers: { 
-        "Content-Type": "application/json" 
-      },
-      body: JSON.stringify({ 
-        expression: `Playwright ( endpoint = [ "step" ] , sessionId = "${sessionId}", paramValues = [ ${JSON.stringify(step)} ] )`,
-        insightId: insightId
-      })
-    });
+    let pixel = `Playwright ( endpoint = [ "step" ] , sessionId = "${sessionId}", paramValues = [ ${JSON.stringify(step)} ] )`;
+    const res = await runPixel(pixel, insightId);
 
-    const responseData = await res.json();
-    const { output } = responseData.pixelReturn[0];
+    const { output } = res.pixelReturn[0];
 
     const data: ScreenshotResponse = output as ScreenshotResponse;
     setShot(data);
@@ -154,18 +116,21 @@ export default function RemoteRunner() {
     //   body: JSON.stringify({ steps: envelope })
     // });
 
-    const res = await fetch(`${API}/engine/runPixel`, {
-      method: "POST",
-      headers: { 
-        "Content-Type": "application/json" 
-      },
-      body: JSON.stringify({ 
-        expression: `Playwright ( endpoint = [ "replay" ] , sessionId = "${sessionId}", paramValues = [  "steps": {${envelope}} ] )`,
-        insightId: insightId
-      })
-    });
+    let pixel = `Playwright ( endpoint = [ "replay" ] , sessionId = "${sessionId}", paramValues = [  "steps": {${envelope}} ] )`;
+    const res = await runPixel(pixel, insightId);
+
+    // const res = await fetch(`${API}/engine/runPixel`, {
+    //   method: "POST",
+    //   headers: { 
+    //     "Content-Type": "application/json" 
+    //   },
+    //   body: JSON.stringify({ 
+    //     expression: `Playwright ( endpoint = [ "replay" ] , sessionId = "${sessionId}", paramValues = [  "steps": {${envelope}} ] )`,
+    //     insightId: insightId
+    //   })
+    // });
     
-    const data: ScreenshotResponse = await res.json();
+    const data: ScreenshotResponse = await res.pixelReturn[0].output as ScreenshotResponse;
     setShot(data);
   }
 const [scriptName, setScriptName] = useState("script-1");
@@ -173,20 +138,11 @@ const [scriptName, setScriptName] = useState("script-1");
 async function save() {
   if (!sessionId) return;
   const name = window.prompt("Save as (name or filename.json):", scriptName) || scriptName;
-  // const res = await fetch(`${API}/${sessionId}/save?name=${encodeURIComponent(name)}`, {
-  //   method: "POST"
-  // });
-  const res = await fetch(`${API}/engine/runPixel`, {
-    method: "POST",
-    headers: { 
-      "Content-Type": "application/json" 
-    },
-    body: JSON.stringify({ 
-      expression: `Playwright ( endpoint = [ "save" ] , sessionId = "${sessionId}", paramValues = [  {"name": "${name}"} ] )`,
-      insightId: insightId
-    })
-  });
-  const data = await res.json();
+
+  let pixel = `Playwright ( endpoint = [ "save" ] , sessionId = "${sessionId}", paramValues = [  {"name": "${name}"} ] )`;
+  const res = await runPixel(pixel, insightId);
+  const data = await res.pixelReturn[0].output as { file: string };
+
   setScriptName(name);
   alert(`Saved to: ${data.file}`);
 }
@@ -194,21 +150,11 @@ async function save() {
 async function replayFromFile() {
   if (!sessionId) return;
   const name = window.prompt("Replay file (name in 'recordings' or absolute path):", scriptName) || scriptName;
-  // const res = await fetch(`${API}/${sessionId}/replay/file?name=${encodeURIComponent(name)}`, {
-  //   method: "POST"
-  // });
-  const res = await fetch(`${API}/engine/runPixel`, {
-    method: "POST",
-    headers: { 
-      "Content-Type": "application/json" 
-    },
-    body: JSON.stringify({ 
-      expression: `Playwright ( endpoint = [ "replayFile" ] , sessionId = "${sessionId}", paramValues = [ { "name" : "${name}"} ] ) ;`,
-      insightId: insightId
-    })
-  });
-  const responseData = await res.json();
-  const { output } = responseData.pixelReturn[0];
+
+  let pixel = `Playwright ( endpoint = [ "replayFile" ] , sessionId = "${sessionId}", paramValues = [ { "name" : "${name}"} ] )`;
+  const res = await runPixel(pixel, insightId);
+
+  const { output } = res.pixelReturn[0] as { output: any };
 
   if (output && typeof output === 'object' && output.base64Png) {
     setShot(output as ScreenshotResponse);

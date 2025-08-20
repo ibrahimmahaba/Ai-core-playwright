@@ -48,8 +48,10 @@ export default function RemoteRunner() {
   const [mode, setMode] = useState<"click" | "select">("click");
 
   // Live polling controls
-  const [live, setLive] = useState(false);
   const [intervalMs, setIntervalMs] = useState(1000);
+
+  const [live, setLive] = useState(false);
+  const [followReplay, setFollowReplay] = useState(false);
 
   // Inputs editor
   const [inputs, setInputs] = useState<EditableInput[]>([]);
@@ -129,7 +131,7 @@ export default function RemoteRunner() {
 
   // --- Live polling of replay status (stop live when finished)
   useEffect(() => {
-    if (!sessionId || !live) return;
+    if (!sessionId || !live || !followReplay) return;
     let cancelled = false;
     const poll = async () => {
       if (cancelled) return;
@@ -137,16 +139,15 @@ export default function RemoteRunner() {
         const r = await fetch(`${API}/${sessionId}/replay/status`);
         if (r.ok) {
           const st: ReplayStatus = await r.json();
-          if (!st.running) setLive(false); // stop live when replay finishes or fails
+          if (!st.running) { setLive(false); setFollowReplay(false); }
         }
-      } catch (err) {
-        console.warn("status poll error:", err);
-      }
-      if (!cancelled && live) setTimeout(poll, 500);
+      } catch { }
+      if (!cancelled && live && followReplay) setTimeout(poll, 500);
     };
     poll();
     return () => { cancelled = true; };
-  }, [sessionId, live]);
+  }, [sessionId, live, followReplay]);
+
 
   // --- Live polling loop for screenshots (chain setTimeout to avoid overlap)
   useEffect(() => {
@@ -202,14 +203,15 @@ export default function RemoteRunner() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ steps: envelope })
     });
-    if (!r.ok) {
-      console.error("startLiveReplay failed", r.status, await r.text());
-      alert("Failed to start live replay");
-      return;
-    }
-    setLive(true); // begin polling screenshots
+    if (!r.ok) { alert("Failed to start live replay"); return; }
+    setFollowReplay(true);
+    setLive(true);
   }
 
+  function startJustPolling() {
+    setFollowReplay(false);
+    setLive(true);
+  }
   // --- Map click on <img> to page CSS pixels using the clicked element
   function imageToPageCoords(e: React.MouseEvent<HTMLImageElement>): Coords {
     if (!shot) return { x: 0, y: 0 };
@@ -410,10 +412,13 @@ export default function RemoteRunner() {
         </button>
 
         {/* Live replay controls */}
-        <button onClick={startLiveReplay} disabled={!sessionId || steps.length === 0}>Start Live Replay</button>
-        <button onClick={() => setLive(v => !v)} disabled={!sessionId}>
-          {live ? "Stop Live" : "Start Live (just poll)"}
+        <button onClick={startLiveReplay} disabled={!sessionId || steps.length === 0}>
+          Start Live Replay
         </button>
+        <button onClick={startJustPolling} disabled={!sessionId}>
+          Start Live (just poll)
+        </button>
+        <button onClick={() => setLive(false)} disabled={!live}>Stop Live</button>
         <label>
           Interval:&nbsp;
           <input

@@ -2,6 +2,7 @@
 import React, { useRef, useState } from "react";
 import { useInsight } from "@semoss/sdk-react";
 import { runPixel } from "@semoss/sdk";
+import { CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Menu, MenuItem } from "@mui/material";
 
 type ScreenshotResponse = {
   base64Png: string;
@@ -23,6 +24,44 @@ type Step =
 type StepsEnvelope = { version: "1.0"; steps: Step[] };
 
 export default function RemoteRunner() {
+
+  const [isPromptOpen, setIsPromptOpen] = useState(false);
+  const [promptTitle, setPromptTitle] = useState<string>("");
+  const [promptValue, setPromptValue] = useState<string>("");
+  const [loading, setLoading] = useState(false);
+  const promptResolve = useRef<((v: string | null) => void) | null>(null);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [isPromptType, setIsPromptType] = useState(false);
+  const [metadata, setMetadata] = useState<Record<string, string>>({});
+
+
+  async function fetchMetadata() {
+    const res = await runPixel("Playwright ( endpoint = [ \"metadata\" ] )", insightId);
+    const { output } = res.pixelReturn[0]
+    setMetadata(output as Record<string, string>);
+  };
+
+  function promptMui(message: string, defaultValue: string = ""): Promise<string | null> {
+    setPromptTitle(message);
+    setPromptValue(defaultValue);
+    return new Promise<string | null>((resolve) => {
+      promptResolve.current = resolve;
+      setIsPromptOpen(true);
+    });
+  }
+
+  function handlePromptCancel() {
+    setIsPromptOpen(false);
+    setIsPromptType(false);
+    promptResolve.current && promptResolve.current(null);
+    promptResolve.current = null;
+  }
+
+  function handlePromptOk() {
+    setIsPromptOpen(false);
+    promptResolve.current && promptResolve.current(promptValue);
+    promptResolve.current = null;
+  }
   const [sessionId, setSessionId] = useState<any>();
   const [shot, setShot] = useState<ScreenshotResponse>();
   const [url, setUrl] = useState("https://example.com");
@@ -38,6 +77,7 @@ export default function RemoteRunner() {
 
   async function createSession() {
 
+    fetchMetadata();
     let pixel = `Playwright ( endpoint = [ "session" ] , paramValues = [ {"url":"${url}", "width": 1280, "height": 800, "deviceScaleFactor": 1} ] )`;
     const res = await runPixel(pixel, insightId);
     const { output } = await res.pixelReturn[0] as { output: { sessionId: string, firstShot: ScreenshotResponse } };
@@ -52,19 +92,25 @@ export default function RemoteRunner() {
       viewport,
       timestamp: Date.now()
     } as Step]);
+    
   }
 
   async function sendStep(step: Step) {
     if (!sessionId) return;
 
-    let pixel = `Playwright ( endpoint = [ "step" ] , sessionId = "${sessionId}", paramValues = [ ${JSON.stringify(step)} ] )`;
-    const res = await runPixel(pixel, insightId);
+    setLoading(true);
+    try{
+      let pixel = `Playwright ( endpoint = [ "step" ] , sessionId = "${sessionId}", paramValues = [ ${JSON.stringify(step)} ] )`;
+      const res = await runPixel(pixel, insightId);
 
-    const { output } = res.pixelReturn[0];
+      const { output } = res.pixelReturn[0];
 
-    const data: ScreenshotResponse = output as ScreenshotResponse;
-    setShot(data);
-    setSteps(prev => [...prev, step]);
+      const data: ScreenshotResponse = output as ScreenshotResponse;
+      setShot(data);
+      setSteps(prev => [...prev, step]);
+    } finally {
+      setLoading(false);
+    }
   }
 
   function imageToPageCoords(e: React.MouseEvent<HTMLImageElement, MouseEvent>): Coords {
@@ -84,7 +130,7 @@ export default function RemoteRunner() {
     if (!shot) return;
     const coords = imageToPageCoords(e);
 
-    const mode = window.prompt("Action? (click/type/scroll)", "click");
+    const mode = await promptMui("Action? (click/type/scroll)", "click");
     if (!mode) return;
 
     if (mode === "click") {
@@ -93,8 +139,12 @@ export default function RemoteRunner() {
         coords, viewport, waitAfterMs: 300, timestamp: Date.now()
       } as Step);
     } else if (mode === "type") {
-      const text = window.prompt("Text to type:", "");
+      setIsPromptType(true);
+      const text = await promptMui("Text to type:", "");
+      if (text == null)
+        return; // User cancelled
       const pressEnter = window.confirm("Press Enter after typing?");
+      setIsPromptType(false);
       await sendStep({
         type: "TYPE",
         coords, text: text || "", pressEnter, viewport, waitAfterMs: 300, timestamp: Date.now()
@@ -137,7 +187,7 @@ const [scriptName, setScriptName] = useState("script-1");
 
 async function save() {
   if (!sessionId) return;
-  const name = window.prompt("Save as (name or filename.json):", scriptName) || scriptName;
+  const name = await promptMui("Save as (name or filename.json):", scriptName) || scriptName;
 
   let pixel = `Playwright ( endpoint = [ "save" ] , sessionId = "${sessionId}", paramValues = [  {"name": "${name}"} ] )`;
   const res = await runPixel(pixel, insightId);
@@ -149,7 +199,7 @@ async function save() {
 
 async function replayFromFile() {
   if (!sessionId) return;
-  const name = window.prompt("Replay file (name in 'recordings' or absolute path):", scriptName) || scriptName;
+  const name = await promptMui("Replay file (name in 'recordings' or absolute path):", scriptName) || scriptName;
 
   let pixel = `Playwright ( endpoint = [ "replayFile" ] , sessionId = "${sessionId}", paramValues = [ { "name" : "${name}"} ] )`;
   const res = await runPixel(pixel, insightId);
@@ -177,14 +227,80 @@ return (
     </div>
 
     {shot && (
+    <div style={{ position: "relative", display: "inline-block" }}>
       <img
         ref={imgRef}
         onClick={handleClick}
-        src={`data:image/png;base64,${shot.base64Png}`}
-        alt="remote"
+        src={shot ? `data:image/png;base64,${shot.base64Png}` : undefined}
+        alt="screenshot"
         style={{ border: "1px solid #ccc", maxWidth: "100%", cursor: "crosshair" }}
+        onLoad={() => setLoading(false)} // hide spinner once image loads
       />
+    
+      {loading && (
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(0,0,0,0.3)",
+          }}
+        >
+          <CircularProgress color="inherit" />
+        </div>
+      )}
+    </div>
     )}
+
+    <Dialog open={isPromptOpen} onClose={handlePromptCancel}>
+      <DialogTitle>{promptTitle || "Enter value"}</DialogTitle>
+      <DialogContent>
+        <TextField
+          autoFocus
+          margin="dense"
+          fullWidth
+          value={promptValue}
+          onChange={(e) => setPromptValue(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { handlePromptOk(); } }}
+        />
+        {isPromptType && (
+        <>
+          <Button
+            variant="outlined"
+            onClick={(e) => setAnchorEl(e.currentTarget)} // open menu
+          >
+            Insert Var
+          </Button>
+          <Menu
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={() => setAnchorEl(null)}
+          >
+            {Object.entries(metadata).map(([key, value]) => (
+              <MenuItem
+                key={key}
+                onClick={() => {
+                  setPromptValue(promptValue + value);
+                  setAnchorEl(null);
+                }}
+              >
+                {key}
+              </MenuItem>
+            ))}
+          </Menu>
+        </>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handlePromptCancel}>Cancel</Button>
+        <Button onClick={handlePromptOk} variant="contained">OK</Button>
+      </DialogActions>
+    </Dialog>
   </div>
 );
 }

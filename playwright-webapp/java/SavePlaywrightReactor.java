@@ -1,11 +1,15 @@
 package prerna.reactor.playwright;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -16,11 +20,16 @@ import prerna.sablecc2.om.GenRowStruct;
 import prerna.sablecc2.om.PixelDataType;
 import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
+import prerna.sablecc2.om.execptions.SemossPixelException;
+import prerna.util.Constants;
+import prerna.util.DIHelper;
+import prerna.util.Utility;
 import prerna.util.git.reactors.SaveAssetReactor;
 
 public class SavePlaywrightFileReactor extends AbstractReactor {
     
     private static final Logger classLogger = LogManager.getLogger(SavePlaywrightFileReactor.class);
+    private static final String DIR_SEPARATOR = File.separator;
     
     public SavePlaywrightFileReactor() {
         this.keysToGet = new String[] {
@@ -38,7 +47,6 @@ public class SavePlaywrightFileReactor extends AbstractReactor {
         organizeKeys();
         
         User user = this.insight.getUser();
-        //String projectId = this.insight.getProjectId();
         
         String jsonContent = this.keyValue.get(this.keysToGet[0]);
         String fileName = this.keyValue.get(this.keysToGet[1]);
@@ -66,8 +74,7 @@ public class SavePlaywrightFileReactor extends AbstractReactor {
         try {
             String fileId = UUID.randomUUID().toString();
 
-            NounMetadata sharedSaveResult = null;
-            sharedSaveResult = saveToSharedLocation(jsonContent, fileName, fileId, comment);
+            NounMetadata serverFolderResult = saveToServerFolder(jsonContent, fileName, fileId);
             
             String sharedFilePath = "playwright/" + fileId + "_" + fileName;
             
@@ -79,12 +86,12 @@ public class SavePlaywrightFileReactor extends AbstractReactor {
             
             // grant additional permissions if specified
             // permissions can be a map
-            
+            //to be done
 
             Map<String, Object> result = new HashMap<>();
             result.put("fileId", fileId);
             result.put("fileName", fileName);
-            result.put("sharedSave", sharedSaveResult != null ? sharedSaveResult.getValue() : null);
+            result.put("serverFolderSave", serverFolderResult != null ? serverFolderResult.getValue() : null);
             result.put("success", true);
             result.put("message", "File saved successfully with ID: " + fileId);
             
@@ -96,28 +103,49 @@ public class SavePlaywrightFileReactor extends AbstractReactor {
         }
     }
 
-    private NounMetadata saveToSharedLocation(String jsonContent, String fileName, String fileId, String comment) {
-        // Use SaveAssetReactor to save to shared folder
-        SaveAssetReactor saveAssetReactor = new SaveAssetReactor();
-        saveAssetReactor.setInsight(this.insight);
-        
-        // create unique filename with fileId prefix for shared location
-        String uniqueFileName = fileId + "_" + fileName;
-        
-        GenRowStruct fileNameGrs = new GenRowStruct();
-        fileNameGrs.add(new NounMetadata("shared/playwright/" + uniqueFileName, PixelDataType.CONST_STRING));
-        
-        GenRowStruct contentGrs = new GenRowStruct();
-        contentGrs.add(new NounMetadata(jsonContent, PixelDataType.CONST_STRING));
-        
-        GenRowStruct commentGrs = new GenRowStruct();
-        commentGrs.add(new NounMetadata(comment + " (shared)", PixelDataType.CONST_STRING));
-        
-        saveAssetReactor.getNounStore().addNoun(ReactorKeysEnum.FILE_NAME.getKey(), fileNameGrs);
-        saveAssetReactor.getNounStore().addNoun(ReactorKeysEnum.CONTENT.getKey(), contentGrs);
-        saveAssetReactor.getNounStore().addNoun(ReactorKeysEnum.COMMENT_KEY.getKey(), commentGrs);
-        
-        return saveAssetReactor.execute();
+    private NounMetadata saveToServerFolder(String jsonContent, String fileName, String fileId) {
+        try {
+            // Get the base folder 
+            String baseFolder = DIHelper.getInstance().getProperty("BaseFolder");
+            if (baseFolder == null || baseFolder.trim().isEmpty()) {
+                throw new RuntimeException("BaseFolder property not found in DIHelper");
+            }
+            
+            // create playwright folder at base folder
+            // {BaseFolder}/playwright/ 
+            String playwrightBaseFolderPath = baseFolder + DIR_SEPARATOR + "playwright";
+            File playwrightBaseFolder = new File(playwrightBaseFolderPath);
+            if (!playwrightBaseFolder.exists()) {
+                playwrightBaseFolder.mkdirs();
+                classLogger.info("Created playwright base folder: " + playwrightBaseFolderPath);
+            }
+            
+            String uniqueFileName = fileId + "_" + fileName;
+            String filePath = playwrightBaseFolderPath + DIR_SEPARATOR + uniqueFileName;
+            
+            String decodedContent = Utility.decodeURIComponent(jsonContent);
+            
+            // save file to playwright folder
+            File file = new File(filePath);
+            FileUtils.writeStringToFile(file, decodedContent, Charset.forName("UTF-8"));
+            
+            classLogger.info("Successfully saved Playwright file to server folder: " + filePath);
+            
+            Map<String, Object> result = new HashMap<>();
+            result.put("filePath", filePath);
+            result.put("baseFolder", playwrightBaseFolderPath);
+            result.put("success", true);
+            result.put("message", "File saved to /playwright/ folder");
+            
+            return new NounMetadata(result, PixelDataType.MAP);
+            
+        } catch (IOException e) {
+            classLogger.error("Error saving file to /playwright folder", e);
+            NounMetadata error = NounMetadata.getErrorNounMessage("Unable to save file to semoss/playwright folder: " + fileName);
+            SemossPixelException exception = new SemossPixelException(error);
+            exception.setContinueThreadOfExecution(false);
+            throw exception;
+        }
     }
     
     private String sanitizeFileName(String fileName) {

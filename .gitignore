@@ -24,3 +24,7 @@ hs_err_pid*
 replay_pid*
 
 playwright-webapp/portals/
+
+node_modules
+playwright-webapp/.vite
+playwright-webapp/portals/

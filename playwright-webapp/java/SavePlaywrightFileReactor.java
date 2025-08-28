@@ -1,5 +1,3 @@
-package prerna.reactor.playwright;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -14,7 +12,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import prerna.auth.User;
-import prerna.auth.utils.SecurityPlaywrightUtils;
+// import prerna.auth.utils.SecurityPlaywrightUtils;
 import prerna.reactor.AbstractReactor;
 import prerna.sablecc2.om.GenRowStruct;
 import prerna.sablecc2.om.PixelDataType;
@@ -79,10 +77,10 @@ public class SavePlaywrightFileReactor extends AbstractReactor {
             String sharedFilePath = "playwright/" + fileId + "_" + fileName;
             
             // register in database with metadata 
-            SecurityPlaywrightUtils.registerSharedFile(fileId, fileName, description, user, sharedFilePath);
+            // SecurityPlaywrightUtils.registerSharedFile(fileId, fileName, description, user, sharedFilePath);
             
             // set owner permissions
-            SecurityPlaywrightUtils.grantFilePermission(fileId, user, "OWNER", user);
+            // SecurityPlaywrightUtils.grantFilePermission(fileId, user, "OWNER", user);
             
             // grant additional permissions if specified
             // permissions can be a map

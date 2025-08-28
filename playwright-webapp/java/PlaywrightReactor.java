@@ -138,7 +138,8 @@ public class PlaywrightReactor extends AbstractReactor {
 	        String waitUntil,           // for NAVIGATE
 	        Integer waitAfterMs,        // generic wait after action
 	        Viewport viewport,          // viewport the coords were computed against
-	        Long timestamp
+	        Long timestamp,
+            String label
 	) {}
 	public record ExecuteStepsRequest(StepsEnvelope steps) {}
 	public record StepsEnvelope(String version, List<Step> steps) {}
@@ -177,7 +178,7 @@ public class PlaywrightReactor extends AbstractReactor {
         if (req.url() != null && !req.url().isBlank()) {
             s.history.steps().add(new Step(
                     StepType.NAVIGATE, req.url(), null, null, null, null, "networkidle", 0,
-                    new Viewport(width, height, dpr), System.currentTimeMillis()
+                    new Viewport(width, height, dpr), System.currentTimeMillis(), null
             ));
         }
 
@@ -272,6 +273,7 @@ public class PlaywrightReactor extends AbstractReactor {
                 case TYPE -> {
                     page.mouse().click(step.coords().x(), step.coords().y());
                     if (step.text() != null) page.keyboard().type(step.text());
+                    // if (step.label() != null) page.keyboard().type(step.label());
                     if (Boolean.TRUE.equals(step.pressEnter())) page.keyboard().press("Enter");
                 }
                 case SCROLL -> {
@@ -330,7 +332,7 @@ public class PlaywrightReactor extends AbstractReactor {
         }
     }
 
-    public StepsEnvelope loadStepsFromFile(String nameOrPath) {
+    public StepsEnvelope loadStepsFromFile(String nameOrPath){
         Path file = nameOrPath.contains(FileSystems.getDefault().getSeparator())
                 ? Paths.get(nameOrPath)
                 : recordingsDir.resolve(nameOrPath.endsWith(".json") ? nameOrPath : nameOrPath + ".json");

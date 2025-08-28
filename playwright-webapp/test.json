@@ -1,0 +1,77 @@
+{
+    "version" : "1.0",
+    "steps" : [ {
+      "type" : "NAVIGATE",
+      "url" : "https://practicetestautomation.com/practice-test-login/",
+      "coords" : null,
+      "text" : null,
+      "pressEnter" : null,
+      "deltaY" : null,
+      "waitUntil" : "networkidle",
+      "waitAfterMs" : 0,
+      "viewport" : {
+        "width" : 1280,
+        "height" : 800,
+        "deviceScaleFactor" : 1.0
+      },
+      "timestamp" : 1756297129344,
+      "label" : null
+    }, {
+      "type" : "TYPE",
+      "url" : null,
+      "coords" : {
+        "x" : 529,
+        "y" : 564
+      },
+      "text" : "student",
+      "pressEnter" : true,
+      "deltaY" : null,
+      "waitUntil" : null,
+      "waitAfterMs" : 300,
+      "viewport" : {
+        "width" : 1280,
+        "height" : 800,
+        "deviceScaleFactor" : 1.0
+      },
+      "timestamp" : 1756297146813,
+      "label" : "username"
+    }, {
+      "type" : "TYPE",
+      "url" : null,
+      "coords" : {
+        "x" : 403,
+        "y" : 672
+      },
+      "text" : "Password123",
+      "pressEnter" : true,
+      "deltaY" : null,
+      "waitUntil" : null,
+      "waitAfterMs" : 300,
+      "viewport" : {
+        "width" : 1280,
+        "height" : 800,
+        "deviceScaleFactor" : 1.0
+      },
+      "timestamp" : 1756297169874,
+      "label" : "password"
+    }, {
+      "type" : "CLICK",
+      "url" : null,
+      "coords" : {
+        "x" : 415,
+        "y" : 762
+      },
+      "text" : null,
+      "pressEnter" : null,
+      "deltaY" : null,
+      "waitUntil" : null,
+      "waitAfterMs" : 300,
+      "viewport" : {
+        "width" : 1280,
+        "height" : 800,
+        "deviceScaleFactor" : 1.0
+      },
+      "timestamp" : 1756297177734,
+      "label" : null
+    } ]
+  }

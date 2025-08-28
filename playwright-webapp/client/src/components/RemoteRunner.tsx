@@ -79,14 +79,66 @@ export default function RemoteRunner() {
  
     return { x: Math.round(x), y: Math.round(y) };
   }
+
+  type Mode = "click" | "type" | "scroll";
+  const [mode, setMode] = useState<Mode>("click");
+
+  const [typeConfig, setTypeConfig] = useState({
+    text: "",
+    label: "",
+    pressEnter: true,
+  });
+
+  const [scrollConfig, setScrollConfig] = useState({
+    deltaY: 400,
+  });
+
  
+  // async function handleClick(e: React.MouseEvent<HTMLImageElement, MouseEvent>) {
+  //   if (!shot) return;
+  //   const coords = imageToPageCoords(e);
+ 
+  //   const mode = window.prompt("Action? (click/type/scroll)", "click");
+  //   if (!mode) return;
+ 
+  //   if (mode === "click") {
+  //     await sendStep({
+  //       type: "CLICK",
+  //       coords,
+  //       viewport,
+  //       waitAfterMs: 300,
+  //       timestamp: Date.now(),
+  //     });
+  //   } else if (mode === "type") {
+  //     const text = window.prompt("Text to type:", "");
+  //     const label = window.prompt("Enter a label to this text (username, ...):", "");
+  //     const pressEnter = window.confirm("Press Enter after typing?");
+  //     await sendStep({
+  //       type: "TYPE",
+  //       coords,
+  //       text: text || "",
+  //       pressEnter,
+  //       viewport,
+  //       waitAfterMs: 300,
+  //       timestamp: Date.now(),
+  //       label: label || "",
+  //     });
+  //   } else if (mode === "scroll") {
+  //     await sendStep({
+  //       type: "SCROLL",
+  //       coords,
+  //       deltaY: 400,
+  //       viewport,
+  //       waitAfterMs: 300,
+  //       timestamp: Date.now(),
+  //     });
+  //   }
+  // }
+
   async function handleClick(e: React.MouseEvent<HTMLImageElement, MouseEvent>) {
     if (!shot) return;
     const coords = imageToPageCoords(e);
- 
-    const mode = window.prompt("Action? (click/type/scroll)", "click");
-    if (!mode) return;
- 
+  
     if (mode === "click") {
       await sendStep({
         type: "CLICK",
@@ -96,30 +148,28 @@ export default function RemoteRunner() {
         timestamp: Date.now(),
       });
     } else if (mode === "type") {
-      const text = window.prompt("Text to type:", "");
-      const label = window.prompt("Enter a label to this text (username, ...):", "");
-      const pressEnter = window.confirm("Press Enter after typing?");
       await sendStep({
         type: "TYPE",
         coords,
-        text: text || "",
-        pressEnter,
+        text: typeConfig.text || "",
+        pressEnter: typeConfig.pressEnter,
         viewport,
         waitAfterMs: 300,
         timestamp: Date.now(),
-        label: label || "",
+        label: typeConfig.label || "",
       });
     } else if (mode === "scroll") {
       await sendStep({
         type: "SCROLL",
         coords,
-        deltaY: 400,
+        deltaY: scrollConfig.deltaY,
         viewport,
         waitAfterMs: 300,
         timestamp: Date.now(),
       });
     }
   }
+  
  
   async function replay() {
     if (!sessionId) return;
@@ -191,7 +241,7 @@ async function updatePlaywrightScript(currentDataParam?: Record<string, string>)
     .map(([k, v]) => `{ "${k}": "${v}" }`)
     .join(", ");
 
-    alert("Data being sent: " + JSON.stringify(Variables, null, 2));
+    alert("Data being sent: " + Variables);
 
     const updatePixel = `UpdatePlaywrightScriptVariables(Script="${name}", Variables=[${Variables}], OutputScript="${newName}")`;
     try {
@@ -207,6 +257,91 @@ async function updatePlaywrightScript(currentDataParam?: Record<string, string>)
  
   return (
     <div style={{ padding: 16 }}>
+      {/* --- Mode Toolbar --- */}
+
+      <div
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 1000, 
+          display: "flex",
+          gap: 12,
+          alignItems: "center",
+          flexWrap: "wrap",
+          padding: 8,
+          borderBottom: "1px solid #ddd",
+          background: "#fafafa",
+        }}
+      >
+        <div style={{ display: "flex", gap: 8 }} role="group" aria-label="Interaction mode">
+          {(["click", "type", "scroll"] as Mode[]).map((m) => {
+            const active = mode === m;
+            return (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                aria-pressed={active}
+                title={`Set mode to ${m}`}
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: 8,
+                  border: active ? "1px solid #888" : "1px solid #ccc",
+                  background: active ? "#e6e6e6" : "#fff",
+                  cursor: "pointer",
+                  fontWeight: active ? 600 : 400,
+                }}
+              >
+                {m.toUpperCase()}
+              </button>
+            );
+          })}
+        </div>
+
+        {mode === "type" && (
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <input
+              style={{ width: 220 }}
+              placeholder="Text to type"
+              value={typeConfig.text}
+              onChange={(e) => setTypeConfig((s) => ({ ...s, text: e.target.value }))}
+            />
+            <input
+              style={{ width: 160 }}
+              placeholder="Label (optional)"
+              value={typeConfig.label}
+              onChange={(e) => setTypeConfig((s) => ({ ...s, label: e.target.value }))}
+            />
+            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <input
+                type="checkbox"
+                checked={typeConfig.pressEnter}
+                onChange={(e) => setTypeConfig((s) => ({ ...s, pressEnter: e.target.checked }))}
+              />
+              Press Enter
+            </label>
+          </div>
+        )}
+
+        {mode === "scroll" && (
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              ΔY
+              <input
+                type="number"
+                style={{ width: 100 }}
+                value={scrollConfig.deltaY}
+                onChange={(e) =>
+                  setScrollConfig((s) => ({ ...s, deltaY: Number(e.target.value) || 0 }))
+                }
+              />
+            </label>
+          </div>
+        )}
+      </div>
+
+
       <h2>Remote Playwright Runner</h2>
       <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
         <input
@@ -230,16 +365,6 @@ async function updatePlaywrightScript(currentDataParam?: Record<string, string>)
         </button>
         <span>Steps: {steps.length}</span>
       </div>
- 
-      {shot && (
-        <img
-          ref={imgRef}
-          onClick={handleClick}
-          src={`data:image/png;base64,${shot.base64Png}`}
-          alt="remote"
-          style={{ border: "1px solid #ccc", maxWidth: "100%", cursor: "crosshair" }}
-        />
-      )}
  
       {showData && (
         <div style={{ marginTop: 12, padding: 12, border: "1px solid #ccc", borderRadius: 8 }}>
@@ -288,10 +413,20 @@ async function updatePlaywrightScript(currentDataParam?: Record<string, string>)
           </div>
         </div>
       )}
+      {shot && (
+        <img
+          ref={imgRef}
+          onClick={handleClick}
+          src={`data:image/png;base64,${shot.base64Png}`}
+          alt="remote"
+          style={{
+            border: "1px solid #ccc",
+            maxWidth: "100%",
+            cursor: mode === "type" ? "text" : mode === "scroll" ? "ns-resize" : "pointer",
+          }}
+        />
+      )}
     </div>
   );
 }
- 
- 
- 
  

@@ -1,8 +1,13 @@
-// src/components/RemoteRunner.tsx
 import React, { useRef, useState } from "react";
 import { useInsight } from "@semoss/sdk-react";
 import { runPixel } from "@semoss/sdk";
- 
+import { 
+  Mouse as MouseIcon, 
+  Keyboard as KeyboardIcon, 
+  ArrowUpward as ArrowUpIcon, 
+  ArrowDownward as ArrowDownIcon 
+} from "@mui/icons-material";
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, FormControlLabel, Checkbox } from "@mui/material";
 type ScreenshotResponse = {
   base64Png: string;
   width: number;
@@ -83,24 +88,24 @@ export default function RemoteRunner() {
   type Mode = "click" | "type" | "scroll";
   const [mode, setMode] = useState<Mode>("click");
 
-  const [typeConfig, setTypeConfig] = useState({
-    text: "",
-    label: "",
-    pressEnter: true,
-  });
-
   const [scrollConfig, setScrollConfig] = useState({
     deltaY: 400,
   });
 
- 
+  const [showTypeDialog, setShowTypeDialog] = useState(false);
+  const [pendingCoords, setPendingCoords] = useState<Coords | null>(null);
+  const [typeForm, setTypeForm] = useState({
+    text: "",
+    label: "",
+    pressEnter: true,
+    editable: false,
+  });
+
+
   // async function handleClick(e: React.MouseEvent<HTMLImageElement, MouseEvent>) {
   //   if (!shot) return;
   //   const coords = imageToPageCoords(e);
- 
-  //   const mode = window.prompt("Action? (click/type/scroll)", "click");
-  //   if (!mode) return;
- 
+  
   //   if (mode === "click") {
   //     await sendStep({
   //       type: "CLICK",
@@ -110,24 +115,21 @@ export default function RemoteRunner() {
   //       timestamp: Date.now(),
   //     });
   //   } else if (mode === "type") {
-  //     const text = window.prompt("Text to type:", "");
-  //     const label = window.prompt("Enter a label to this text (username, ...):", "");
-  //     const pressEnter = window.confirm("Press Enter after typing?");
   //     await sendStep({
   //       type: "TYPE",
   //       coords,
-  //       text: text || "",
-  //       pressEnter,
+  //       text: typeConfig.text || "",
+  //       pressEnter: typeConfig.pressEnter,
   //       viewport,
   //       waitAfterMs: 300,
   //       timestamp: Date.now(),
-  //       label: label || "",
+  //       label: typeConfig.label || "",
   //     });
   //   } else if (mode === "scroll") {
   //     await sendStep({
   //       type: "SCROLL",
   //       coords,
-  //       deltaY: 400,
+  //       deltaY: scrollConfig.deltaY,
   //       viewport,
   //       waitAfterMs: 300,
   //       timestamp: Date.now(),
@@ -148,16 +150,9 @@ export default function RemoteRunner() {
         timestamp: Date.now(),
       });
     } else if (mode === "type") {
-      await sendStep({
-        type: "TYPE",
-        coords,
-        text: typeConfig.text || "",
-        pressEnter: typeConfig.pressEnter,
-        viewport,
-        waitAfterMs: 300,
-        timestamp: Date.now(),
-        label: typeConfig.label || "",
-      });
+      // Open dialog instead of sending immediately
+      setPendingCoords(coords);
+      setShowTypeDialog(true);
     } else if (mode === "scroll") {
       await sendStep({
         type: "SCROLL",
@@ -169,6 +164,7 @@ export default function RemoteRunner() {
       });
     }
   }
+  
   
  
   async function replay() {
@@ -257,90 +253,76 @@ async function updatePlaywrightScript(currentDataParam?: Record<string, string>)
  
   return (
     <div style={{ padding: 16 }}>
-      {/* --- Mode Toolbar --- */}
 
+      {/* --- Mode Toolbar --- */}
       <div
         style={{
           position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          zIndex: 1000, 
+          top: "20%",
+          left: "20px",
+          zIndex: 1000,
           display: "flex",
-          gap: 12,
-          alignItems: "center",
-          flexWrap: "wrap",
+          flexDirection: "column",
+          gap: 8,
           padding: 8,
-          borderBottom: "1px solid #ddd",
-          background: "#fafafa",
+          borderRadius: 12,
+          background: "#fff",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+          alignItems: "center",
         }}
       >
-        <div style={{ display: "flex", gap: 8 }} role="group" aria-label="Interaction mode">
-          {(["click", "type", "scroll"] as Mode[]).map((m) => {
-            const active = mode === m;
-            return (
-              <button
-                key={m}
-                onClick={() => setMode(m)}
-                aria-pressed={active}
-                title={`Set mode to ${m}`}
-                style={{
-                  padding: "6px 12px",
-                  borderRadius: 8,
-                  border: active ? "1px solid #888" : "1px solid #ccc",
-                  background: active ? "#e6e6e6" : "#fff",
-                  cursor: "pointer",
-                  fontWeight: active ? 600 : 400,
-                }}
-              >
-                {m.toUpperCase()}
-              </button>
-            );
-          })}
-        </div>
 
-        {mode === "type" && (
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <input
-              style={{ width: 220 }}
-              placeholder="Text to type"
-              value={typeConfig.text}
-              onChange={(e) => setTypeConfig((s) => ({ ...s, text: e.target.value }))}
-            />
-            <input
-              style={{ width: 160 }}
-              placeholder="Label (optional)"
-              value={typeConfig.label}
-              onChange={(e) => setTypeConfig((s) => ({ ...s, label: e.target.value }))}
-            />
-            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <input
-                type="checkbox"
-                checked={typeConfig.pressEnter}
-                onChange={(e) => setTypeConfig((s) => ({ ...s, pressEnter: e.target.checked }))}
-              />
-              Press Enter
-            </label>
-          </div>
-        )}
+      {([
+        { m: "click", icon: <MouseIcon />, label: "Click" },
+        { m: "type", icon: <KeyboardIcon />, label: "Type" },
+        { m: "scroll-up", icon: <ArrowUpIcon />, label: "Scroll Up" },
+        { m: "scroll-down", icon: <ArrowDownIcon />, label: "Scroll Down" },
+      ] as { m: string; icon: JSX.Element; label: string }[]).map(({ m, icon, label }) => {
+        const active = mode === m;
+        return (
+          <button
+            key={m}
+            onClick={() => {
+              if (m === "scroll-up") {
+                setMode("scroll");
+                setScrollConfig({ deltaY: -400 });
+              } else if (m === "scroll-down") {
+                setMode("scroll");
+                setScrollConfig({ deltaY: 400 });
+              } else {
+                setMode(m as Mode);
+              }
+            }}
+            title={label}
+            aria-pressed={active}
+            style={{
+              width: "40px",
+              height: "40px",
+              borderRadius: "50%",
+              border: active ? "2px solid #666" : "1px solid #bbb",
+              background: active ? "#e0e0e0" : "#fafafa",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "all 0.2s ease",
+              color: active ? "#444" : "#888",
+              fontSize: "18px",
+              padding: 0,
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.borderRadius = "12px"; // softer on hover
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.borderRadius = "50%"; // back to circle
+            }}
+          >
+            {icon}
+          </button>
+        );
+      })}
 
-        {mode === "scroll" && (
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              ΔY
-              <input
-                type="number"
-                style={{ width: 100 }}
-                value={scrollConfig.deltaY}
-                onChange={(e) =>
-                  setScrollConfig((s) => ({ ...s, deltaY: Number(e.target.value) || 0 }))
-                }
-              />
-            </label>
-          </div>
-        )}
       </div>
-
 
       <h2>Remote Playwright Runner</h2>
       <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
@@ -426,6 +408,68 @@ async function updatePlaywrightScript(currentDataParam?: Record<string, string>)
           }}
         />
       )}
+
+    <Dialog open={showTypeDialog} onClose={() => setShowTypeDialog(false)}>
+      <DialogTitle>Type Input</DialogTitle>
+      <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 400 }}>
+        <TextField
+          label="Text"
+          value={typeForm.text}
+          onChange={(e) => setTypeForm((cur) => ({ ...cur, text: e.target.value }))}
+          required
+        />
+        <TextField
+          label="Label (Optional)"
+          value={typeForm.label}
+          onChange={(e) => setTypeForm((cur) => ({ ...cur, label: e.target.value }))}
+        />
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={typeForm.pressEnter}
+              onChange={(e) => setTypeForm((cur) => ({ ...cur, pressEnter: e.target.checked }))}
+            />
+          }
+          label="Press Enter after typing"
+        />
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={typeForm.editable}
+              onChange={(e) => setTypeForm((cur) => ({ ...cur, editable: e.target.checked }))}
+            />
+          }
+          label="Editable"
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => setShowTypeDialog(false)}>Cancel</Button>
+        <Button
+          variant="contained"
+          onClick={async () => {
+            if (!pendingCoords) return;
+
+            await sendStep({
+              type: "TYPE",
+              coords: pendingCoords,
+              text: typeForm.text,
+              pressEnter: typeForm.pressEnter,
+              viewport,
+              waitAfterMs: 300,
+              timestamp: Date.now(),
+              label: typeForm.label || "",
+            });
+
+            setShowTypeDialog(false);
+            setPendingCoords(null);
+            setTypeForm({ text: "", label: "", pressEnter: true, editable: false });
+          }}
+        >
+          Submit
+        </Button>
+      </DialogActions>
+    </Dialog>
+
     </div>
   );
 }

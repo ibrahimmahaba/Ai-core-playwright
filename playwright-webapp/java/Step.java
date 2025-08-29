@@ -1,5 +1,3 @@
-package prerna.reactor.playwright;
-
 public record Step(
         StepType type,
         String url,                 // for NAVIGATE

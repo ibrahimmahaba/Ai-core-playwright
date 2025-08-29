@@ -1,5 +1,3 @@
-package prerna.reactor.playwright;
-
 import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.Page;
 

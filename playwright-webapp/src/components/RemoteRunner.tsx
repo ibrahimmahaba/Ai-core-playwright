@@ -31,11 +31,20 @@ type Step =
   | { type: "WAIT"; waitAfterMs: number; viewport: Viewport; timestamp: number }
   | { type: "SELECT_TEXT"; coords: Coords; text?: string | null; viewport: Viewport; waitAfterMs?: number; timestamp: number };
 
-type StepsEnvelope = { version: "1.0"; steps: Step[] };
 type ReplayStatus = { running: boolean; index: number; total: number; current?: string | null; error?: string | null };
 
 // UI helper for editor
 type EditableInput = { index: number; label: string; value: string };
+
+type RecordingMeta = {
+  id?: string;
+  title?: string | null;
+  description?: string | null;
+  createdAt?: number | null;  // present only after first save
+  updatedAt?: number | null;
+};
+
+type StepsEnvelope = { version: "1.0"; meta?: RecordingMeta | null; steps: Step[] };
 
 const API = "http://localhost:8080/api/remote"; // adjust if needed
 
@@ -49,7 +58,6 @@ export default function RemoteRunner() {
 
   // Live polling controls
   const [intervalMs, setIntervalMs] = useState(1000);
-
   const [live, setLive] = useState(false);
   const [followReplay, setFollowReplay] = useState(false);
 
@@ -62,6 +70,10 @@ export default function RemoteRunner() {
     height: shot?.height ?? 800,
     deviceScaleFactor: shot?.deviceScaleFactor ?? 1
   };
+
+  const [meta, setMeta] = useState<RecordingMeta | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const [editingDesc, setEditingDesc] = useState("");
 
   // ---------- helpers ----------
   function normalizeShot(raw: any | undefined | null): ScreenshotResponse | undefined {
@@ -88,6 +100,15 @@ export default function RemoteRunner() {
     }
   }
 
+  async function fetchMetaFor(id: string) {
+    const r = await fetch(`${API}/${id}/meta`);
+    if (!r.ok) return;
+    const m: RecordingMeta = await r.json();
+    setMeta(m);
+    setEditingTitle(m?.title ?? "");
+    setEditingDesc(m?.description ?? "");
+  }
+
   // --- Session management
   async function createSession() {
     try {
@@ -105,6 +126,7 @@ export default function RemoteRunner() {
       console.log("createSession response:", data);
 
       setSessionId(data.sessionId);
+      fetchMetaFor(data.sessionId); // ← pulls existing meta (title/description only during recording)
 
       // Try firstShot from server, else fallback to GET /screenshot
       const snap = normalizeShot(data.firstShot);
@@ -147,7 +169,6 @@ export default function RemoteRunner() {
     poll();
     return () => { cancelled = true; };
   }, [sessionId, live, followReplay]);
-
 
   // --- Live polling loop for screenshots (chain setTimeout to avoid overlap)
   useEffect(() => {
@@ -212,6 +233,7 @@ export default function RemoteRunner() {
     setFollowReplay(false);
     setLive(true);
   }
+
   // --- Map click on <img> to page CSS pixels using the clicked element
   function imageToPageCoords(e: React.MouseEvent<HTMLImageElement>): Coords {
     if (!shot) return { x: 0, y: 0 };
@@ -370,7 +392,7 @@ export default function RemoteRunner() {
     if (snap) setShot(snap);
   }
 
-  // ---- Load a recording file and open the editor
+  // ---- Load a recording file and open the editor (+ set meta/title/desc from file)
   async function loadRecordingFromServer() {
     const name = window.prompt("Recording name in 'recordings' (or filename.json):", "script-1") || "script-1";
     const res = await fetch(`${API}/recordings/get?name=${encodeURIComponent(name)}`);
@@ -381,11 +403,78 @@ export default function RemoteRunner() {
     setSteps(loadedSteps);
     setInputs(buildInputsFrom(loadedSteps));
     setShowInputs(true);
+
+    // ← NEW: bring in meta from file so Created/Updated show here (replay/edit mode)
+    setMeta(data.meta ?? null);
+    setEditingTitle(data.meta?.title ?? "");
+    setEditingDesc(data.meta?.description ?? "");
+  }
+
+  // --- Meta save endpoints (title + description)
+  async function saveSessionMeta() {
+    if (!sessionId) return;
+    const r = await fetch(`${API}/${sessionId}/meta`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: editingTitle, description: editingDesc })
+    });
+    if (r.ok) setMeta(await r.json());
+    else alert("Failed to update session meta");
+  }
+
+  async function saveFileMeta() {
+    const name = window.prompt("Recording name (or filename.json):", "script-1") || "script-1";
+    const r = await fetch(`${API}/recordings/meta?name=${encodeURIComponent(name)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: editingTitle, description: editingDesc })
+    });
+    if (r.ok) {
+      const m = await r.json();
+      setMeta(m);
+      alert("Saved title/description to file.");
+    } else {
+      alert("Failed to update file meta");
+    }
   }
 
   return (
     <div style={{ padding: 16 }}>
       <h2>Remote Playwright Runner</h2>
+
+      {meta && (
+        <div style={{ margin: "12px 0", padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>
+          <h4>Recording Details</h4>
+          <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: 8, alignItems: "center" }}>
+            <div>Title</div>
+            <input
+              value={editingTitle}
+              onChange={e => setEditingTitle(e.target.value)}
+              placeholder="Short title (optional)"
+            />
+
+            <div>Description</div>
+            <textarea
+              value={editingDesc}
+              onChange={e => setEditingDesc(e.target.value)}
+              rows={3}
+              style={{ width: "100%" }}
+              placeholder="What is this recording about?"
+            />
+
+            {/* Show these ONLY when present (i.e., after first save or when loaded from file) */}
+            {meta.createdAt ? <>
+              <div>Created</div><div>{new Date(meta.createdAt).toLocaleString()}</div>
+              <div>Updated</div><div>{meta.updatedAt ? new Date(meta.updatedAt).toLocaleString() : "-"}</div>
+            </> : null}
+          </div>
+
+          <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
+            <button onClick={saveSessionMeta} disabled={!sessionId}>Save (Session)</button>
+            <button onClick={saveFileMeta}>Save to File</button>
+          </div>
+        </div>
+      )}
 
       {/* toolbar */}
       <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
@@ -415,7 +504,7 @@ export default function RemoteRunner() {
         <button onClick={startLiveReplay} disabled={!sessionId || steps.length === 0}>
           Start Live Replay
         </button>
-        <button onClick={startJustPolling} disabled={!sessionId}>
+        <button onClick={() => { setFollowReplay(false); setLive(true); }} disabled={!sessionId}>
           Start Live (just poll)
         </button>
         <button onClick={() => setLive(false)} disabled={!live}>Stop Live</button>

@@ -34,7 +34,7 @@ public class SessionService {
     static class Session {
         final BrowserContext ctx;
         final Page page;
-        StepsEnvelope history = new StepsEnvelope("1.0", new java.util.ArrayList<>());
+        StepsEnvelope history = new StepsEnvelope("1.0",newMeta("") ,new java.util.ArrayList<>());
         final java.util.List<SelectionResult> selections = new java.util.ArrayList<>(); // NEW
         final ReplayState replay = new ReplayState(); // ← add this
 
@@ -42,8 +42,6 @@ public class SessionService {
             this.ctx = ctx; this.page = page;
         }
     }
-
-
 
 
     static class ReplayState {
@@ -78,6 +76,13 @@ public class SessionService {
         }
 
         Session s = new Session(ctx, page);
+        if (s.history.meta() == null) {
+            s.history = new StepsEnvelope(
+                    "1.0",
+                    newMeta(req.url()),    // seed title with URL (optional)
+                    s.history.steps()
+            );
+        }
         String id = UUID.randomUUID().toString();
         sessions.put(id, s);
 
@@ -239,22 +244,38 @@ public class SessionService {
         return DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss").format(LocalDateTime.now());
     }
 
-    public Path saveHistoryToFile(String sessionId, String name, boolean overwrite) {
+    public java.nio.file.Path saveHistoryToFile(String sessionId, String name, boolean overwrite) {
         StepsEnvelope env = history(sessionId);
+
+        long now = System.currentTimeMillis();
+        RecordingMeta old = env.meta();
+        String id = old != null && old.id() != null ? old.id() : java.util.UUID.randomUUID().toString();
+        String title = old != null ? old.title() : null;
+        String desc  = old != null ? old.description() : null;
+        Long created = (old != null && old.createdAt() != null) ? old.createdAt() : now; // ← stamp on first save
+        Long updated = now;
+
+        StepsEnvelope toWrite = new StepsEnvelope(
+                env.version(),
+                new RecordingMeta(id, title, desc, created, updated),
+                env.steps()
+        );
+
+        // existing file naming code …
         String base = sanitize(name == null || name.isBlank() ? ("script-" + timestamp()) : name);
-        Path file = recordingsDir.resolve(base.endsWith(".json") ? base : (base + ".json"));
+        java.nio.file.Path file = recordingsDir.resolve(base.endsWith(".json") ? base : (base + ".json"));
 
         try {
-            if (!overwrite && Files.exists(file)) {
-                // add suffix if exists
+            if (!overwrite && java.nio.file.Files.exists(file)) {
                 file = recordingsDir.resolve(base + "-" + timestamp() + ".json");
             }
-            json.writeValue(file.toFile(), env);
+            json.writeValue(file.toFile(), toWrite);
             return file;
         } catch (Exception e) {
             throw new RuntimeException("Failed to save script to: " + file, e);
         }
     }
+
 
     public java.util.List<String> listRecordings() {
         try (var stream = Files.list(recordingsDir)) {
@@ -405,6 +426,107 @@ public class SessionService {
     public void cancelReplay(String sessionId) {
         Session s = get(sessionId);
         s.replay.cancel.set(true);
+    }
+
+    private static RecordingMeta newMeta(String maybeTitleOrUrl) {
+        long now = System.currentTimeMillis();
+        return new RecordingMeta(
+                java.util.UUID.randomUUID().toString(),
+                maybeTitleOrUrl,       // or null; you can set a better title later
+                null,                  // description starts empty
+                now,
+                now
+        );
+    }
+
+    public RecordingMeta getMeta(String sessionId) {
+        var s = get(sessionId);
+        return s.history.meta();
+    }
+
+    public RecordingMeta updateDescription(String sessionId, String description) {
+        var s = get(sessionId);
+        var old = s.history.meta();
+        var now = System.currentTimeMillis();
+        var updated = new RecordingMeta(
+                old != null ? old.id() : java.util.UUID.randomUUID().toString(),
+                old != null ? old.title() : null,
+                description,
+                old != null ? old.createdAt() : now,
+                now
+        );
+        s.history = new StepsEnvelope(s.history.version(), updated, s.history.steps());
+        return updated;
+    }
+
+    public RecordingMeta updateFileDescription(String nameOrPath, String description) {
+        var env = loadStepsFromFile(nameOrPath);
+        var old = env.meta();
+        long now = System.currentTimeMillis();
+        var updatedMeta = new RecordingMeta(
+                old != null && old.id() != null ? old.id() : java.util.UUID.randomUUID().toString(),
+                old != null ? old.title() : null,
+                description,
+                old != null ? old.createdAt() : now,
+                now
+        );
+        var newEnv = new StepsEnvelope(env.version(), updatedMeta, env.steps());
+
+        // overwrite the same file
+        var file = nameOrPath.contains(java.nio.file.FileSystems.getDefault().getSeparator())
+                ? java.nio.file.Paths.get(nameOrPath)
+                : recordingsDir.resolve(nameOrPath.endsWith(".json") ? nameOrPath : nameOrPath + ".json");
+        try {
+            json.writeValue(file.toFile(), newEnv);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to write: " + file, e);
+        }
+        return updatedMeta;
+    }
+
+    public RecordingMeta updateSessionMeta(String sessionId, MetaPatch patch) {
+        Session s = get(sessionId);
+        RecordingMeta old = s.history.meta();
+        long now = System.currentTimeMillis();
+
+        String id = old != null && old.id() != null ? old.id() : java.util.UUID.randomUUID().toString();
+        String title = patch.title() != null ? patch.title() : (old != null ? old.title() : null);
+        String desc  = patch.description() != null ? patch.description() : (old != null ? old.description() : null);
+        Long created = old != null ? old.createdAt() : null; // keep null during recording
+        Long updated = now;                                   // bump updatedAt on edit
+
+        RecordingMeta meta = new RecordingMeta(id, title, desc, created, updated);
+        s.history = new StepsEnvelope(s.history.version(), meta, s.history.steps());
+        return meta;
+    }
+
+    public RecordingMeta updateFileMeta(String nameOrPath, MetaPatch patch) {
+        StepsEnvelope env = loadStepsFromFile(nameOrPath);
+        RecordingMeta old = env.meta();
+        long now = System.currentTimeMillis();
+
+        String id = old != null && old.id() != null ? old.id() : java.util.UUID.randomUUID().toString();
+        String title = patch.title() != null ? patch.title() : (old != null ? old.title() : null);
+        String desc  = patch.description() != null ? patch.description() : (old != null ? old.description() : null);
+        Long created = (old != null && old.createdAt() != null) ? old.createdAt() : now; // set if missing
+        Long updated = now;
+
+        StepsEnvelope updatedEnv = new StepsEnvelope(
+                env.version(),
+                new RecordingMeta(id, title, desc, created, updated),
+                env.steps()
+        );
+
+        java.nio.file.Path file = nameOrPath.contains(java.nio.file.FileSystems.getDefault().getSeparator())
+                ? java.nio.file.Paths.get(nameOrPath)
+                : recordingsDir.resolve(nameOrPath.endsWith(".json") ? nameOrPath : nameOrPath + ".json");
+
+        try {
+            json.writeValue(file.toFile(), updatedEnv);
+            return updatedEnv.meta();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to write: " + file, e);
+        }
     }
 
 }

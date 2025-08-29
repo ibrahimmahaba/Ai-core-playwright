@@ -12,7 +12,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/remote")
-@CrossOrigin // configure allowed origins in prod
 public class RemoteController {
     private final SessionService svc;
     public RemoteController(SessionService svc) { this.svc = svc; }
@@ -92,6 +91,23 @@ public class RemoteController {
 
     // helper wrapper matching your existing JSON shape
     public static record StepsEnvelopeWrapper(StepsEnvelope steps) {}
+
+    @GetMapping("/{sessionId}/meta")
+    public RecordingMeta getMeta(@PathVariable String sessionId) {
+        return svc.history(sessionId).meta(); // may be null during recording
+    }
+
+    @PatchMapping("/{sessionId}/meta")
+    public RecordingMeta patchSessionMeta(@PathVariable String sessionId,
+                                          @RequestBody MetaPatch body) {
+        return svc.updateSessionMeta(sessionId, body);  // updates title/description; timestamps: updatedAt only
+    }
+
+    @PatchMapping("/recordings/meta")
+    public RecordingMeta patchFileMeta(@RequestParam("name") String nameOrPath,
+                                       @RequestBody MetaPatch body) {
+        return svc.updateFileMeta(nameOrPath, body);    // updates file + timestamps; keeps createdAt if exists
+    }
 
 }
 

@@ -78,7 +78,7 @@ export default function RemoteRunner() {
   async function createSession() {
 
     fetchMetadata();
-    let pixel = `Playwright ( endpoint = [ "session" ] , paramValues = [ {"url":"${url}", "width": 1280, "height": 800, "deviceScaleFactor": 1} ] )`;
+    let pixel = `Session ( endpoint = [ "session" ] , paramValues = [ {"url":"${url}", "width": 1280, "height": 800, "deviceScaleFactor": 1} ] )`;
     const res = await runPixel(pixel, insightId);
     const { output } = await res.pixelReturn[0] as { output: { sessionId: string, firstShot: ScreenshotResponse } };
 
@@ -100,7 +100,7 @@ export default function RemoteRunner() {
 
     setLoading(true);
     try{
-      let pixel = `Playwright ( endpoint = [ "step" ] , sessionId = "${sessionId}", paramValues = [ ${JSON.stringify(step)} ] )`;
+      let pixel = `Step ( endpoint = [ "step" ] , sessionId = "${sessionId}", paramValues = [ ${JSON.stringify(step)} ] )`;
       const res = await runPixel(pixel, insightId);
 
       const { output } = res.pixelReturn[0];
@@ -189,7 +189,7 @@ async function save() {
   if (!sessionId) return;
   const name = await promptMui("Save as (name or filename.json):", scriptName) || scriptName;
 
-  let pixel = `Playwright ( endpoint = [ "save" ] , sessionId = "${sessionId}", paramValues = [  {"name": "${name}"} ] )`;
+  let pixel = `Save ( endpoint = [ "save" ] , sessionId = "${sessionId}", paramValues = [  {"name": "${name}"} ] )`;
   const res = await runPixel(pixel, insightId);
   const data = await res.pixelReturn[0].output as { file: string };
 
@@ -201,7 +201,7 @@ async function replayFromFile() {
   if (!sessionId) return;
   const name = await promptMui("Replay file (name in 'recordings' or absolute path):", scriptName) || scriptName;
 
-  let pixel = `Playwright ( endpoint = [ "replayFile" ] , sessionId = "${sessionId}", paramValues = [ { "name" : "${name}"} ] )`;
+  let pixel = `ReplayFromFile ( endpoint = [ "replayFile" ] , sessionId = "${sessionId}", paramValues = [ { "name" : "${name}"} ] )`;
   const res = await runPixel(pixel, insightId);
 
   const { output } = res.pixelReturn[0] as { output: any };

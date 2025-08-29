@@ -30,13 +30,6 @@ public class GetPlaywrightScriptVariablesReactor extends AbstractReactor {
 	@Override
 	public NounMetadata execute() {
 		organizeKeys();
-		User user = this.insight.getUser();
-		
-		// BrowserUtils.ensureUserLoggedIn(user);
-		
-		// if (BrowserUtils.anonymousEnabledAndUserAnonymous(user)) {
-		// 	throwAnonymousUserError();
-		// }
 		
 		String fileName = this.keyValue.get(this.keysToGet[0]);
 		
@@ -50,6 +43,7 @@ public class GetPlaywrightScriptVariablesReactor extends AbstractReactor {
 		
 		//  the full path to the recordings folder (same as PlaywrightReactor)
 		Path recordingsDir = Path.of(AssetUtility.getProjectAssetsFolder(this.insight.getContextProjectName(), this.insight.getContextProjectId()), "recordings");
+//    	Path recordingsDir = Path.of("C:/workspace/Apps/recordings");
 		Path scriptPath = recordingsDir.resolve(fileName);
 		
 		File scriptFile = scriptPath.toFile();

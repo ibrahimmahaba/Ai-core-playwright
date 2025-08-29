@@ -1,4 +1,3 @@
-
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
@@ -36,13 +35,6 @@ public class UpdatePlaywrightScriptVariablesReactor extends AbstractReactor {
 	@Override
 	public NounMetadata execute() {
 		organizeKeys();
-		User user = this.insight.getUser();
-		
-		// BrowserUtils.ensureUserLoggedIn(user);
-		
-		// if (BrowserUtils.anonymousEnabledAndUserAnonymous(user)) {
-		// 	throwAnonymousUserError();
-		// }
 		
 		String fileName = this.keyValue.get(SCRIPT_KEY);
 		String outputFileName = this.keyValue.get(OUTPUT_SCRIPT_KEY);
@@ -72,6 +64,7 @@ public class UpdatePlaywrightScriptVariablesReactor extends AbstractReactor {
 		
 		//  the full path to the recordings folder (same as PlaywrightReactor)
 		Path recordingsDir = Path.of(AssetUtility.getProjectAssetsFolder(this.insight.getContextProjectName(), this.insight.getContextProjectId()), "recordings");
+//    	Path recordingsDir = Path.of("C:/workspace/Apps/recordings");
 		Path inputPath = recordingsDir.resolve(fileName);
 		Path outputPath = recordingsDir.resolve(outputFileName);
 		

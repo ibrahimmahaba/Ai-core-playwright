@@ -8,5 +8,6 @@ public record Step(
         String waitUntil,           // for NAVIGATE
         Integer waitAfterMs,        // generic wait after action
         Viewport viewport,          // viewport the coords were computed against
-        Long timestamp
+        Long timestamp,
+        String label
 ) {}

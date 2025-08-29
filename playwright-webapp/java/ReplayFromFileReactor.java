@@ -10,7 +10,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserContext;
+import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Page;
+import com.microsoft.playwright.Playwright;
 
 import prerna.reactor.AbstractReactor;
 import prerna.sablecc2.om.PixelDataType;
@@ -35,6 +37,7 @@ public class ReplayFromFileReactor extends AbstractReactor {
 
 	@Override
 	public NounMetadata execute() {
+		organizeKeys();
     	Map<String, Object> paramValues = Utility.getMap(this.store, this.curRow);
 	    
         return new NounMetadata(replayFromFile(paramValues.get("name").toString()), PixelDataType.MAP);
@@ -42,10 +45,13 @@ public class ReplayFromFileReactor extends AbstractReactor {
 	
     public ScreenshotResponse replayFromFile(String nameOrPath) {
         StepsEnvelope env = loadStepsFromFile(nameOrPath);
-        return replay(env); // your existing deterministic replay
+        return replay(env);
     }
 	
 	public ScreenshotResponse replay(StepsEnvelope steps) {
+		Playwright pw = Playwright.create();
+		browser = pw.chromium().launch(
+	            new BrowserType.LaunchOptions().setHeadless(true));
         BrowserContext ctx = browser.newContext(new Browser.NewContextOptions()
                 .setViewportSize(steps.steps().get(0).viewport().width(),
                         steps.steps().get(0).viewport().height())
@@ -88,6 +94,7 @@ public class ReplayFromFileReactor extends AbstractReactor {
         try {
             
             Path dir = Path.of(AssetUtility.getProjectAssetsFolder(this.insight.getContextProjectName(), this.insight.getContextProjectId()), "recordings");
+//        	Path dir = Path.of("C:/workspace/Apps/recordings");
 
             Files.createDirectories(dir); // creates recordings folder
             return dir;

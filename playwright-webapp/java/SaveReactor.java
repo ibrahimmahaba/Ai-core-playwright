@@ -27,6 +27,7 @@ public class SaveReactor extends AbstractReactor {
 
 	@Override
 	public NounMetadata execute() {
+		organizeKeys();
     	Map<String, Object> paramValues = Utility.getMap(this.store, this.curRow);
 
 		String sessionId = this.keyValue.get(this.keysToGet[0]);
@@ -63,7 +64,7 @@ public class SaveReactor extends AbstractReactor {
         try {
             
             Path dir = Path.of(AssetUtility.getProjectAssetsFolder(this.insight.getContextProjectName(), this.insight.getContextProjectId()), "recordings");
-
+//        	Path dir = Path.of("C:/workspace/Apps/recordings");
             Files.createDirectories(dir);
             return dir;
         } catch (Exception ex) {

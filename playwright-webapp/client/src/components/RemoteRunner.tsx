@@ -36,7 +36,7 @@ export default function RemoteRunner() {
 
 
   async function fetchMetadata() {
-    const res = await runPixel("Playwright ( endpoint = [ \"metadata\" ] )", insightId);
+    const res = await runPixel("Metadata ( )", insightId);
     const { output } = res.pixelReturn[0]
     setMetadata(output as Record<string, string>);
   };

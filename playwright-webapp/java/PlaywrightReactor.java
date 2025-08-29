@@ -5,9 +5,11 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.time.ZoneId;
 import java.util.concurrent.ConcurrentHashMap;
 import prerna.util.AssetUtility;
 
@@ -24,6 +26,7 @@ import com.microsoft.playwright.Playwright;
 import com.microsoft.playwright.PlaywrightException;
 import com.microsoft.playwright.options.WaitUntilState;
 
+import prerna.auth.AccessToken;
 import prerna.auth.User;
 import prerna.reactor.AbstractReactor;
 import prerna.sablecc2.om.GenRowStruct;
@@ -41,26 +44,24 @@ public class PlaywrightReactor extends AbstractReactor {
     private Browser browser;
     Path recordingsDir;
     private final ObjectMapper json = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
-   // private Path recordingsDir = Path.of(" C:/workspace/Semoss/project/playwrightapp-BE__461bc22e-dfde-4715-81ae-ee3a276b02dd/app_root");
     private final static Map<String, Session> sessions = new ConcurrentHashMap<>();
+
     
 	public PlaywrightReactor() {
 		this.keysToGet = new String[] {
 				"endpoint", 
 				"sessionId", 
 				ReactorKeysEnum.PARAM_VALUES_MAP.getKey()};
-		this.keyRequired = new int[] { 0 , 0 , 0 };
+		this.keyRequired = new int[] { 1 , 0 , 0 };
 	}
 
 	@Override
 	public NounMetadata execute() {
 		organizeKeys();
-
+		
 		browser = pw.chromium().launch(
 	            new BrowserType.LaunchOptions().setHeadless(true));
-	            
-		User user = this.insight.getUser();
-        
+	                    
 		recordingsDir = initRecordingsDir();
 		
 		String endpoint = this.keyValue.get(this.keysToGet[0]);
@@ -93,6 +94,8 @@ public class PlaywrightReactor extends AbstractReactor {
 		case "step":
 			Step step = json.convertValue(paramValues, Step.class);
             return new NounMetadata(executeStep(sessionId, step), PixelDataType.MAP);
+		case "metadata":
+			return new NounMetadata(getMetadata(), PixelDataType.MAP);
 		default:
             return new NounMetadata(true, PixelDataType.BOOLEAN);    
 		}
@@ -349,6 +352,7 @@ public class PlaywrightReactor extends AbstractReactor {
         return replay(sessionId, env); // your existing deterministic replay
     }
     
+	@SuppressWarnings("unchecked")
 	private Map<String, Object> getMap() {
         GenRowStruct mapGrs = this.store.getNoun(ReactorKeysEnum.PARAM_VALUES_MAP.getKey());
         if(mapGrs != null && !mapGrs.isEmpty()) {
@@ -363,6 +367,15 @@ public class PlaywrightReactor extends AbstractReactor {
         }
         return null;
     }
+	
+	private record UserMetadata(String name, String email, String id, String zone){}
+	
+	private UserMetadata getMetadata() {
+		User user = this.insight.getUser();
+		AccessToken token = user.getAccessToken(user.getPrimaryLogin());
+		UserMetadata userMetadata = new UserMetadata(token.getName(), token.getEmail(), token.getId(), user.getZoneId().toString());
+		return userMetadata;
+	}
 	
     @Override
     protected String getDescriptionForKey(String key) {

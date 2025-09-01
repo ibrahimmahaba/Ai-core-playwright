@@ -30,14 +30,11 @@ type StepsEnvelope = { version: "1.0"; steps: Step[] };
 
 export default function RemoteRunner() {
 
-  // const [isPromptOpen, setIsPromptOpen] = useState(false);
-  // const [promptTitle, setPromptTitle] = useState<string>("");
-  const [promptValue, setPromptValue] = useState<string>("");
   const [loading, setLoading] = useState(false);
-  const promptResolve = useRef<((v: string | null) => void) | null>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [isPromptType, setIsPromptType] = useState(false);
   const [metadata, setMetadata] = useState<Record<string, string>>({});
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
 
 
   async function fetchMetadata() {
@@ -46,27 +43,6 @@ export default function RemoteRunner() {
     setMetadata(output as Record<string, string>);
   };
 
-  // function promptMui(message: string, defaultValue: string = ""): Promise<string | null> {
-  //   setPromptTitle(message);
-  //   setPromptValue(defaultValue);
-  //   return new Promise<string | null>((resolve) => {
-  //     promptResolve.current = resolve;
-  //     setIsPromptOpen(true);
-  //   });
-  // }
-
-  // function handlePromptCancel() {
-  //   setIsPromptOpen(false);
-  //   setIsPromptType(false);
-  //   promptResolve.current && promptResolve.current(null);
-  //   promptResolve.current = null;
-  // }
-
-  // function handlePromptOk() {
-  //   setIsPromptOpen(false);
-  //   promptResolve.current && promptResolve.current(promptValue);
-  //   promptResolve.current = null;
-  // }
   const [sessionId, setSessionId] = useState<any>();
   const [shot, setShot] = useState<ScreenshotResponse>();
   const [url, setUrl] = useState("https://example.com");
@@ -75,6 +51,7 @@ export default function RemoteRunner() {
   const { insightId } = useInsight();
   const [showData, setShowData] = React.useState(false);
   const [editedData, setEditedData] = React.useState<Record<string, string>>({});
+  const [updatedData, setUpdatedData] = React.useState<Record<string, string>>({});
   const [scriptName, setScriptName] = useState("script-1");
 
   const viewport: Viewport = {
@@ -148,42 +125,6 @@ export default function RemoteRunner() {
     editable: false,
   });
 
-
-  // async function handleClick(e: React.MouseEvent<HTMLImageElement, MouseEvent>) {
-  //   if (!shot) return;
-  //   const coords = imageToPageCoords(e);
-
-  //   if (mode === "click") {
-  //     await sendStep({
-  //       type: "CLICK",
-  //       coords,
-  //       viewport,
-  //       waitAfterMs: 300,
-  //       timestamp: Date.now(),
-  //     });
-  //   } else if (mode === "type") {
-  //     await sendStep({
-  //       type: "TYPE",
-  //       coords,
-  //       text: typeConfig.text || "",
-  //       pressEnter: typeConfig.pressEnter,
-  //       viewport,
-  //       waitAfterMs: 300,
-  //       timestamp: Date.now(),
-  //       label: typeConfig.label || "",
-  //     });
-  //   } else if (mode === "scroll") {
-  //     await sendStep({
-  //       type: "SCROLL",
-  //       coords,
-  //       deltaY: scrollConfig.deltaY,
-  //       viewport,
-  //       waitAfterMs: 300,
-  //       timestamp: Date.now(),
-  //     });
-  //   }
-  // }
-
   async function handleClick(e: React.MouseEvent<HTMLImageElement, MouseEvent>) {
     if (!shot) return;
     const coords = imageToPageCoords(e);
@@ -197,7 +138,6 @@ export default function RemoteRunner() {
         timestamp: Date.now(),
       });
     } else if (mode === "type") {
-      // Open dialog instead of sending immediately
       setPendingCoords(coords);
       setShowTypeDialog(true);
     } else if (mode === "scroll") {
@@ -225,8 +165,15 @@ export default function RemoteRunner() {
 
   async function save() {
     if (!sessionId) return;
-    const name = window.prompt("Save as (name or filename.json):", scriptName) || scriptName;
 
+    if (!title || title.trim() === "") {
+      alert("Please enter a title before saving.");
+      return;
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+    const name = title ? `${title}-${today}`: `${scriptName}`;
+    
     let pixel = `Save ( sessionId = "${sessionId}", paramValues = [ {"name": "${name}"} ] )`;
     const res = await runPixel(pixel, insightId);
     const data = res.pixelReturn[0].output as { file: string };
@@ -263,28 +210,26 @@ export default function RemoteRunner() {
 
     setEditedData({ ...output });
     setShowData(true);
-    replayFromFile(name);
+    setScriptName(name);
+    // replayFromFile(name);
   }
 
 
   async function updatePlaywrightScript(currentDataParam?: Record<string, string>) {
-    const currentData = currentDataParam ?? editedData;
+    const currentData = currentDataParam ?? updatedData;
 
     if (!currentData || Object.keys(currentData).length === 0) {
       alert("No variables provided!");
       return;
     }
 
-    const name = window.prompt("Enter file (name in 'recordings' or absolute path):", scriptName) || scriptName;
     const newName = window.prompt("Enter the new file name:", scriptName) || scriptName;
 
     let Variables = Object.entries(currentData)
       .map(([k, v]) => `{ "${k}": "${v}" }`)
       .join(", ");
 
-    alert("Data being sent: " + Variables);
-
-    const updatePixel = `UpdatePlaywrightScriptVariables(Script="${name}", Variables=[${Variables}], OutputScript="${newName}")`;
+    const updatePixel = `UpdatePlaywrightScriptVariables(Script="${scriptName}", Variables=[${Variables}], OutputScript="${newName}")`;
     try {
       const updateRes = await runPixel(updatePixel, insightId);
       const { output } = updateRes.pixelReturn[0] as { output: string };
@@ -296,11 +241,15 @@ export default function RemoteRunner() {
   }
 
 
+  function saveSession(): void {
+    throw new Error("Function not implemented.");
+  }
+
   return (
     <div style={{ padding: 16 }}>
 
       {/* --- Mode Toolbar --- */}
-      <div
+      {/* <div
         style={{
           position: "fixed",
           top: "20%",
@@ -367,7 +316,90 @@ export default function RemoteRunner() {
           );
         })}
 
+      </div> */}
+
+      <div
+        style={{
+          position: "fixed",
+          top: "20%",
+          left: "20px",
+          zIndex: 1000,
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
+          padding: 8,
+          borderRadius: 12,
+          background: "#fff",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+          alignItems: "center",
+        }}
+      >
+        {([
+          { m: "click", icon: <MouseIcon />, label: "Click" },
+          { m: "type", icon: <KeyboardIcon />, label: "Type" },
+          { m: "scroll-up", icon: <ArrowUpIcon />, label: "Scroll Up" },
+          { m: "scroll-down", icon: <ArrowDownIcon />, label: "Scroll Down" },
+        ] as { m: string; icon: JSX.Element; label: string }[]).map(({ m, icon, label }) => {
+          const active = mode === m;
+
+          return (
+            <button
+              key={m}
+              onClick={async () => {
+                if (m === "scroll-up") {
+                  if (!shot) return;
+                  await sendStep({
+                    type: "SCROLL",
+                    coords: { x: 0, y: 0 },
+                    deltaY: -400,
+                    viewport,
+                    waitAfterMs: 300,
+                    timestamp: Date.now(),
+                  });
+                } else if (m === "scroll-down") {
+                  if (!shot) return;
+                  await sendStep({
+                    type: "SCROLL",
+                    coords: { x: 0, y: 0 },
+                    deltaY: 400,
+                    viewport,
+                    waitAfterMs: 300,
+                    timestamp: Date.now(),
+                  });
+                } else {
+                  setMode(m as Mode);
+                }
+              }}
+              title={label}
+              aria-pressed={active}
+              style={{
+                width: "40px",
+                height: "40px",
+                borderRadius: "50%",
+                border: active ? "2px solid #666" : "1px solid #bbb",
+                background: active ? "#e0e0e0" : "#fafafa",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "all 0.2s ease",
+                color: active ? "#444" : "#888",
+                fontSize: "18px",
+                padding: 0,
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.borderRadius = "12px";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.borderRadius = "50%";
+              }}
+            >
+              {icon}
+            </button>
+          );
+        })}
       </div>
+
 
       <h2>Remote Playwright Runner</h2>
       <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
@@ -393,6 +425,89 @@ export default function RemoteRunner() {
         <span>Steps: {steps.length}</span>
       </div>
 
+      {shot && (
+        <>
+          <div
+            style={{
+              width: shot.width ? `${shot.width}px` : "75vw", // match screenshot width
+              background: "#f5f6fa",
+              padding: "16px",
+              boxSizing: "border-box",
+              marginBottom: "12px",
+              borderRadius: "8px",
+            }}
+          >
+            <div style={{ marginBottom: "12px" }}>
+              <TextField
+                label="Title"
+                value={title}
+                required
+                fullWidth
+                onChange={(e) => setTitle(e.target.value)}
+              />
+            </div>
+
+            <div style={{ marginBottom: "12px" }}>
+              <TextField
+                label="Description"
+                value={description}
+                fullWidth
+                multiline
+                rows={2}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </div>
+
+            <div style={{ display: "flex", gap: 8 }}>
+              <Button variant="contained" onClick={saveSession} disabled={!sessionId}>
+                Save Session
+              </Button>
+              <Button variant="outlined" onClick={save} disabled={!sessionId}>
+                Save
+              </Button>
+            </div>
+          </div>
+
+          <div style={{ position: "relative", display: "inline-block" }}>
+            <img
+              ref={imgRef}
+              onClick={handleClick}
+              src={`data:image/png;base64,${shot.base64Png}`}
+              alt="remote"
+              style={{
+                border: "1px solid #ccc",
+                maxWidth: "100%",
+                cursor:
+                  mode === "type"
+                    ? "text"
+                    : mode === "scroll"
+                    ? "ns-resize"
+                    : "pointer",
+              }}
+              onLoad={() => setLoading(false)}
+            />
+
+            {loading && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "rgba(0,0,0,0.3)",
+                }}
+              >
+                <CircularProgress color="inherit" />
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
       {showData && (
         <div style={{ marginTop: 12, padding: 12, border: "1px solid #ccc", borderRadius: 8 }}>
           <h4>Edit Replay Variables ({Object.keys(editedData).length})</h4>
@@ -415,9 +530,11 @@ export default function RemoteRunner() {
                       <input
                         style={{ width: "100%" }}
                         value={value}
-                        onChange={(e) =>
-                          setEditedData((cur) => ({ ...cur, [label]: e.target.value }))
-                        }
+                        onChange={(e) => {
+                          const newValue = e.target.value;
+                          setEditedData((cur) => ({ ...cur, [label]: newValue }));
+                          setUpdatedData((cur) => ({ ...cur, [label]: newValue }));
+                        }}
                       />
                     </td>
                   </tr>
@@ -429,49 +546,15 @@ export default function RemoteRunner() {
           <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
             <button
               onClick={async () => {
-                await updatePlaywrightScript(editedData);
+                await updatePlaywrightScript(updatedData);
                 setShowData(false);
               }}
             >
-              Run With These
+              Execute 
             </button>
 
             <button onClick={() => setShowData(false)}>Cancel</button>
           </div>
-        </div>
-      )}
-      {shot && (
-        <div style={{ position: "relative", display: "inline-block" }}>
-          <img
-            ref={imgRef}
-            onClick={handleClick}
-            src={`data:image/png;base64,${shot.base64Png}`}
-            alt="remote"
-            style={{
-              border: "1px solid #ccc",
-              maxWidth: "100%",
-              cursor: mode === "type" ? "text" : mode === "scroll" ? "ns-resize" : "pointer",
-            }}
-            onLoad={() => setLoading(false)} // hide spinner once image loads
-          />
-
-          {loading && (
-            <div
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                background: "rgba(0,0,0,0.3)",
-              }}
-            >
-              <CircularProgress color="inherit" />
-            </div>
-          )}
         </div>
       )}
 
@@ -484,11 +567,23 @@ export default function RemoteRunner() {
             onChange={(e) => setTypeForm((cur) => ({ ...cur, text: e.target.value }))}
             required
           />
-          <TextField
-            label="Label (Optional)"
-            value={typeForm.label}
-            onChange={(e) => setTypeForm((cur) => ({ ...cur, label: e.target.value }))}
-          />
+          {typeForm.editable && (
+            <TextField
+              label="Label"
+              value={typeForm.label}
+              onChange={(e) =>
+                setTypeForm((cur) => ({ ...cur, label: e.target.value }))
+              }
+              required
+              error={!typeForm.label.trim()}
+              helperText={
+                !typeForm.label.trim()
+                  ? "Label is required when Editable is checked"
+                  : ""
+              }
+            />
+          )}
+
           {showTypeDialog && (
             <>
               <Button
@@ -541,6 +636,11 @@ export default function RemoteRunner() {
             variant="contained"
             onClick={async () => {
               if (!pendingCoords) return;
+
+              if (typeForm.editable && !typeForm.label.trim()) {
+                alert("Label is required when Editable is checked.");
+                return;
+              }
 
               await sendStep({
                 type: "TYPE",

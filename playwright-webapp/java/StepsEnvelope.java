@@ -1,4 +1,7 @@
 import java.util.List;
 
-public record StepsEnvelope(List<Step> steps) {}
-
+public record StepsEnvelope(
+        String version,
+        RecordingMeta meta,
+        List<Step> steps
+) {}

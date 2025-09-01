@@ -14,6 +14,7 @@ import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
 
+import prerna.om.Insight;
 import prerna.reactor.AbstractReactor;
 import prerna.sablecc2.om.PixelDataType;
 import prerna.sablecc2.om.ReactorKeysEnum;
@@ -24,8 +25,9 @@ import prerna.util.Utility;
 
 public class ReplayFromFileReactor extends AbstractReactor {
 	
-	Path recordingsDir = initRecordingsDir();
-    ObjectMapper json = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
+	public static Path recordingsDir = initRecordingsDir();
+    static ObjectMapper json = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
+    static Insight insightObj;
 	Browser browser;
 	
 	public ReplayFromFileReactor(){
@@ -33,6 +35,7 @@ public class ReplayFromFileReactor extends AbstractReactor {
 				ReactorKeysEnum.PARAM_VALUES_MAP.getKey()
 				};
 		this.keyRequired = new int[] { 1 };
+		insightObj = this.insight;
 	}
 
 	@Override
@@ -67,7 +70,7 @@ public class ReplayFromFileReactor extends AbstractReactor {
         return ScreenshotReactor.screenshot(id);
     }
 	
-    public StepsEnvelope loadStepsFromFile(String nameOrPath) {
+    public static StepsEnvelope loadStepsFromFile(String nameOrPath) {
         Path file = nameOrPath.contains(FileSystems.getDefault().getSeparator())
                 ? Paths.get(nameOrPath)
                 : recordingsDir.resolve(nameOrPath.endsWith(".json") ? nameOrPath : nameOrPath + ".json");
@@ -90,10 +93,10 @@ public class ReplayFromFileReactor extends AbstractReactor {
         }
     }
 	
-	private Path initRecordingsDir() {
+	public static Path initRecordingsDir() {
         try {
             
-            Path dir = Path.of(AssetUtility.getProjectAssetsFolder(this.insight.getContextProjectName(), this.insight.getContextProjectId()), "recordings");
+            Path dir = Path.of(AssetUtility.getProjectAssetsFolder(insightObj.getContextProjectName(), insightObj.getContextProjectId()), "recordings");
 //        	Path dir = Path.of("C:/workspace/Apps/recordings");
 
             Files.createDirectories(dir); // creates recordings folder

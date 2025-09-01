@@ -40,6 +40,21 @@ public class SaveReactor extends AbstractReactor {
         Path recordingsDir = initRecordingsDir();
 
         StepsEnvelope env = history(sessionId);
+        
+        long now = System.currentTimeMillis();
+        RecordingMeta old = env.meta();
+        String id = old != null && old.id() != null ? old.id() : java.util.UUID.randomUUID().toString();
+        String title = old != null ? old.title() : null;
+        String desc  = old != null ? old.description() : null;
+        Long created = (old != null && old.createdAt() != null) ? old.createdAt() : now; // stamp on first save
+        Long updated = now;
+
+        StepsEnvelope toWrite = new StepsEnvelope(
+                env.version(),
+                new RecordingMeta(id, title, desc, created, updated),
+                env.steps()
+        );
+        
         String base = sanitize(name == null || name.isBlank() ? ("script-" + timestamp()) : name);
         Path file = recordingsDir.resolve(base.endsWith(".json") ? base : (base + ".json"));
         
@@ -49,7 +64,7 @@ public class SaveReactor extends AbstractReactor {
                 file = recordingsDir.resolve(base + ".json");
                 System.out.print(file);
             }
-            json.writeValue(file.toFile(), env);
+            json.writeValue(file.toFile(), toWrite);
             return file;
         } catch (Exception e) {
             throw new RuntimeException("Failed to save script to: " + file, e);

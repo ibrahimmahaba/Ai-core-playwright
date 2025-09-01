@@ -73,6 +73,13 @@ public class SessionReactor extends AbstractReactor {
         }
 
         Session s = new Session(ctx, page);
+        if (s.history.meta() == null) {
+            s.history = new StepsEnvelope(
+                    "1.0",
+                    Session.newMeta(req.url()),    // seed title with URL (optional)
+                    s.history.steps()
+            );
+        }
         String id = UUID.randomUUID().toString();
         sessions.put(id, s);
 

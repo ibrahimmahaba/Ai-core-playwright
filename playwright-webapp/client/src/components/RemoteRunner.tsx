@@ -211,7 +211,6 @@ export default function RemoteRunner() {
     setEditedData({ ...output });
     setShowData(true);
     setScriptName(name);
-    // replayFromFile(name);
   }
 
 
@@ -228,11 +227,20 @@ export default function RemoteRunner() {
     let Variables = Object.entries(currentData)
       .map(([k, v]) => `{ "${k}": "${v}" }`)
       .join(", ");
+    
+    let metadataVariables = Object.entries(currentData)
+    .filter(([k]) => k === "title" || k === "description")
+    .map(([k, v]) => `{ "${k}": "${v}" }`)
+    .join(", ");
 
     const updatePixel = `UpdatePlaywrightScriptVariables(Script="${scriptName}", Variables=[${Variables}], OutputScript="${newName}")`;
     try {
       const updateRes = await runPixel(updatePixel, insightId);
       const { output } = updateRes.pixelReturn[0] as { output: string };
+      if (metadataVariables) {
+        const patchPixel = `PatchFileMetaReactor(sessionId="${sessionId}", paramValues=[${metadataVariables}])`;
+        await runPixel(patchPixel, insightId);
+      }
       replayFromFile(output);
     } catch (err) {
       console.error("Failed to update script:", err);
@@ -247,77 +255,6 @@ export default function RemoteRunner() {
 
   return (
     <div style={{ padding: 16 }}>
-
-      {/* --- Mode Toolbar --- */}
-      {/* <div
-        style={{
-          position: "fixed",
-          top: "20%",
-          left: "20px",
-          zIndex: 1000,
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-          padding: 8,
-          borderRadius: 12,
-          background: "#fff",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-          alignItems: "center",
-        }}
-      >
-
-        {([
-          { m: "click", icon: <MouseIcon />, label: "Click" },
-          { m: "type", icon: <KeyboardIcon />, label: "Type" },
-          { m: "scroll-up", icon: <ArrowUpIcon />, label: "Scroll Up" },
-          { m: "scroll-down", icon: <ArrowDownIcon />, label: "Scroll Down" },
-        ] as { m: string; icon: JSX.Element; label: string }[]).map(({ m, icon, label }) => {
-          const active = mode === m;
-          return (
-            <button
-              key={m}
-              onClick={() => {
-                if (m === "scroll-up") {
-                  setMode("scroll");
-                  setScrollConfig({ deltaY: -400 });
-                } else if (m === "scroll-down") {
-                  setMode("scroll");
-                  setScrollConfig({ deltaY: 400 });
-                } else {
-                  setMode(m as Mode);
-                }
-              }}
-              title={label}
-              aria-pressed={active}
-              style={{
-                width: "40px",
-                height: "40px",
-                borderRadius: "50%",
-                border: active ? "2px solid #666" : "1px solid #bbb",
-                background: active ? "#e0e0e0" : "#fafafa",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                transition: "all 0.2s ease",
-                color: active ? "#444" : "#888",
-                fontSize: "18px",
-                padding: 0,
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.borderRadius = "12px"; // softer on hover
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.borderRadius = "50%"; // back to circle
-              }}
-            >
-              {icon}
-            </button>
-          );
-        })}
-
-      </div> */}
-
       <div
         style={{
           position: "fixed",

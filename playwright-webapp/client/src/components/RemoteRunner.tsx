@@ -26,7 +26,11 @@ type Step =
   | { type: "SCROLL"; coords: Coords; deltaY?: number; viewport: Viewport; waitAfterMs?: number; timestamp: number }
   | { type: "WAIT"; waitAfterMs: number; viewport: Viewport; timestamp: number };
 
-type StepsEnvelope = { version: "1.0"; steps: Step[] };
+type Meta = {
+  title : string;
+  description: string
+}
+type StepsEnvelope = { version: "1.0"; meta: Meta; steps: Step[] };
 
 export default function RemoteRunner() {
 
@@ -154,7 +158,14 @@ export default function RemoteRunner() {
 
   async function replay() {
     if (!sessionId) return;
-    const envelope: StepsEnvelope = { version: "1.0", steps };
+    const envelope: StepsEnvelope = {
+      version: "1.0",
+      meta: {
+        title: title || "Untitled", // safe fallback
+        description: description || "",
+      },
+      steps,
+    };
 
     let pixel = `Playwright ( endpoint = [ "replay" ] , sessionId = "${sessionId}", paramValues = [ ${JSON.stringify(envelope)} ] )`;
     const res = await runPixel(pixel, insightId);
@@ -174,7 +185,7 @@ export default function RemoteRunner() {
     const today = new Date().toISOString().split("T")[0];
     const name = title ? `${title}-${today}`: `${scriptName}`;
     
-    let pixel = `Save ( sessionId = "${sessionId}", paramValues = [ {"name": "${name}"} ] )`;
+    let pixel = `SaveAll ( sessionId = "${sessionId}", "name"= "${name}",  paramValues = [ ] )`;
     const res = await runPixel(pixel, insightId);
     const data = res.pixelReturn[0].output as { file: string };
 
@@ -233,14 +244,14 @@ export default function RemoteRunner() {
     .map(([k, v]) => `{ "${k}": "${v}" }`)
     .join(", ");
 
+    if (metadataVariables) {
+      const patchPixel = `PatchFileMetaReactor(sessionId="${sessionId}", paramValues=[${metadataVariables}])`;
+      await runPixel(patchPixel, insightId);
+    }
     const updatePixel = `UpdatePlaywrightScriptVariables(Script="${scriptName}", Variables=[${Variables}], OutputScript="${newName}")`;
     try {
       const updateRes = await runPixel(updatePixel, insightId);
       const { output } = updateRes.pixelReturn[0] as { output: string };
-      if (metadataVariables) {
-        const patchPixel = `PatchFileMetaReactor(sessionId="${sessionId}", paramValues=[${metadataVariables}])`;
-        await runPixel(patchPixel, insightId);
-      }
       replayFromFile(output);
     } catch (err) {
       console.error("Failed to update script:", err);
@@ -248,11 +259,40 @@ export default function RemoteRunner() {
     }
   }
 
-
-  function saveSession(): void {
-    throw new Error("Function not implemented.");
+  async function saveSession() {
+    if (!sessionId) return;
+  
+    if (!title.trim()) {
+      alert("Please enter a title before saving the session.");
+      return;
+    }
+  
+    // build envelope for the first paramValues element
+    const envelope = {
+      version: "1.0",
+      meta: {
+        title: title,
+        description: description,
+      },
+    };
+  
+    try {
+      const pixel = `SaveAll(
+        sessionId="${sessionId}",
+        name="${scriptName}",
+        paramValues=[${JSON.stringify(envelope)}, ${JSON.stringify(steps)}]
+      )`;
+  
+      console.log("Running pixel:", pixel);
+      const res = await runPixel(pixel, insightId);
+      console.log("SaveAll success:", res.pixelReturn[0].output);
+      alert("Session saved successfully!");
+    } catch (err) {
+      console.error("Error saving session:", err);
+      alert("Failed to save session");
+    }
   }
-
+  
   return (
     <div style={{ padding: 16 }}>
       <div

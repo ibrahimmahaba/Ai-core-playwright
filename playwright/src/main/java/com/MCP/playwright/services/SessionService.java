@@ -1,5 +1,6 @@
 package com.MCP.playwright.services;
 
+import com.MCP.playwright.controllers.SaveAllRequest;
 import com.MCP.playwright.dtos.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -526,6 +527,86 @@ public class SessionService {
             return updatedEnv.meta();
         } catch (Exception e) {
             throw new RuntimeException("Failed to write: " + file, e);
+        }
+    }
+
+    public Path saveAllToFile(String sessionId, String name, SaveAllRequest body) {
+        // Build meta with timestamps
+        long now = System.currentTimeMillis();
+
+        // Try to preserve createdAt if file already exists
+        String base = sanitize(name == null || name.isBlank() ? ("script-" + timestamp()) : name);
+        Path file = recordingsDir.resolve(base.endsWith(".json") ? base : (base + ".json"));
+
+        RecordingMeta existingMeta = null;
+        if (Files.exists(file)) {
+            try {
+                StepsEnvelope existing = json.readValue(file.toFile(), StepsEnvelope.class);
+                existingMeta = existing.meta();
+            } catch (Exception ignored) {}
+        }
+
+        RecordingMeta newMeta = new RecordingMeta(
+                (existingMeta != null && existingMeta.id() != null) ? existingMeta.id() : sessionId,
+                body.title(),
+                body.description(),
+                (existingMeta != null && existingMeta.createdAt() != null) ? existingMeta.createdAt() : now,
+                now
+        );
+
+        StepsEnvelope env = new StepsEnvelope("1.0", newMeta,body.steps() );
+
+        try {
+            json.writeValue(file.toFile(), env);
+            // also replace in-memory session history so future actions reflect these edits
+            Session s = get(sessionId);
+            s.history = env;
+            return file;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to save script to: " + file, e);
+        }
+    }
+
+    /** Save an envelope directly (used when editing a file without an active session) */
+    public Path saveEnvelopeToFile(String nameOrPath, StepsEnvelope incoming) {
+        Path file = nameOrPath.contains(FileSystems.getDefault().getSeparator())
+                ? Paths.get(nameOrPath)
+                : recordingsDir.resolve(nameOrPath.endsWith(".json") ? nameOrPath : nameOrPath + ".json");
+
+        long now = System.currentTimeMillis();
+        RecordingMeta metaIn = incoming.meta();
+
+        // Preserve createdAt if the file exists, else stamp it now
+        Long createdAt = null;
+        RecordingMeta existingMeta = null;
+        if (Files.exists(file)) {
+            try {
+                StepsEnvelope existing = json.readValue(file.toFile(), StepsEnvelope.class);
+                existingMeta = existing.meta();
+                createdAt = (existingMeta != null) ? existingMeta.createdAt() : null;
+            } catch (Exception ignored) {}
+        }
+        if (createdAt == null) createdAt = (metaIn != null && metaIn.createdAt() != null) ? metaIn.createdAt() : now;
+
+        RecordingMeta merged = new RecordingMeta(
+                (metaIn != null && metaIn.id() != null) ? metaIn.id() : (existingMeta != null ? existingMeta.id() : null),
+                (metaIn != null) ? metaIn.title() : null,
+                (metaIn != null) ? metaIn.description() : null,
+                createdAt,
+                now
+        );
+
+        StepsEnvelope out = new StepsEnvelope(
+                (incoming.version() != null) ? incoming.version() : "1.0",
+                merged
+                ,incoming.steps()
+        );
+
+        try {
+            json.writeValue(file.toFile(), out);
+            return file;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to save envelope to: " + file, e);
         }
     }
 

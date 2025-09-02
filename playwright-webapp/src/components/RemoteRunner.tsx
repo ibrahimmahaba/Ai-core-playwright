@@ -55,6 +55,7 @@ export default function RemoteRunner() {
   const [steps, setSteps] = useState<Step[]>([]);
   const [selections, setSelections] = useState<SelectionResult[]>([]);
   const [mode, setMode] = useState<"click" | "select">("click");
+  const [loadedFileName, setLoadedFileName] = useState<string | null>(null);
 
   // Live polling controls
   const [intervalMs, setIntervalMs] = useState(1000);
@@ -99,6 +100,70 @@ export default function RemoteRunner() {
       console.error("fetchScreenshot error:", err);
     }
   }
+
+  async function loadRecordingFromServer() {
+    const name = window.prompt("Recording name in 'recordings' (or filename.json):", "script-1") || "script-1";
+    const res = await fetch(`${API}/recordings/get?name=${encodeURIComponent(name)}`);
+    if (!res.ok) { alert("Failed to load recording"); return; }
+    const data: StepsEnvelope = await res.json();
+
+    const loadedSteps = data.steps || [];
+    setSteps(loadedSteps);
+    setInputs(buildInputsFrom(loadedSteps));
+    setShowInputs(true);
+
+    // populate meta form
+    const m = data.meta || null;
+    setMeta(m);
+    setEditingTitle(m?.title ?? "");
+    setEditingDesc(m?.description ?? "");
+    setLoadedFileName(name);         // <— remember the file we opened
+  }
+
+  async function saveAllSession() {
+    if (!sessionId) return;
+    const name = window.prompt("Save as (name or filename.json):", "script-1") || "script-1";
+    const body = {
+      title: editingTitle,
+      description: editingDesc,
+      steps, // use your in-memory edited steps (TYPE labels/values included)
+    };
+    const r = await fetch(`${API}/${sessionId}/save/all?name=${encodeURIComponent(name)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) { alert("Save All failed"); return; }
+    const data = await r.json();
+    alert(`Saved to: ${data.file}`);
+  }
+
+  async function saveAllFile() {
+    const name = loadedFileName || window.prompt("Recording name (or filename.json):", "script-1") || "script-1";
+    // build a full envelope (server will stamp updatedAt and preserve createdAt if present)
+    const envelope: StepsEnvelope = {
+      version: "1.0",
+      meta: {
+        id: meta?.id, // optional
+        title: editingTitle,
+        description: editingDesc,
+        createdAt: meta?.createdAt ?? null, // keep if you have it; server will fill first time
+        updatedAt: meta?.updatedAt ?? null,
+      },
+      steps,
+    };
+    const r = await fetch(`${API}/recordings/save?name=${encodeURIComponent(name)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(envelope),
+    });
+    if (!r.ok) { alert("Save All (File) failed"); return; }
+    const data = await r.json();
+    alert(`Saved to: ${data.file}`);
+    setLoadedFileName(name);
+  }
+
+
 
   async function fetchMetaFor(id: string) {
     const r = await fetch(`${API}/${id}/meta`);
@@ -392,24 +457,6 @@ export default function RemoteRunner() {
     if (snap) setShot(snap);
   }
 
-  // ---- Load a recording file and open the editor (+ set meta/title/desc from file)
-  async function loadRecordingFromServer() {
-    const name = window.prompt("Recording name in 'recordings' (or filename.json):", "script-1") || "script-1";
-    const res = await fetch(`${API}/recordings/get?name=${encodeURIComponent(name)}`);
-    if (!res.ok) { alert("Failed to load recording"); return; }
-    const data: StepsEnvelope = await res.json();
-
-    const loadedSteps = data.steps || [];
-    setSteps(loadedSteps);
-    setInputs(buildInputsFrom(loadedSteps));
-    setShowInputs(true);
-
-    // ← NEW: bring in meta from file so Created/Updated show here (replay/edit mode)
-    setMeta(data.meta ?? null);
-    setEditingTitle(data.meta?.title ?? "");
-    setEditingDesc(data.meta?.description ?? "");
-  }
-
   // --- Meta save endpoints (title + description)
   async function saveSessionMeta() {
     if (!sessionId) return;
@@ -468,11 +515,6 @@ export default function RemoteRunner() {
               <div>Updated</div><div>{meta.updatedAt ? new Date(meta.updatedAt).toLocaleString() : "-"}</div>
             </> : null}
           </div>
-
-          <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
-            <button onClick={saveSessionMeta} disabled={!sessionId}>Save (Session)</button>
-            <button onClick={saveFileMeta}>Save to File</button>
-          </div>
         </div>
       )}
 
@@ -484,8 +526,13 @@ export default function RemoteRunner() {
         {/* Recording controls */}
         <button onClick={waitAndShot} disabled={!sessionId}>Wait (ms) + Shot</button>
         <button onClick={replay} disabled={!sessionId}>Replay (blocking)</button>
-        <button onClick={save} disabled={!sessionId}>Save</button>
-        <button onClick={replayFromFile} disabled={!sessionId}>Replay From File</button>
+        <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+          {/* ...Open, Replay, etc... */}
+          <button onClick={saveAllSession} disabled={!sessionId}>Save All (Session)</button>
+          <button onClick={saveAllFile} disabled={steps.length === 0}>Save All (File)</button>
+          <button onClick={loadRecordingFromServer}>Load Recording (Edit)</button>
+          {/* ...other buttons... */}
+        </div>        <button onClick={replayFromFile} disabled={!sessionId}>Replay From File</button>
 
         {/* Selections + select mode */}
         <button onClick={() => setMode(m => (m === "click" ? "select" : "click"))} disabled={!sessionId}>

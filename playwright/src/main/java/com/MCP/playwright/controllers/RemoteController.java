@@ -1,7 +1,6 @@
 package com.MCP.playwright.controllers;
 
 
-
 import com.MCP.playwright.dtos.*;
 import com.MCP.playwright.services.SessionService;
 import org.springframework.web.bind.annotation.*;
@@ -14,7 +13,10 @@ import java.util.Map;
 @RequestMapping("/api/remote")
 public class RemoteController {
     private final SessionService svc;
-    public RemoteController(SessionService svc) { this.svc = svc; }
+
+    public RemoteController(SessionService svc) {
+        this.svc = svc;
+    }
 
     @PostMapping("/session")
     public SessionService.CreateResult create(@RequestBody CreateSessionRequest req) {
@@ -74,6 +76,7 @@ public class RemoteController {
     public StepsEnvelope getRecording(@RequestParam String name) {
         return svc.loadStepsFromFile(name);  // you already implemented this loader
     }
+
     @PostMapping("/{sessionId}/replay/async")
     public SessionService.ReplayStatus startAsync(@PathVariable String sessionId, @RequestBody StepsEnvelopeWrapper body) {
         return svc.startReplayAsync(sessionId, body.steps());
@@ -90,7 +93,8 @@ public class RemoteController {
     }
 
     // helper wrapper matching your existing JSON shape
-    public static record StepsEnvelopeWrapper(StepsEnvelope steps) {}
+    public static record StepsEnvelopeWrapper(StepsEnvelope steps) {
+    }
 
     @GetMapping("/{sessionId}/meta")
     public RecordingMeta getMeta(@PathVariable String sessionId) {
@@ -108,6 +112,29 @@ public class RemoteController {
                                        @RequestBody MetaPatch body) {
         return svc.updateFileMeta(nameOrPath, body);    // updates file + timestamps; keeps createdAt if exists
     }
+
+
+    @PostMapping("/{sessionId}/save/all")
+    public Map<String, String> saveAll(@PathVariable String sessionId,
+                                       @RequestParam String name,
+                                       @RequestBody SaveAllRequest body) {
+        Path file = svc.saveAllToFile(sessionId, name, body);
+        return Map.of("file", file.toAbsolutePath().toString());
+    }
+
+
+    /*
+    Now you have:
+        • POST /api/remote/{sessionId}/save/all?name=script-1 — save title+description+steps for the current session.
+        • POST /api/remote/recordings/save?name=script-1 — save an entire envelope when you loaded a file without an active session.
+     */
+    @PostMapping("/recordings/save")
+    public Map<String, String> saveRecording(@RequestParam("name") String nameOrPath,
+                                             @RequestBody StepsEnvelope env) {
+        Path file = svc.saveEnvelopeToFile(nameOrPath, env);
+        return Map.of("file", file.toAbsolutePath().toString());
+    }
+
 
 }
 

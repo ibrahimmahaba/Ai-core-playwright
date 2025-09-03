@@ -245,7 +245,7 @@ export default function RemoteRunner() {
     .join(", ");
 
     if (metadataVariables) {
-      const patchPixel = `PatchFileMetaReactor(sessionId="${sessionId}", paramValues=[${metadataVariables}])`;
+      const patchPixel = `PatchFileMeta(name="${scriptName}", paramValues=[${metadataVariables}])`;
       await runPixel(patchPixel, insightId);
     }
     const updatePixel = `UpdatePlaywrightScriptVariables(Script="${scriptName}", Variables=[${Variables}], OutputScript="${newName}")`;
@@ -274,13 +274,15 @@ export default function RemoteRunner() {
         title: title,
         description: description,
       },
+      steps: steps
     };
-  
+    const today = new Date().toISOString().split("T")[0];
+    const name = title ? `${title}-${today}`: `${scriptName}`;
     try {
       const pixel = `SaveAll(
         sessionId="${sessionId}",
-        name="${scriptName}",
-        paramValues=[${JSON.stringify(envelope)}, ${JSON.stringify(steps)}]
+        name="${name}",
+        paramValues=[${JSON.stringify(envelope)}]
       )`;
   
       console.log("Running pixel:", pixel);

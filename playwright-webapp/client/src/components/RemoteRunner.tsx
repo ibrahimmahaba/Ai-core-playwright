@@ -66,7 +66,9 @@ export default function RemoteRunner() {
 
   async function createSession() {
 
+    setLoading(true);
     fetchMetadata();
+    try {
     let pixel = `Session ( paramValues = [ {"url":"${url}", "width": 1280, "height": 800, "deviceScaleFactor": 1} ] )`;
     const res = await runPixel(pixel, insightId);
     const { output } = res.pixelReturn[0] as { output: { sessionId: string; firstShot: ScreenshotResponse } };
@@ -80,6 +82,9 @@ export default function RemoteRunner() {
       viewport,
       timestamp: Date.now()
     } as Step]);
+  } finally {
+    setLoading(false);
+  }
 
   }
 
@@ -194,8 +199,8 @@ export default function RemoteRunner() {
   }
 
   async function replayFromFile(optionalName?: string) {
-    if (!sessionId) return;
-
+    setLoading(true);
+    try{
     const name =
       optionalName ||
       window.prompt("Replay file (name in 'recordings' or absolute path):", scriptName) ||
@@ -211,7 +216,10 @@ export default function RemoteRunner() {
       console.error("Invalid response structure:", output);
       alert("Error: Invalid response from replayFile endpoint");
     }
+  } finally {
+    setLoading(false);
   }
+}
 
   async function editRecording() {
     const name = window.prompt("Replay file (name in 'recordings' or absolute path):", scriptName) || scriptName;
@@ -220,6 +228,7 @@ export default function RemoteRunner() {
     const { output } = res.pixelReturn[0] as { output: Record<string, string> };
 
     setEditedData({ ...output });
+    setUpdatedData({ ...output });
     setShowData(true);
     setScriptName(name);
   }
@@ -227,7 +236,6 @@ export default function RemoteRunner() {
 
   async function updatePlaywrightScript(currentDataParam?: Record<string, string>) {
     const currentData = currentDataParam ?? updatedData;
-
     if (!currentData || Object.keys(currentData).length === 0) {
       alert("No variables provided!");
       return;
@@ -395,14 +403,31 @@ export default function RemoteRunner() {
         <button onClick={save} disabled={!sessionId}>
           Save
         </button>
-        <button onClick={() => replayFromFile()} disabled={!sessionId}>
+        <button onClick={() => replayFromFile()} >
           Replay From File
         </button>
-        <button onClick={editRecording} disabled={!sessionId}>
+        <button onClick={editRecording} >
           Load Recording (Edit)
         </button>
         <span>Steps: {steps.length}</span>
       </div>
+      {!shot && loading && (
+        <div
+        style={{
+          width: "100%",
+          height: "500px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "#f5f6fa",
+          padding: "16px",
+          boxSizing: "border-box",
+          marginBottom: "12px",
+          borderRadius: "8px",
+        }}
+        >{loading && <CircularProgress />}
+        </div>
+      )}
 
       {shot && (
         <>

@@ -1,10 +1,17 @@
 
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
 import prerna.reactor.AbstractReactor;
+import prerna.sablecc2.om.GenRowStruct;
 import prerna.sablecc2.om.PixelDataType;
 import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
@@ -16,7 +23,7 @@ public class PatchFileMetaReactor extends AbstractReactor{
 	
 	public PatchFileMetaReactor() {
 		this.keysToGet = new String[] {
-				"sessionId",
+				"name",
 				ReactorKeysEnum.PARAM_VALUES_MAP.getKey()
 				};
 		this.keyRequired = new int[] { 1, 1 };
@@ -25,12 +32,12 @@ public class PatchFileMetaReactor extends AbstractReactor{
 	@Override
 	public NounMetadata execute() {
 		organizeKeys();
-		String sessionId = this.keyValue.get(this.keysToGet[0]);
-		Map<String, Object> paramValues = Utility.getMap(this.store, this.curRow);
+		String name = this.keyValue.get(this.keysToGet[0]);
+		Map<String, String> paramValues = getMap();
 		
 		MetaPatch patch = json.convertValue(paramValues, MetaPatch.class);
 		
-		return new NounMetadata(updateFileMeta(sessionId, patch), PixelDataType.MAP);
+		return new NounMetadata(updateFileMeta(name, patch), PixelDataType.MAP);
 	}
 	
     public RecordingMeta updateFileMeta(String nameOrPath, MetaPatch patch) {
@@ -50,8 +57,8 @@ public class PatchFileMetaReactor extends AbstractReactor{
                 env.steps()
         );
 
-        java.nio.file.Path file = nameOrPath.contains(java.nio.file.FileSystems.getDefault().getSeparator())
-                ? java.nio.file.Paths.get(nameOrPath)
+        Path file = nameOrPath.contains(FileSystems.getDefault().getSeparator())
+                ? Paths.get(nameOrPath)
                 : ReplayFromFileReactor.recordingsDir.resolve(nameOrPath.endsWith(".json") ? nameOrPath : nameOrPath + ".json");
 
         try {
@@ -61,4 +68,19 @@ public class PatchFileMetaReactor extends AbstractReactor{
             throw new RuntimeException("Failed to write: " + file, e);
         }
     }
+    
+	private Map<String, String> getMap() {
+		GenRowStruct mapGrs = this.store.getNoun(ReactorKeysEnum.PARAM_VALUES_MAP.getKey());
+		Map<String, String> output = new HashMap<>();
+		if(mapGrs != null && !mapGrs.isEmpty()) {
+			List<NounMetadata> mapInputs = mapGrs.getNounsOfType(PixelDataType.MAP);
+			if(mapInputs != null && !mapInputs.isEmpty()) {
+				for (int i = 0; i<mapInputs.size();i++) {
+					output.putAll((Map<? extends String, ? extends String>) mapInputs.get(i).getValue());
+				}
+				return output;
+			}
+		}
+		return null;
+	}
 }

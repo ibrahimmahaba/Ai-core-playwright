@@ -42,8 +42,8 @@ public class GetPlaywrightScriptVariablesReactor extends AbstractReactor {
 		}
 		
 		//  the full path to the recordings folder (same as PlaywrightReactor)
-		Path recordingsDir = Path.of(AssetUtility.getProjectAssetsFolder(this.insight.getContextProjectName(), this.insight.getContextProjectId()), "recordings");
-//    	Path recordingsDir = Path.of("C:/workspace/Apps/recordings");
+//		Path recordingsDir = Path.of(AssetUtility.getProjectAssetsFolder(this.insight.getContextProjectName(), this.insight.getContextProjectId()), "recordings");
+    	Path recordingsDir = ReplayFromFileReactor.recordingsDir;
 		Path scriptPath = recordingsDir.resolve(fileName);
 		
 		File scriptFile = scriptPath.toFile();
@@ -57,8 +57,7 @@ public class GetPlaywrightScriptVariablesReactor extends AbstractReactor {
 		try (FileReader reader = new FileReader(scriptFile)) {
 			JSONTokener tokener = new JSONTokener(reader);
 			JSONObject jsonObject = new JSONObject(tokener);
-
-
+			
 			if (jsonObject.has("meta")) {
 		        JSONObject meta = jsonObject.getJSONObject("meta");
 

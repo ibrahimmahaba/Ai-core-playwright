@@ -22,7 +22,18 @@ type Viewport = { width: number; height: number; deviceScaleFactor: number };
 type Step =
   | { type: "NAVIGATE"; url: string; waitUntil?: "networkidle" | "domcontentloaded"; viewport: Viewport; waitAfterMs?: number; timestamp: number }
   | { type: "CLICK"; coords: Coords; viewport: Viewport; waitAfterMs?: number; timestamp: number }
-  | { type: "TYPE"; coords: Coords; text: string; pressEnter?: boolean; viewport: Viewport; waitAfterMs?: number; timestamp: number; label?: string }
+  | {
+    type: "TYPE";
+    coords: Coords;
+    text: string;
+    pressEnter?: boolean;
+    viewport: Viewport;
+    waitAfterMs?: number;
+    timestamp: number;
+    label?: string;
+    isPassword?: boolean;   
+    storeValue?: boolean;
+    }
   | { type: "SCROLL"; coords: Coords; deltaY?: number; viewport: Viewport; waitAfterMs?: number; timestamp: number }
   | { type: "WAIT"; waitAfterMs: number; viewport: Viewport; timestamp: number };
 
@@ -121,7 +132,7 @@ export default function RemoteRunner() {
   type Mode = "click" | "type" | "scroll";
   const [mode, setMode] = useState<Mode>("click");
 
-  const [scrollConfig, setScrollConfig] = useState({
+  const [scrollConfig] = useState({
     deltaY: 400,
   });
 
@@ -132,6 +143,8 @@ export default function RemoteRunner() {
     label: "",
     pressEnter: true,
     editable: false,
+    isPassword: false,  
+    storeValue: true,    
   });
 
   async function handleClick(e: React.MouseEvent<HTMLImageElement, MouseEvent>) {
@@ -567,6 +580,7 @@ export default function RemoteRunner() {
         <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 400 }}>
           <TextField
             label="Text"
+            type={typeForm.isPassword ? "password" : "text"} 
             value={typeForm.text}
             onChange={(e) => setTypeForm((cur) => ({ ...cur, text: e.target.value }))}
             required
@@ -633,6 +647,38 @@ export default function RemoteRunner() {
             }
             label="Editable"
           />
+
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={typeForm.isPassword}
+              onChange={(e) =>
+                setTypeForm((cur) => ({
+                  ...cur,
+                  isPassword: e.target.checked,
+                  storeValue: e.target.checked ? false : cur.storeValue, // disable storeValue when password
+                }))
+              }
+            />
+          }
+          label="Password"
+        />
+
+        {typeForm.editable && (
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={typeForm.storeValue}
+                onChange={(e) =>
+                  setTypeForm((cur) => ({ ...cur, storeValue: e.target.checked }))
+                }
+                disabled={typeForm.isPassword}   // disable if password
+              />
+            }
+            label="Store Value"
+        />
+        )}
+
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setShowTypeDialog(false)}>Cancel</Button>
@@ -655,11 +701,13 @@ export default function RemoteRunner() {
                 waitAfterMs: 300,
                 timestamp: Date.now(),
                 label: typeForm.label || "",
+                isPassword: typeForm.isPassword,   
+                storeValue: typeForm.storeValue,
               });
 
               setShowTypeDialog(false);
               setPendingCoords(null);
-              setTypeForm({ text: "", label: "", pressEnter: true, editable: false });
+              setTypeForm({ text: "", label: "", pressEnter: true, editable: false, isPassword: false, storeValue: true});
             }}
           >
             Submit

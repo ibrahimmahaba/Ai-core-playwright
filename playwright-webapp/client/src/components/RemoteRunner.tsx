@@ -1,11 +1,13 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { useInsight } from "@semoss/sdk-react";
 import { runPixel } from "@semoss/sdk";
 import {
   Mouse as MouseIcon,
   Keyboard as KeyboardIcon,
   ArrowUpward as ArrowUpIcon,
-  ArrowDownward as ArrowDownIcon
+  ArrowDownward as ArrowDownIcon,
+  AccessTime as AccessTimeIcon,
+  Sync as SyncIcon,
 } from "@mui/icons-material";
 import { CircularProgress, Menu, MenuItem, Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, FormControlLabel, Checkbox } from "@mui/material";
 
@@ -68,6 +70,22 @@ export default function RemoteRunner() {
   const [editedData, setEditedData] = React.useState<Record<string, string>>({});
   const [updatedData, setUpdatedData] = React.useState<Record<string, string>>({});
   const [scriptName, setScriptName] = useState("script-1");
+  const [live, setLive] = useState(false);
+  const [intervalMs] = useState(1000);
+
+  useEffect(() => {
+    if (!sessionId || !live) return;
+    let cancelled = false;
+    const tick = async () => {
+      if (cancelled) return;
+      try { await fetchScreenshot(); }
+      finally {
+        if (!cancelled && live) setTimeout(tick, intervalMs);
+      }
+    };
+    tick();
+    return () => { cancelled = true; };
+  }, [sessionId, live, intervalMs]);
 
   const viewport: Viewport = {
     width: shot?.width ?? 1280,
@@ -104,7 +122,7 @@ export default function RemoteRunner() {
 
     setLoading(true);
     try {
-      let pixel = `Step ( sessionId = "${sessionId}", paramValues = [ ${JSON.stringify(step)} ] )`;
+      let pixel = `Step ( sessionId = "${sessionId}", shouldStore = ${typeForm.storeValue}, paramValues = [ ${JSON.stringify(step)} ] )`;
       const res = await runPixel(pixel, insightId);
 
       const { output } = res.pixelReturn[0];
@@ -315,6 +333,41 @@ export default function RemoteRunner() {
       alert("Failed to save session");
     }
   }
+
+  function normalizeShot(raw: any | undefined | null): ScreenshotResponse | undefined {
+    if (!raw) return undefined;
+    const base64 =
+      raw.base64Png ?? raw.base64 ?? raw.imageBase64 ?? raw.pngBase64 ?? raw.data ?? "";
+    const width = raw.width ?? raw.w ?? 1280;
+    const height = raw.height ?? raw.h ?? 800;
+    const dpr = raw.deviceScaleFactor ?? raw.dpr ?? 1;
+    if (!base64 || typeof base64 !== "string") return undefined;
+    return { base64Png: base64, width, height, deviceScaleFactor: dpr };
+  }
+
+  async function fetchScreenshot() {
+    if (!sessionId) return;
+    try {
+      let pixel = `Screenshot ( sessionId = "${sessionId}" )`;
+      const res = await runPixel(pixel, insightId);
+      const { output } = res.pixelReturn[0];
+      const snap = normalizeShot(output);
+      if (snap) setShot(snap);
+    } catch (err) {
+      console.error("fetchScreenshot error:", err);
+    }
+  }
+
+  async function waitAndShot() {
+    if (!sessionId) return;
+    const ms = Number(window.prompt("Wait how many ms?", "800")) || 800;
+    const step: Step = { type: "WAIT", waitAfterMs: ms, viewport, timestamp: Date.now() };
+    await sendStep(step); // server will wait + return a fresh screenshot
+  }
+
+  async function startLiveReplay() {
+    setLive(true);
+  }
   
   return (
     <div style={{ padding: 16 }}>
@@ -339,6 +392,9 @@ export default function RemoteRunner() {
           { m: "type", icon: <KeyboardIcon />, label: "Type" },
           { m: "scroll-up", icon: <ArrowUpIcon />, label: "Scroll Up" },
           { m: "scroll-down", icon: <ArrowDownIcon />, label: "Scroll Down" },
+          { m: "delay", icon: <AccessTimeIcon />, label: "Delay" },
+          { m: "fetch-screenshot", icon: <SyncIcon />, label: "Refresh" }
+
         ] as { m: string; icon: JSX.Element; label: string }[]).map(({ m, icon, label }) => {
           const active = mode === m;
 
@@ -366,7 +422,12 @@ export default function RemoteRunner() {
                     waitAfterMs: 300,
                     timestamp: Date.now(),
                   });
-                } else {
+                } else if (m == "delay") {
+                  await waitAndShot();
+                } else if (m == "fetch-screenshot") {
+                  await fetchScreenshot();
+                }
+                else {
                   setMode(m as Mode);
                 }
               }}
@@ -413,7 +474,7 @@ export default function RemoteRunner() {
         <button onClick={replay} disabled={!sessionId}>
           Replay (Current Steps)
         </button>
-        <button onClick={save} disabled={!sessionId}>
+        <button onClick={saveSession} disabled={!sessionId}>
           Save
         </button>
         <button onClick={() => replayFromFile()} >
@@ -422,6 +483,10 @@ export default function RemoteRunner() {
         <button onClick={editRecording} >
           Load Recording (Edit)
         </button>
+        <button onClick={startLiveReplay} disabled={!sessionId || steps.length === 0}>
+          Start Live Replay
+        </button>
+        <button onClick={() => setLive(false)} disabled={!live}>Stop Live</button>
         <span>Steps: {steps.length}</span>
       </div>
       {!shot && loading && (
@@ -473,15 +538,6 @@ export default function RemoteRunner() {
                 rows={2}
                 onChange={(e) => setDescription(e.target.value)}
               />
-            </div>
-
-            <div style={{ display: "flex", gap: 8 }}>
-              <Button variant="contained" onClick={saveSession} disabled={!sessionId}>
-                Save Session
-              </Button>
-              <Button variant="outlined" onClick={save} disabled={!sessionId}>
-                Save
-              </Button>
             </div>
           </div>
 
@@ -546,7 +602,8 @@ export default function RemoteRunner() {
                     <td style={{ borderBottom: "1px solid #eee", padding: 4 }}>
                       <input
                         style={{ width: "100%" }}
-                        value={value}
+                        type={value.endsWith('~pass') ? "password" : "text"} 
+                        value={value.split('~pass')[0]}
                         onChange={(e) => {
                           const newValue = e.target.value;
                           setEditedData((cur) => ({ ...cur, [label]: newValue }));
@@ -656,7 +713,7 @@ export default function RemoteRunner() {
                 setTypeForm((cur) => ({
                   ...cur,
                   isPassword: e.target.checked,
-                  storeValue: e.target.checked ? false : cur.storeValue, // disable storeValue when password
+                  storeValue: cur.storeValue
                 }))
               }
             />
@@ -664,7 +721,7 @@ export default function RemoteRunner() {
           label="Password"
         />
 
-        {typeForm.editable && (
+        
           <FormControlLabel
             control={
               <Checkbox
@@ -672,12 +729,12 @@ export default function RemoteRunner() {
                 onChange={(e) =>
                   setTypeForm((cur) => ({ ...cur, storeValue: e.target.checked }))
                 }
-                disabled={typeForm.isPassword}   // disable if password
+                disabled={!typeForm.editable}   // disable if editable
               />
             }
             label="Store Value"
         />
-        )}
+       
 
         </DialogContent>
         <DialogActions>

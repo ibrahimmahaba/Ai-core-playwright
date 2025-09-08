@@ -6,7 +6,6 @@ import com.microsoft.playwright.Page;
 import com.microsoft.playwright.PlaywrightException;
 
 import prerna.reactor.AbstractReactor;
-import prerna.reactor.playwright.ScreenshotReactor;
 import prerna.sablecc2.om.PixelDataType;
 import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
@@ -18,9 +17,10 @@ public class StepReactor extends AbstractReactor {
 	public StepReactor(){
 		this.keysToGet = new String[] {
 				"sessionId",
+				"shouldStore",
 				ReactorKeysEnum.PARAM_VALUES_MAP.getKey()
 				};
-		this.keyRequired = new int[] { 1, 1 };
+		this.keyRequired = new int[] { 1, 0, 1 };
 	}
 
 	@Override
@@ -38,7 +38,7 @@ public class StepReactor extends AbstractReactor {
 	public ScreenshotResponse executeStep(String sessionId, Step step) {
 		Session s = SessionReactor.get(sessionId);
         applyStep(s, step);
-        s.history.steps().add(step);
+        addStepToHistory(s, step);
         return ScreenshotReactor.screenshot(sessionId);
     }
 	
@@ -103,5 +103,17 @@ public class StepReactor extends AbstractReactor {
 	            throw new RuntimeException("Failed to apply step: " + step.type(), e);
 	        }
 	    }
+	
+	private void addStepToHistory(Session s, Step step) {
+		String shouldStoreParam = this.keyValue.get(this.keysToGet[1]);
+		boolean shouldStore = Boolean.parseBoolean(shouldStoreParam);
+		
+		if (!shouldStore) {
+			Step newStep = new Step(step.type(),step.url(), step.coords(), "", step.pressEnter(), step.deltaY(), step.waitUntil(), step.waitAfterMs(), step.viewport(), step.timestamp(), step.label(), step.isPassword(), step.storeValue());
+			s.history.steps().add(newStep);
+		} else {
+			s.history.steps().add(step);
+		}
+	}
 
 }

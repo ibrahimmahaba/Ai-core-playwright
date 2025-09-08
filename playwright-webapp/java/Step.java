@@ -9,5 +9,7 @@ public record Step(
         Integer waitAfterMs,        // generic wait after action
         Viewport viewport,          // viewport the coords were computed against
         Long timestamp,
-        String label
+        String label,
+        boolean isPassword,
+        boolean storeValue
 ) {}

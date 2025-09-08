@@ -210,24 +210,24 @@ export default function RemoteRunner() {
     setShot(data);
   }
 
-  async function save() {
-    if (!sessionId) return;
+  // async function save() {
+  //   if (!sessionId) return;
 
-    if (!title || title.trim() === "") {
-      alert("Please enter a title before saving.");
-      return;
-    }
+  //   if (!title || title.trim() === "") {
+  //     alert("Please enter a title before saving.");
+  //     return;
+  //   }
 
-    const today = new Date().toISOString().split("T")[0];
-    const name = title ? `${title}-${today}`: `${scriptName}`;
+  //   const today = new Date().toISOString().split("T")[0];
+  //   const name = title ? `${title}-${today}`: `${scriptName}`;
     
-    let pixel = `SaveAll ( sessionId = "${sessionId}", "name"= "${name}",  paramValues = [ ] )`;
-    const res = await runPixel(pixel, insightId);
-    const data = res.pixelReturn[0].output as { file: string };
+  //   let pixel = `SaveAll ( sessionId = "${sessionId}", "name"= "${name}",  paramValues = [ ] )`;
+  //   const res = await runPixel(pixel, insightId);
+  //   const data = res.pixelReturn[0].output as { file: string };
 
-    setScriptName(name);
-    alert(`Saved to: ${data.file}`);
-  }
+  //   setScriptName(name);
+  //   alert(`Saved to: ${data.file}`);
+  // }
 
   async function replayFromFile(optionalName?: string) {
     setLoading(true);

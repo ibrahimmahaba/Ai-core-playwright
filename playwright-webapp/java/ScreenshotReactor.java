@@ -22,7 +22,7 @@ public class ScreenshotReactor extends AbstractReactor{
 
 	@Override
 	public NounMetadata execute() {
-		
+		organizeKeys();
 		String sessionId = this.keyValue.get(this.keysToGet[0]);
 		return new NounMetadata(screenshot(sessionId), PixelDataType.MAP);
 	}

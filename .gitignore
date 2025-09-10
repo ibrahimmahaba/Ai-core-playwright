@@ -23,4 +23,7 @@
 hs_err_pid*
 replay_pid*
 
-playwright-webapp/portals/
+**/portals/
+
+**/node_modules/
+

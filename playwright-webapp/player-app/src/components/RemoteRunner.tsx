@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, type JSX} from "react";
+import React, { useRef, useState, useEffect, type JSX } from "react";
 import { useInsight } from "@semoss/sdk-react";
 import { runPixel } from "@semoss/sdk";
 import {
@@ -45,43 +45,28 @@ type Meta = {
 }
 type StepsEnvelope = { version: "1.0"; meta: Meta; steps: Step[] };
 
-type Mode = "click" | "type" | "scroll-up" | "scroll-down" | "delay" | "fetch-screenshot";
-
-
 export default function RemoteRunner() {
 
   const [loading, setLoading] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [metadata, setMetadata] = useState<Record<string, string>>({});
+  const [metadata] = useState<Record<string, string>>({});
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [sessionId, setSessionId] = useState<any>();
+
+
+
+  const [sessionId] = useState<any>();
   const [shot, setShot] = useState<ScreenshotResponse>();
   const [url, setUrl] = useState("https://example.com");
   const [steps, setSteps] = useState<Step[]>([]);
   const imgRef = useRef<HTMLImageElement>(null);
   const { insightId } = useInsight();
-  const [scriptName] = useState("script-1");
+  const [showData, setShowData] = React.useState(false);
+  const [editedData, setEditedData] = React.useState<Record<string, string>>({});
+  const [updatedData, setUpdatedData] = React.useState<Record<string, string>>({});
+  const [scriptName, setScriptName] = useState("script-1");
   const [live, setLive] = useState(false);
   const [intervalMs] = useState(1000);
-  const [mode, setMode] = useState<Mode>("click");
-
-  const [showTypeDialog, setShowTypeDialog] = useState(false);
-  const [pendingCoords, setPendingCoords] = useState<Coords | null>(null);
-  const [typeForm, setTypeForm] = useState({
-    text: "",
-    label: "",
-    pressEnter: true,
-    editable: false,
-    isPassword: false,  
-    storeValue: true,    
-  });
-
-  const viewport: Viewport = {
-    width: shot?.width ?? 1280,
-    height: shot?.height ?? 800,
-    deviceScaleFactor: shot?.deviceScaleFactor ?? 1,
-  };
 
   useEffect(() => {
     if (!sessionId || !live) return;
@@ -97,37 +82,11 @@ export default function RemoteRunner() {
     return () => { cancelled = true; };
   }, [sessionId, live, intervalMs]);
 
-
-
-  async function fetchMetadata() {
-    const res = await runPixel("Metadata ( )", insightId);
-    const { output } = res.pixelReturn[0]
-    setMetadata(output as Record<string, string>);
+  const viewport: Viewport = {
+    width: shot?.width ?? 1280,
+    height: shot?.height ?? 800,
+    deviceScaleFactor: shot?.deviceScaleFactor ?? 1,
   };
-
-  async function createSession() {
-
-    setLoading(true);
-    fetchMetadata();
-    try {
-    let pixel = `Session ( paramValues = [ {"url":"${url}", "width": 1280, "height": 800, "deviceScaleFactor": 1} ] )`;
-    const res = await runPixel(pixel, insightId);
-    const { output } = res.pixelReturn[0] as { output: { sessionId: string; firstShot: ScreenshotResponse } };
-
-    setSessionId(output['sessionId']);
-    setShot(output['firstShot']);
-    setSteps([{
-      type: "NAVIGATE",
-      url,
-      waitUntil: "networkidle",
-      viewport,
-      timestamp: Date.now()
-    } as Step]);
-  } finally {
-    setLoading(false);
-  }
-
-  }
 
   async function sendStep(step: Step) {
     if (!sessionId) return;
@@ -159,6 +118,24 @@ export default function RemoteRunner() {
     return { x: Math.round(x), y: Math.round(y) };
   }
 
+  type Mode = "click" | "type" | "scroll";
+  const [mode, setMode] = useState<Mode>("click");
+
+  const [scrollConfig] = useState({
+    deltaY: 400,
+  });
+
+  const [showTypeDialog, setShowTypeDialog] = useState(false);
+  const [pendingCoords, setPendingCoords] = useState<Coords | null>(null);
+  const [typeForm, setTypeForm] = useState({
+    text: "",
+    label: "",
+    pressEnter: true,
+    editable: false,
+    isPassword: false,  
+    storeValue: true,    
+  });
+
   async function handleClick(e: React.MouseEvent<HTMLImageElement, MouseEvent>) {
     if (!shot) return;
     const coords = imageToPageCoords(e);
@@ -174,42 +151,102 @@ export default function RemoteRunner() {
     } else if (mode === "type") {
       setPendingCoords(coords);
       setShowTypeDialog(true);
-    } 
+    } else if (mode === "scroll") {
+      await sendStep({
+        type: "SCROLL",
+        coords,
+        deltaY: scrollConfig.deltaY,
+        viewport,
+        waitAfterMs: 300,
+        timestamp: Date.now(),
+      });
+    }
   }
 
-  async function saveSession() {
+  async function replay() {
     if (!sessionId) return;
-  
-    if (!title.trim()) {
-      alert("Please enter a title before saving the session.");
-      return;
-    }
-  
-    // build envelope for the first paramValues element
-    const envelope : StepsEnvelope = {
+    const envelope: StepsEnvelope = {
       version: "1.0",
       meta: {
-        title: title,
-        description: description,
+        title: title || "Untitled", // safe fallback
+        description: description || "",
       },
-      steps: steps
+      steps,
     };
-    const today = new Date().toISOString().split("T")[0];
-    const name = title ? `${title}-${today}`: `${scriptName}`;
+
+    let pixel = `Playwright ( endpoint = [ "replay" ] , sessionId = "${sessionId}", paramValues = [ ${JSON.stringify(envelope)} ] )`;
+    const res = await runPixel(pixel, insightId);
+    const data: ScreenshotResponse = res.pixelReturn[0].output as ScreenshotResponse;
+
+    setShot(data);
+  }
+
+  async function replayFromFile(optionalName?: string) {
+    setLoading(true);
+    try{
+    const name =
+      optionalName ||
+      window.prompt("Replay file (name in 'recordings' or absolute path):", scriptName) ||
+      scriptName;
+
+    let pixel = `ReplayFromFile ( sessionId = "${sessionId}", paramValues = [ { "name": "${name}" } ] )`;
+    const res = await runPixel(pixel, insightId);
+    const { output } = res.pixelReturn[0] as { output: any };
+
+    if (output && typeof output === "object" && output.base64Png) {
+      setShot(output as ScreenshotResponse);
+    } else {
+      console.error("Invalid response structure:", output);
+      alert("Error: Invalid response from replayFile endpoint");
+    }
+  } finally {
+    setLoading(false);
+  }
+}
+
+  async function editRecording() {
+    const name = window.prompt("Replay file (name in 'recordings' or absolute path):", scriptName) || scriptName;
+    let pixel = `GetPlaywrightScriptVariables(Script="${name}");`;
+    const res = await runPixel(pixel, insightId);
+    const { output } = res.pixelReturn[0] as { output: Record<string, string> };
+
+    setEditedData({ ...output });
+    setUpdatedData({ ...output });
+    setShowData(true);
+    setScriptName(name);
+  }
+
+
+  async function updatePlaywrightScript(currentDataParam?: Record<string, string>) {
+    const currentData = currentDataParam ?? updatedData;
+    if (!currentData || Object.keys(currentData).length === 0) {
+      alert("No variables provided!");
+      return;
+    }
+
+    const newName = window.prompt("Enter the new file name:", scriptName) || scriptName;
+
+    let Variables = Object.entries(currentData)
+      .map(([k, v]) => `{ "${k}": "${v}" }`)
+      .join(", ");
+    
+    let metadataVariables = Object.entries(currentData)
+    .filter(([k]) => k === "title" || k === "description")
+    .map(([k, v]) => `{ "${k}": "${v}" }`)
+    .join(", ");
+
+    if (metadataVariables) {
+      const patchPixel = `PatchFileMeta(name="${scriptName}", paramValues=[${metadataVariables}])`;
+      await runPixel(patchPixel, insightId);
+    }
+    const updatePixel = `UpdatePlaywrightScriptVariables(Script="${scriptName}", Variables=[${Variables}], OutputScript="${newName}")`;
     try {
-      const pixel = `SaveAll(
-        sessionId="${sessionId}",
-        name="${name}",
-        paramValues=[${JSON.stringify(envelope)}]
-      )`;
-  
-      console.log("Running pixel:", pixel);
-      const res = await runPixel(pixel, insightId);
-      console.log("SaveAll success:", res.pixelReturn[0].output);
-      alert("Session saved successfully!");
+      const updateRes = await runPixel(updatePixel, insightId);
+      const { output } = updateRes.pixelReturn[0] as { output: string };
+      replayFromFile(output);
     } catch (err) {
-      console.error("Error saving session:", err);
-      alert("Failed to save session");
+      console.error("Failed to update script:", err);
+      alert("Error updating script");
     }
   }
 
@@ -349,13 +386,15 @@ export default function RemoteRunner() {
           style={{ width: 420 }}
           placeholder="Enter URL"
         />
-        <button onClick={createSession}>Open</button>
-       
-        <button onClick={saveSession} disabled={!sessionId}>
-          Save
+        <button onClick={replay} disabled={!sessionId}>
+          Replay (Current Steps)
         </button>
-        
-        
+        <button onClick={() => replayFromFile()} >
+          Replay From File
+        </button>
+        <button onClick={editRecording} >
+          Load Recording (Edit)
+        </button>
         <button onClick={startLiveReplay} disabled={!sessionId || steps.length === 0}>
           Start Live Replay
         </button>
@@ -426,6 +465,8 @@ export default function RemoteRunner() {
                 cursor:
                   mode === "type"
                     ? "text"
+                    : mode === "scroll"
+                    ? "ns-resize"
                     : "pointer",
               }}
               onLoad={() => setLoading(false)}
@@ -450,6 +491,57 @@ export default function RemoteRunner() {
             )}
           </div>
         </>
+      )}
+
+      {showData && (
+        <div style={{ marginTop: 12, padding: 12, border: "1px solid #ccc", borderRadius: 8 }}>
+          <h4>Edit Replay Variables ({Object.keys(editedData).length})</h4>
+
+          {Object.keys(editedData).length === 0 ? (
+            <div>No variables found.</div>
+          ) : (
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  <th style={{ borderBottom: "1px solid #ddd", textAlign: "left", padding: 4 }}>Label</th>
+                  <th style={{ borderBottom: "1px solid #ddd", textAlign: "left", padding: 4 }}>Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(editedData).map(([label, value]) => (
+                  <tr key={label}>
+                    <td style={{ borderBottom: "1px solid #eee", padding: 4 }}>{label}</td>
+                    <td style={{ borderBottom: "1px solid #eee", padding: 4 }}>
+                      <input
+                        style={{ width: "100%" }}
+                        type={value.endsWith('~pass') ? "password" : "text"} 
+                        value={value.split('~pass')[0]}
+                        onChange={(e) => {
+                          const newValue = e.target.value;
+                          setEditedData((cur) => ({ ...cur, [label]: newValue }));
+                          setUpdatedData((cur) => ({ ...cur, [label]: newValue }));
+                        }}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
+            <button
+              onClick={async () => {
+                await updatePlaywrightScript(updatedData);
+                setShowData(false);
+              }}
+            >
+              Execute 
+            </button>
+
+            <button onClick={() => setShowData(false)}>Cancel</button>
+          </div>
+        </div>
       )}
 
       <Dialog open={showTypeDialog} onClose={() => setShowTypeDialog(false)}>

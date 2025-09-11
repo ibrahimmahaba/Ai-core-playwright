@@ -647,7 +647,7 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
 
               setShowTypeDialog(false);
               setPendingCoords(null);
-              setTypeForm({ text: "", label: "", pressEnter: true, editable: false, isPassword: false, storeValue: true});
+              setTypeForm({ text: "", label: "", pressEnter: false, editable: false, isPassword: false, storeValue: true});
             }}
           >
             Submit

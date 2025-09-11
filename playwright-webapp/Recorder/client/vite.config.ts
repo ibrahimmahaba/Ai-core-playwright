@@ -16,7 +16,7 @@ export default defineConfig(({mode}) => {
       'process.env.APP': JSON.stringify(env.APP)
     },
     server: {
-			port: 5173,
+			port: 5174,
 			proxy: {
 				[env.MODULE]: {
 					target: env.ENDPOINT,

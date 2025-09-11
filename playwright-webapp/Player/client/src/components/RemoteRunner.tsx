@@ -1,5 +1,4 @@
 import React, { useRef, useState, useEffect, type JSX } from "react";
-import { useInsight } from "@semoss/sdk-react";
 import { runPixel } from "@semoss/sdk";
 import {
   Mouse as MouseIcon,
@@ -39,35 +38,24 @@ type Step =
   | { type: "SCROLL"; coords: Coords; deltaY?: number; viewport: Viewport; waitAfterMs?: number; timestamp: number }
   | { type: "WAIT"; waitAfterMs: number; viewport: Viewport; timestamp: number };
 
-// type Meta = {
-//   title : string;
-//   description: string
-// }
-// type StepsEnvelope = { version: "1.0"; meta: Meta; steps: Step[] };
-
 type VariableRecord = { label: string; text: string; isPassword?: boolean };
 
-export default function RemoteRunner() {
+type RemoteRunnerProps = {
+  sessionId: string; 
+  metadata: Record<string, string>; 
+  insightId: string;
+}
+
+export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteRunnerProps) {
 
   const [loading, setLoading] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [metadata, setMetadata] = useState<Record<string, string>>({});
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-
-
-  async function fetchMetadata() {
-    const res = await runPixel("Metadata ( )", insightId);
-    const { output } = res.pixelReturn[0]
-    setMetadata(output as Record<string, string>);
-  };
-
-  const [sessionId, setSessionId] = useState<any>();
   const [shot, setShot] = useState<ScreenshotResponse>();
   // const [url, setUrl] = useState("https://example.com");
   const [steps, setSteps] = useState<Step[]>([]);
   const imgRef = useRef<HTMLImageElement>(null);
-  const { insightId } = useInsight();
   const [showData, setShowData] = React.useState(false);
   const [editedData, setEditedData] = React.useState<VariableRecord[]>([]);
   const [updatedData, setUpdatedData] = React.useState<VariableRecord[]>([]);
@@ -89,27 +77,11 @@ export default function RemoteRunner() {
     return () => { cancelled = true; };
   }, [sessionId, live, intervalMs]);
 
-  useEffect (() => {
-    if(sessionId) return; // already have a session
-    createSession();
-  }, [sessionId]);
-
   const viewport: Viewport = {
     width: shot?.width ?? 1280,
     height: shot?.height ?? 800,
     deviceScaleFactor: shot?.deviceScaleFactor ?? 1,
   };
-
-  async function createSession() {
-
-    fetchMetadata();
-   
-    let pixel = `Session ( )`;
-    const res = await runPixel(pixel, insightId);
-    const { output } = res.pixelReturn[0];
-
-    setSessionId(output);
-  }
 
   async function sendStep(step: Step) {
     if (!sessionId) return;
@@ -153,7 +125,7 @@ export default function RemoteRunner() {
   const [typeForm, setTypeForm] = useState({
     text: "",
     label: "",
-    pressEnter: true,
+    pressEnter: false,
     editable: false,
     isPassword: false,  
     storeValue: true,    
@@ -185,43 +157,6 @@ export default function RemoteRunner() {
       });
     }
   }
-
-  // async function replay() {
-  //   if (!sessionId) return;
-  //   const envelope: StepsEnvelope = {
-  //     version: "1.0",
-  //     meta: {
-  //       title: title || "Untitled", // safe fallback
-  //       description: description || "",
-  //     },
-  //     steps,
-  //   };
-
-  //   let pixel = `Playwright ( endpoint = [ "replay" ] , sessionId = "${sessionId}", paramValues = [ ${JSON.stringify(envelope)} ] )`;
-  //   const res = await runPixel(pixel, insightId);
-  //   const data: ScreenshotResponse = res.pixelReturn[0].output as ScreenshotResponse;
-
-  //   setShot(data);
-  // }
-
-  // async function save() {
-  //   if (!sessionId) return;
-
-  //   if (!title || title.trim() === "") {
-  //     alert("Please enter a title before saving.");
-  //     return;
-  //   }
-
-  //   const today = new Date().toISOString().split("T")[0];
-  //   const name = title ? `${title}-${today}`: `${scriptName}`;
-    
-  //   let pixel = `SaveAll ( sessionId = "${sessionId}", "name"= "${name}",  paramValues = [ ] )`;
-  //   const res = await runPixel(pixel, insightId);
-  //   const data = res.pixelReturn[0].output as { file: string };
-
-  //   setScriptName(name);
-  //   alert(`Saved to: ${data.file}`);
-  // }
 
   async function replayFromFile(optionalName?: string) {
     setLoading(true);
@@ -316,77 +251,6 @@ export default function RemoteRunner() {
       alert("Error updating script");
     }
   }
-  
-  // async function updatePlaywrightScript(currentDataParam?: VariableRecord[]) {
-  //   const currentData = currentDataParam ?? updatedData;
-
-  //   console.log(currentData);
-  //   if (!currentData || Object.keys(currentData).length === 0) {
-  //     alert("No variables provided!");
-  //     return;
-  //   }
-
-  //   const newName = window.prompt("Enter the new file name:", scriptName) || scriptName;
-
-  //   let Variables = Object.entries(currentData)
-  //     .map(([k, v]) => `{ "${k}": "${v}" }`)
-  //     .join(", ");
-    
-  //   let metadataVariables = Object.entries(currentData)
-  //   .filter(([k]) => k === "title" || k === "description")
-  //   .map(([k, v]) => `{ "${k}": "${v}" }`)
-  //   .join(", ");
-
-  //   if (metadataVariables) {
-  //     const patchPixel = `PatchFileMeta(name="${scriptName}", paramValues=[${metadataVariables}])`;
-  //     await runPixel(patchPixel, insightId);
-  //   }
-  //   const updatePixel = `UpdatePlaywrightScriptVariables(Script="${scriptName}", Variables=[${Variables}], OutputScript="${newName}")`;
-  //   try {
-  //     const updateRes = await runPixel(updatePixel, insightId);
-  //     const { output } = updateRes.pixelReturn[0] as { output: string };
-  //     replayFromFile(output);
-  //   } catch (err) {
-  //     console.error("Failed to update script:", err);
-  //     alert("Error updating script");
-  //   }
-  // }
-
-  // async function saveSession() {
-  //   if (!sessionId) return;
-  
-  //   if (!title.trim()) {
-  //     alert("Please enter a title before saving the session.");
-  //     return;
-  //   }
-  
-  //   // build envelope for the first paramValues element
-  //   const envelope = {
-  //     version: "1.0",
-  //     meta: {
-  //       title: title,
-  //       description: description,
-  //     },
-  //     steps: steps
-  //   };
-  //   const today = new Date().toISOString().split("T")[0];
-  //   const name = title ? `${title}-${today}`: `${scriptName}`;
-  //   try {
-  //     const pixel = `SaveAll(
-  //       sessionId="${sessionId}",
-  //       name="${name}",
-  //       paramValues=[${JSON.stringify(envelope)}]
-  //     )`;
-  
-  //     console.log("Running pixel:", pixel);
-  //     const res = await runPixel(pixel, insightId);
-  //     console.log("SaveAll success:", res.pixelReturn[0].output);
-  //     alert("Session saved successfully!");
-  //   } catch (err) {
-  //     console.error("Error saving session:", err);
-  //     alert("Failed to save session");
-  //   }
-  // }
 
   function normalizeShot(raw: any | undefined | null): ScreenshotResponse | undefined {
     if (!raw) return undefined;
@@ -518,19 +382,6 @@ export default function RemoteRunner() {
 
       <h2>Playwright Script Player App</h2>
       <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
-        {/* <input
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          style={{ width: 420 }}
-          placeholder="Enter URL"
-        /> */}
-        {/* <button onClick={() => sendStep({ type: "NAVIGATE", url: url, waitAfterMs: 100, viewport, timestamp: Date.now() })}>Open</button> */}
-        {/* <button onClick={replay} disabled={!sessionId}>
-          Replay (Current Steps)
-        </button> */}
-        {/* <button onClick={saveSession} disabled={!sessionId}>
-          Save
-        </button> */}
         <button onClick={() => replayFromFile()} >
           Replay From File
         </button>
@@ -661,10 +512,10 @@ export default function RemoteRunner() {
                         onChange={(e) => {
                           const newValue = e.target.value;
                           setEditedData((cur) => 
-                            cur ? cur.map(item => item.label === obj.label ? { ...item, text: newValue } : item) : []
+                            cur.map(item => item.label === obj.label ? { ...item, text: newValue } : item)
                           );
                           setUpdatedData((cur) => 
-                            cur ? cur.map(item => item.label === obj.label ? { ...item, text: newValue } : item) : []
+                            cur.map(item => item.label === obj.label ? { ...item, text: newValue } : item)
                           );
                         }}
                       />
@@ -747,15 +598,6 @@ export default function RemoteRunner() {
           <FormControlLabel
             control={
               <Checkbox
-                checked={typeForm.pressEnter}
-                onChange={(e) => setTypeForm((cur) => ({ ...cur, pressEnter: e.target.checked }))}
-              />
-            }
-            label="Press Enter after typing"
-          />
-          <FormControlLabel
-            control={
-              <Checkbox
                 checked={typeForm.editable}
                 onChange={(e) => setTypeForm((cur) => ({ ...cur, editable: e.target.checked }))}
               />
@@ -778,8 +620,6 @@ export default function RemoteRunner() {
           }
           label="Password"
         />
-
-        
           <FormControlLabel
             control={
               <Checkbox
@@ -791,7 +631,16 @@ export default function RemoteRunner() {
               />
             }
             label="Store Value"
-        />
+          />
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={typeForm.pressEnter}
+                onChange={(e) => setTypeForm((cur) => ({ ...cur, pressEnter: e.target.checked }))}
+              />
+            }
+            label="Press Enter after typing"
+          />
        
 
         </DialogContent>

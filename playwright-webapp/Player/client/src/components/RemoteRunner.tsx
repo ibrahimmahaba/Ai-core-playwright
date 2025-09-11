@@ -226,11 +226,17 @@ export default function RemoteRunner() {
   async function replayFromFile(optionalName?: string) {
     setLoading(true);
     try{
-    const name =
-      optionalName ||
-      window.prompt("Replay file (name in 'recordings' or absolute path):", scriptName) ||
-      scriptName;
+      let name: string | null;
 
+      if (optionalName) {
+        name = optionalName;
+      } else {
+        const input = window.prompt("Replay file (name in 'recordings' or absolute path):", scriptName);
+        if (input === null) {
+          return; 
+        }
+        name = input || scriptName;
+      }
     let pixel = `ReplayFromFile ( sessionId = "${sessionId}", paramValues = [ { "name": "${name}" } ] )`;
     const res = await runPixel(pixel, insightId);
     const { output } = res.pixelReturn[0] as { output: any };
@@ -247,7 +253,16 @@ export default function RemoteRunner() {
 }
 
   async function editRecording() {
-    const name = window.prompt("Replay file (name in 'recordings' or absolute path):", scriptName) || scriptName;
+    const input = window.prompt(
+      "Replay file (name in 'recordings' or absolute path):",
+      scriptName
+    );
+  
+    if (input === null) {
+      return;
+    }
+    const name = input || scriptName;
+
     let pixel = `GetPlaywrightScriptVariables(Script="${name}");`;
     const res = await runPixel(pixel, insightId);
     const { output } = res.pixelReturn[0] as { output: VariableRecord[] };
@@ -269,7 +284,11 @@ export default function RemoteRunner() {
       return;
     }
   
-    const newName = window.prompt("Enter the new file name:", scriptName) || scriptName;
+    const input = window.prompt("Enter the new file name:", scriptName);
+    if (input === null) {
+      return;
+    }
+    const newName = input || scriptName; 
   
     // Build Variables from the array
     const Variables = currentData

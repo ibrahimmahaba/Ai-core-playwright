@@ -8,7 +8,7 @@ import {
   AccessTime as AccessTimeIcon,
   Sync as SyncIcon,
 } from "@mui/icons-material";
-import { CircularProgress, Menu, MenuItem, Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, FormControlLabel, Checkbox } from "@mui/material";
+import { CircularProgress, Menu, MenuItem, Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, FormControlLabel, Checkbox, Autocomplete } from "@mui/material";
 
 type ScreenshotResponse = {
   base64Png: string;
@@ -46,6 +46,13 @@ type RemoteRunnerProps = {
   insightId: string;
 }
 
+type ReplayPixelOutput = {
+  isLastPage: boolean;
+  inputs: VariableRecord[];
+  screenshot: ScreenshotResponse
+};
+
+
 export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteRunnerProps) {
 
   const [loading, setLoading] = useState(false);
@@ -53,7 +60,6 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [shot, setShot] = useState<ScreenshotResponse>();
-  // const [url, setUrl] = useState("https://example.com");
   const [steps, setSteps] = useState<Step[]>([]);
   const imgRef = useRef<HTMLImageElement>(null);
   const [showData, setShowData] = React.useState(false);
@@ -62,6 +68,10 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
   const [scriptName, setScriptName] = useState("script-1");
   const [live, setLive] = useState(false);
   const [intervalMs] = useState(1000);
+  const [allRecordings, setAllRecordings] = useState<string[]>([]);
+  const [selectedRecording, setSelectedRecording] = useState<string | null>(null);
+  const [isLastPage, setIsLastPage] = useState(false);
+
 
   useEffect(() => {
     if (!sessionId || !live) return;
@@ -76,6 +86,18 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
     tick();
     return () => { cancelled = true; };
   }, [sessionId, live, intervalMs]);
+
+
+  useEffect(() => {
+    const fetchRecordings = async () => {
+      let pixel = `ListPlaywrightScripts();`
+      const res = await runPixel(pixel, insightId);
+      const { output } = res.pixelReturn[0];
+      setAllRecordings(output as string[]);
+    };
+    fetchRecordings();
+  }, []);
+  
 
   const viewport: Viewport = {
     width: shot?.width ?? 1280,
@@ -188,25 +210,27 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
 }
 
   async function editRecording() {
-    const input = window.prompt(
-      "Replay file (name in 'recordings' or absolute path):",
-      scriptName
-    );
-  
-    if (input === null) {
+    if (!selectedRecording) {
+      alert("Please select a recording first.");
       return;
     }
-    const name = input || scriptName;
 
-    let pixel = `GetPlaywrightScriptVariables(Script="${name}");`;
+    const name = selectedRecording;
+
+    // TODO: lama ados -> pixel call ReplayStep (sessionId = "", fileName = "", paramValues = []);
+    // 1. display first screen -> set the shot -> logic from ReplayFile
+    // 2. list of variables if exists -> set the list -> setShowData and update editedData and updatedData (logic from Update)
+
+    let pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${name}");`;
     const res = await runPixel(pixel, insightId);
-    const { output } = res.pixelReturn[0] as { output: VariableRecord[] };
-    console.log("Fetched variables:", output);
-    setEditedData(output);
-    setUpdatedData(output);
-    console.log("Updated variables:", editedData);
+    const { output } = res.pixelReturn[0] as {output : ReplayPixelOutput};
+
+    setEditedData(output.inputs);
+    setUpdatedData(output.inputs);
     setShowData(true);
     setScriptName(name);
+    setIsLastPage(output.isLastPage);
+    setShot(output.screenshot);
   }
 
 
@@ -287,6 +311,37 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
     setLive(true);
   }
   
+  async function handleNextStep(){
+   
+    let pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${selectedRecording}", paramValues=[${editedData[0]}]);`;
+    const res = await runPixel(pixel, insightId);
+    const { output } = res.pixelReturn[0] as {output : ReplayPixelOutput};
+
+    setEditedData((cur) => cur.slice(1));
+
+    if(editedData.length === 0){
+      setEditedData(output.inputs);
+      setUpdatedData(output.inputs);
+    }
+    setShowData(true);
+    setIsLastPage(output.isLastPage);
+    setShot(output.screenshot);
+  }
+
+  async function handleExecuteAll(){
+    let pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${selectedRecording}", paramValues=[${updatedData}]);`;
+    const res = await runPixel(pixel, insightId);
+    const { output } = res.pixelReturn[0] as {output : ReplayPixelOutput};
+
+
+    setEditedData(output.inputs);
+    setUpdatedData(output.inputs);
+    setShowData(true);
+    setIsLastPage(output.isLastPage);
+    setShot(output.screenshot);
+  }
+  
+
   return (
     <div style={{ padding: 16 }}>
       <div
@@ -385,9 +440,21 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
         <button onClick={() => replayFromFile()} >
           Replay From File
         </button>
-        <button onClick={editRecording} >
+
+        <Autocomplete
+          options={allRecordings}
+          value={selectedRecording}
+          onChange={(_, newValue) => setSelectedRecording(newValue)}
+          renderInput={(params) => (
+            <TextField {...params} label="Select Recording" placeholder="Search recordings..." />
+          )}
+          sx={{ minWidth: 250 }}
+        />
+
+        <button onClick={editRecording}>
           Load Recording (Edit)
         </button>
+
         <button onClick={startLiveReplay}>
           Start Live Replay
         </button>
@@ -486,60 +553,68 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
         </>
       )}
 
-      {showData && (
-        <div style={{ marginTop: 12, padding: 12, border: "1px solid #ccc", borderRadius: 8 }}>
+    {showData && (
+      <div style={{ marginTop: 12, padding: 12, border: "1px solid #ccc", borderRadius: 8 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <h4>Edit Replay Variables ({editedData.length})</h4>
-
-          {editedData.length === 0 ? (
-            <div>No variables found.</div>
-          ) : (
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr>
-                  <th style={{ borderBottom: "1px solid #ddd", textAlign: "left", padding: 4 }}>Label</th>
-                  <th style={{ borderBottom: "1px solid #ddd", textAlign: "left", padding: 4 }}>Value</th>
-                </tr>
-              </thead>
-              <tbody>
-                {editedData.map((obj) => (
-                  <tr key={obj.label}>
-                    <td style={{ borderBottom: "1px solid #eee", padding: 4 }}>{obj.label}</td>
-                    <td style={{ borderBottom: "1px solid #eee", padding: 4 }}>
-                      <input
-                        style={{ width: "100%" }}
-                        type={obj.isPassword ? "password" : "text"} 
-                        value={obj.text}
-                        onChange={(e) => {
-                          const newValue = e.target.value;
-                          setEditedData((cur) => 
-                            cur.map(item => item.label === obj.label ? { ...item, text: newValue } : item)
-                          );
-                          setUpdatedData((cur) => 
-                            cur.map(item => item.label === obj.label ? { ...item, text: newValue } : item)
-                          );
-                        }}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-
-          <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
+          {!isLastPage && ( 
             <button
-              onClick={async () => {
-                await updatePlaywrightScript(updatedData);
-                setShowData(false);
-              }}
+              style={{ padding: "4px 10px", borderRadius: 4, cursor: "pointer" }}
+              onClick={handleNextStep}
             >
-              Execute 
+              Next →
             </button>
-
-            <button onClick={() => setShowData(false)}>Cancel</button>
-          </div>
+          )}
         </div>
-      )}
+
+        {editedData.length === 0 ? (
+          <div>No variables found.</div>
+        ) : (
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                <th style={{ borderBottom: "1px solid #ddd", textAlign: "left", padding: 4 }}>Label</th>
+                <th style={{ borderBottom: "1px solid #ddd", textAlign: "left", padding: 4 }}>Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              {editedData.map((obj) => (
+                <tr key={obj.label}>
+                  <td style={{ borderBottom: "1px solid #eee", padding: 4 }}>{obj.label}</td>
+                  <td style={{ borderBottom: "1px solid #eee", padding: 4 }}>
+                    <input
+                      style={{ width: "100%" }}
+                      type={obj.isPassword ? "password" : "text"} 
+                      value={obj.text}
+                      onChange={(e) => {
+                        const newValue = e.target.value;
+                        setEditedData((cur) => 
+                          cur.map(item => item.label === obj.label ? { ...item, text: newValue } : item)
+                        );
+                        // setUpdatedData((cur) => 
+                        //   cur.map(item => item.label === obj.label ? { ...item, text: newValue } : item)
+                        // );
+                      }}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+
+        <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
+          <button
+            onClick={handleExecuteAll}
+          >
+            Execute All
+          </button>
+
+          <button onClick={() => setShowData(false)}>Cancel</button>
+        </div>
+      </div>
+    )}
+
 
       <Dialog open={showTypeDialog} onClose={() => setShowTypeDialog(false)}>
         <DialogTitle>Type Input</DialogTitle>

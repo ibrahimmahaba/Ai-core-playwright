@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, type JSX } from "react";
+import React, { useRef, useState, type JSX } from "react";
 import { runPixel } from "@semoss/sdk";
 import {
   Mouse as MouseIcon,
@@ -8,7 +8,10 @@ import {
   AccessTime as AccessTimeIcon,
   Sync as SyncIcon,
 } from "@mui/icons-material";
-import { CircularProgress, Menu, MenuItem, Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, FormControlLabel, Checkbox } from "@mui/material";
+import { CircularProgress, TextField, FormControlLabel, Checkbox } from "@mui/material";
+import { IconButton } from "@mui/material";
+import { Check, Close } from "@mui/icons-material";
+import Draggable from "react-draggable";
 
 type ScreenshotResponse = {
   base64Png: string;
@@ -45,10 +48,9 @@ type RemoteRunnerProps = {
   insightId: string;
 }
 
-export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteRunnerProps)  {
+export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps)  {
 
   const [loading, setLoading] = useState(false);
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [shot, setShot] = useState<ScreenshotResponse>();
@@ -127,7 +129,11 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
         timestamp: Date.now(),
       });
     } else if (mode === "type") {
-      setPendingCoords(coords);
+      setPendingCoords({
+        ...coords,
+        clientX: e.clientX,
+        clientY: e.clientY,
+      } as any); // keep both
       setShowTypeDialog(true);
     } else if (mode === "scroll") {
       await sendStep({
@@ -220,7 +226,8 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
       const pixel = `SaveAll(
         sessionId="${sessionId}",
         name="${name}",
-        paramValues=[${JSON.stringify(envelope)}]
+        title="${title}",
+        description="${description}",
       )`;
   
       console.log("Running pixel:", pixel);
@@ -357,7 +364,7 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
       </div>
 
 
-      <h2>Remote Playwright Runner</h2>
+      <h2>Playwright Recorder App</h2>
       <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
         <input
           value={url}
@@ -441,6 +448,211 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
               }}
               onLoad={() => setLoading(false)}
             />
+            
+            {/* // float slightly above click */}
+
+            {showTypeDialog && pendingCoords && (
+              <Draggable>
+                <div
+                  style={{
+                    position: "absolute",
+                    top: pendingCoords.y - 20,
+                    left: pendingCoords.x,
+                    transform: "translate(-50%, -100%)",
+                    background: "rgba(255,255,255,0.95)",
+                    border: "1px solid #ccc",
+                    borderRadius: "8px",
+                    padding: "10px",
+                    zIndex: 2000,
+                    minWidth: "280px",
+                    maxWidth: "400px",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
+                    cursor: "move",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "6px",
+                  }}
+                >
+                  {/* === Text + Label in one row === */}
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "8px",
+                      alignItems: "center",
+                      width: "100%",
+                    }}
+                  >
+                    <TextField
+                      label="Text"
+                      type={typeForm.isPassword ? "password" : "text"}
+                      value={typeForm.text}
+                      onChange={(e) =>
+                        setTypeForm((cur) => ({ ...cur, text: e.target.value }))
+                      }
+                      required
+                      size="small"
+                      autoFocus
+                      fullWidth
+                      style={{ flex: 1 }}
+                    />
+
+                    {typeForm.editable && (
+                      <TextField
+                        label="Label"
+                        value={typeForm.label}
+                        onChange={(e) =>
+                          setTypeForm((cur) => ({ ...cur, label: e.target.value }))
+                        }
+                        required
+                        error={!typeForm.label.trim()}
+                        helperText={!typeForm.label.trim() ? "Label is required" : " "}
+                        size="small"
+                        fullWidth
+                        style={{ flex: 1 }}
+                        FormHelperTextProps={{
+                          sx: {
+                            fontSize: "0.5rem",
+                            lineHeight: 1.2,
+                            margin: 0,
+                            minHeight: "14px",
+                          },
+                        }}
+                      />
+                    )}
+                  </div>
+
+                  {/* === Checkboxes + Action buttons === */}
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: "6px",
+                      alignItems: "center",
+                      marginTop: "4px",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    {/* Left: checkboxes */}
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={typeForm.editable}
+                            onChange={(e) =>
+                              setTypeForm((cur) => ({
+                                ...cur,
+                                editable: e.target.checked,
+                              }))
+                            }
+                            size="small"
+                            sx={{ transform: "scale(0.7)", padding: "2px" }}
+                          />
+                        }
+                        label={<span style={{ fontSize: "0.75rem" }}>Editable</span>}
+                      />
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={typeForm.isPassword}
+                            onChange={(e) =>
+                              setTypeForm((cur) => ({
+                                ...cur,
+                                isPassword: e.target.checked,
+                              }))
+                            }
+                            size="small"
+                            sx={{ transform: "scale(0.7)", padding: "2px" }}
+                          />
+                        }
+                        label={<span style={{ fontSize: "0.75rem" }}>Password</span>}
+                      />
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={typeForm.storeValue}
+                            onChange={(e) =>
+                              setTypeForm((cur) => ({
+                                ...cur,
+                                storeValue: e.target.checked,
+                              }))
+                            }
+                            size="small"
+                            disabled={!typeForm.editable}
+                            sx={{ transform: "scale(0.7)", padding: "2px" }}
+                          />
+                        }
+                        label={<span style={{ fontSize: "0.75rem" }}>Store</span>}
+                      />
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={typeForm.pressEnter}
+                            onChange={(e) =>
+                              setTypeForm((cur) => ({
+                                ...cur,
+                                pressEnter: e.target.checked,
+                              }))
+                            }
+                            size="small"
+                            sx={{ transform: "scale(0.7)", padding: "2px" }}
+                          />
+                        }
+                        label={<span style={{ fontSize: "0.75rem" }}>Enter</span>}
+                      />
+                    </div>
+
+                    {/* Right: action buttons */}
+                    <div style={{ display: "flex", gap: "6px" }}>
+                      <IconButton
+                        size="small"
+                        onClick={() => {
+                          setShowTypeDialog(false);
+                          setPendingCoords(null);
+                        }}
+                      >
+                        <Close fontSize="small" />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        color="primary"
+                        onClick={async () => {
+                          if (!pendingCoords) return;
+                          if (typeForm.editable && !typeForm.label.trim()) {
+                            alert("Label is required when Editable is checked.");
+                            return;
+                          }
+                          await sendStep({
+                            type: "TYPE",
+                            coords: { x: pendingCoords.x, y: pendingCoords.y },
+                            text: typeForm.text,
+                            pressEnter: typeForm.pressEnter,
+                            viewport,
+                            waitAfterMs: 300,
+                            timestamp: Date.now(),
+                            label: typeForm.label || "",
+                            isPassword: typeForm.isPassword,
+                            storeValue: typeForm.storeValue,
+                          });
+                          setShowTypeDialog(false);
+                          setPendingCoords(null);
+                          setTypeForm({
+                            text: "",
+                            label: "",
+                            pressEnter: true,
+                            editable: false,
+                            isPassword: false,
+                            storeValue: true,
+                          });
+                        }}
+                      >
+                        <Check fontSize="small" />
+                      </IconButton>
+                    </div>
+                  </div>
+                </div>
+              </Draggable>
+            )}
+
 
             {loading && (
               <div
@@ -517,143 +729,6 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
           </div>
         </div>
       )}
-
-      <Dialog open={showTypeDialog} onClose={() => setShowTypeDialog(false)}>
-        <DialogTitle>Type Input</DialogTitle>
-        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 400 }}>
-          <TextField
-            label="Text"
-            type={typeForm.isPassword ? "password" : "text"} 
-            value={typeForm.text}
-            onChange={(e) => setTypeForm((cur) => ({ ...cur, text: e.target.value }))}
-            required
-          />
-          {typeForm.editable && (
-            <TextField
-              label="Label"
-              value={typeForm.label}
-              onChange={(e) =>
-                setTypeForm((cur) => ({ ...cur, label: e.target.value }))
-              }
-              required
-              error={!typeForm.label.trim()}
-              helperText={
-                !typeForm.label.trim()
-                  ? "Label is required when Editable is checked"
-                  : ""
-              }
-            />
-          )}
-
-          {showTypeDialog && (
-            <>
-              <Button
-                variant="outlined"
-                onClick={(e) => setAnchorEl(e.currentTarget)} // open menu
-              >
-                Insert Var
-              </Button>
-              <Menu
-                anchorEl={anchorEl}
-                open={Boolean(anchorEl)}
-                onClose={() => setAnchorEl(null)}
-              >
-                {Object.entries(metadata).map(([key, value]) => (
-                  <MenuItem
-                    key={key}
-                    onClick={() => {
-                      setTypeForm((cur) => ({ ...cur, text: typeForm.text + value }));
-                      setAnchorEl(null);
-                    }}
-                  >
-                    {key}
-                  </MenuItem>
-                ))}
-              </Menu>
-            </>
-          )}
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={typeForm.editable}
-                onChange={(e) => setTypeForm((cur) => ({ ...cur, editable: e.target.checked }))}
-              />
-            }
-            label="Editable"
-          />
-
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={typeForm.isPassword}
-              onChange={(e) =>
-                setTypeForm((cur) => ({
-                  ...cur,
-                  isPassword: e.target.checked,
-                  storeValue: cur.storeValue
-                }))
-              }
-            />
-          }
-          label="Password"
-        />
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={typeForm.storeValue}
-                onChange={(e) =>
-                  setTypeForm((cur) => ({ ...cur, storeValue: e.target.checked }))
-                }
-                disabled={!typeForm.editable}   // disable if editable
-              />
-            }
-            label="Store Value"
-          />
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={typeForm.pressEnter}
-                onChange={(e) => setTypeForm((cur) => ({ ...cur, pressEnter: e.target.checked }))}
-              />
-            }
-            label="Press Enter after typing"
-          />
-
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowTypeDialog(false)}>Cancel</Button>
-          <Button
-            variant="contained"
-            onClick={async () => {
-              if (!pendingCoords) return;
-
-              if (typeForm.editable && !typeForm.label.trim()) {
-                alert("Label is required when Editable is checked.");
-                return;
-              }
-
-              await sendStep({
-                type: "TYPE",
-                coords: pendingCoords,
-                text: typeForm.text,
-                pressEnter: typeForm.pressEnter,
-                viewport,
-                waitAfterMs: 300,
-                timestamp: Date.now(),
-                label: typeForm.label || "",
-                isPassword: typeForm.isPassword,   
-                storeValue: typeForm.storeValue,
-              });
-
-              setShowTypeDialog(false);
-              setPendingCoords(null);
-              setTypeForm({ text: "", label: "", pressEnter: false, editable: false, isPassword: false, storeValue: true});
-            }}
-          >
-            Submit
-          </Button>
-        </DialogActions>
-      </Dialog>
 
     </div>
   );

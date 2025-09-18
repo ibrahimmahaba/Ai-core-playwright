@@ -569,14 +569,6 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
       <div style={{ marginTop: 12, padding: 12, border: "1px solid #ccc", borderRadius: 8 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <h4>Edit Replay Variables </h4>
-          {!isLastPage && ( 
-            <button
-              style={{ padding: "4px 10px", borderRadius: 4, cursor: "pointer" }}
-              onClick={handleNextStep}
-            >
-              Next →
-            </button>
-          )}
         </div>
 
         {!editedData ||editedData.length === 0 ? (
@@ -587,10 +579,11 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
               <tr>
                 <th style={{ borderBottom: "1px solid #ddd", textAlign: "left", padding: 4 }}>Label</th>
                 <th style={{ borderBottom: "1px solid #ddd", textAlign: "left", padding: 4 }}>Value</th>
+                <th style={{ borderBottom: "1px solid #ddd", textAlign: "left", padding: 4 }}></th>
               </tr>
             </thead>
             <tbody>
-              {editedData.map((obj) => (
+              {editedData.map((obj, index) => (
                 <tr key={obj.label}>
                   <td style={{ borderBottom: "1px solid #eee", padding: 4 }}>{obj.label}</td>
                   <td style={{ borderBottom: "1px solid #eee", padding: 4 }}>
@@ -609,6 +602,16 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
                       }}
                     />
                   </td>
+                  {index === 0 && !isLastPage && (  
+                    <td style={{ borderBottom: "1px solid #eee", padding: 4 }}>
+                      <button
+                        style={{ padding: "4px 10px", borderRadius: 4, cursor: "pointer" }}
+                        onClick={handleNextStep}
+                      >
+                        Execute →
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -619,7 +622,7 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
           <button
             onClick={handleExecuteAll}
           >
-            Execute All
+            {(!editedData || editedData.length === 0) ? "Next" : "Execute All"}
           </button>
 
           <button onClick={() => setShowData(false)}>Cancel</button>

@@ -96,7 +96,7 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
       setAllRecordings(output as string[]);
     };
     fetchRecordings();
-  }, []);
+  }, []);  
   
 
   const viewport: Viewport = {
@@ -312,24 +312,36 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
   }
   
   async function handleNextStep(){
-   
-    let pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${selectedRecording}", paramValues=[${editedData[0]}]);`;
+
+    let paramValues = {[editedData[0].label] : editedData[0].text}
+
+    let pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${selectedRecording}", paramValues=[${JSON.stringify(paramValues)}]);`;
     const res = await runPixel(pixel, insightId);
     const { output } = res.pixelReturn[0] as {output : ReplayPixelOutput};
 
-    setEditedData((cur) => cur.slice(1));
+    const newEditedData = editedData.slice(1);
 
-    if(editedData.length === 0){
-      setEditedData(output.inputs);
-      setUpdatedData(output.inputs);
-    }
-    setShowData(true);
-    setIsLastPage(output.isLastPage);
-    setShot(output.screenshot);
+  if (!newEditedData ||newEditedData.length === 0) {
+    setEditedData(output.inputs);
+    setUpdatedData(output.inputs);
+  } else {
+    setEditedData(newEditedData);
+  }
+
+  setShowData(true);
+  setIsLastPage(output.isLastPage);
+  setShot(output.screenshot);
+
+  console.log(newEditedData); 
   }
 
   async function handleExecuteAll(){
-    let pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${selectedRecording}", paramValues=[${updatedData}]);`;
+    const result = updatedData.reduce<Record<string, string>>((acc, item) => {
+      acc[item.label] = item.text;
+      return acc;
+    }, {});
+    
+    let pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${selectedRecording}", paramValues=[${JSON.stringify(result)}]);`;
     const res = await runPixel(pixel, insightId);
     const { output } = res.pixelReturn[0] as {output : ReplayPixelOutput};
 
@@ -556,7 +568,7 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
     {showData && (
       <div style={{ marginTop: 12, padding: 12, border: "1px solid #ccc", borderRadius: 8 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h4>Edit Replay Variables ({editedData.length})</h4>
+          <h4>Edit Replay Variables </h4>
           {!isLastPage && ( 
             <button
               style={{ padding: "4px 10px", borderRadius: 4, cursor: "pointer" }}
@@ -567,7 +579,7 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
           )}
         </div>
 
-        {editedData.length === 0 ? (
+        {!editedData ||editedData.length === 0 ? (
           <div>No variables found.</div>
         ) : (
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -591,9 +603,9 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
                         setEditedData((cur) => 
                           cur.map(item => item.label === obj.label ? { ...item, text: newValue } : item)
                         );
-                        // setUpdatedData((cur) => 
-                        //   cur.map(item => item.label === obj.label ? { ...item, text: newValue } : item)
-                        // );
+                        setUpdatedData((cur) => 
+                          cur.map(item => item.label === obj.label ? { ...item, text: newValue } : item)
+                        );
                       }}
                     />
                   </td>

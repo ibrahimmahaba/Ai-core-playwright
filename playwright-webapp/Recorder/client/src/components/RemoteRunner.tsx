@@ -227,7 +227,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
         sessionId="${sessionId}",
         name="${name}",
         title="${title}",
-        description="${description}",
+        description="${description}"
       )`;
   
       console.log("Running pixel:", pixel);

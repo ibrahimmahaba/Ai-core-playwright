@@ -38,7 +38,11 @@ type Step =
   | { type: "SCROLL"; coords: Coords; deltaY?: number; viewport: Viewport; waitAfterMs?: number; timestamp: number }
   | { type: "WAIT"; waitAfterMs: number; viewport: Viewport; timestamp: number };
 
-type VariableRecord = { label: string; text: string; isPassword?: boolean };
+type Action = | { TYPE: { label: string; text: string; isPassword?: boolean} } 
+| { CLICK: { coords: Coords } } 
+| { SCROLL: { deltaY: number } } 
+| { WAIT: number } // waitAftermilliseconds 
+| { NAVIGATE: string;}; // url
 
 type RemoteRunnerProps = {
   sessionId: string; 
@@ -48,7 +52,7 @@ type RemoteRunnerProps = {
 
 type ReplayPixelOutput = {
   isLastPage: boolean;
-  inputs: VariableRecord[];
+  actions: Action[];
   screenshot: ScreenshotResponse
 };
 
@@ -57,20 +61,24 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
 
   const [loading, setLoading] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
   const [shot, setShot] = useState<ScreenshotResponse>();
   const [steps, setSteps] = useState<Step[]>([]);
   const imgRef = useRef<HTMLImageElement>(null);
   const [showData, setShowData] = React.useState(false);
-  const [editedData, setEditedData] = React.useState<VariableRecord[]>([]);
-  const [updatedData, setUpdatedData] = React.useState<VariableRecord[]>([]);
+  const [editedData, setEditedData] = React.useState<Action[]>([]);
+  const [updatedData, setUpdatedData] = React.useState<Action[]>([]);
   const [scriptName, setScriptName] = useState("script-1");
   const [live, setLive] = useState(false);
   const [intervalMs] = useState(1000);
   const [allRecordings, setAllRecordings] = useState<string[]>([]);
   const [selectedRecording, setSelectedRecording] = useState<string | null>(null);
   const [isLastPage, setIsLastPage] = useState(false);
+  const [highlight, setHighlight] = useState<Coords | null>(null);
+
+  const showHighlight = (x: number, y: number) => {
+    setHighlight({ x, y });
+    setTimeout(() => setHighlight(null), 4000); // Remove highlight after 2 seconds
+  }
 
 
   useEffect(() => {
@@ -210,6 +218,7 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
 }
 
   async function editRecording() {
+
     if (!selectedRecording) {
       alert("Please select a recording first.");
       return;
@@ -220,60 +229,18 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
     // TODO: lama ados -> pixel call ReplayStep (sessionId = "", fileName = "", paramValues = []);
     // 1. display first screen -> set the shot -> logic from ReplayFile
     // 2. list of variables if exists -> set the list -> setShowData and update editedData and updatedData (logic from Update)
-
-    let pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${name}");`;
+    setLoading(true);
+    let pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${name}", executeAll=false);`;
     const res = await runPixel(pixel, insightId);
     const { output } = res.pixelReturn[0] as {output : ReplayPixelOutput};
 
-    setEditedData(output.inputs);
-    setUpdatedData(output.inputs);
+    setLoading(false);
+    setEditedData(output.actions);
+    setUpdatedData(output.actions);
     setShowData(true);
     setScriptName(name);
     setIsLastPage(output.isLastPage);
     setShot(output.screenshot);
-  }
-
-
-  async function updatePlaywrightScript(currentDataParam?: VariableRecord[]) {
-    const currentData = currentDataParam ?? updatedData;
-  
-    console.log(currentData);
-    if (!currentData || currentData.length === 0) {
-      alert("No variables provided!");
-      return;
-    }
-  
-    const input = window.prompt("Enter the new file name:", scriptName);
-    if (input === null) {
-      return;
-    }
-    const newName = input || scriptName; 
-  
-    // Build Variables from the array
-    const Variables = currentData
-      .map(v => `{ "${v.label}": "${v.text}" }`)
-      .join(", ");
-  
-    // Filter metadata (title, description only)
-    const metadataVariables = currentData
-      .filter(v => v.label === "title" || v.label === "description")
-      .map(v => `{ "${v.label}": "${v.text}" }`)
-      .join(", ");
-  
-    if (metadataVariables) {
-      const patchPixel = `PatchFileMeta(name="${scriptName}", paramValues=[${metadataVariables}])`;
-      await runPixel(patchPixel, insightId);
-    }
-  
-    const updatePixel = `UpdatePlaywrightScriptVariables(Script="${scriptName}", Variables=[${Variables}], OutputScript="${newName}")`;
-    try {
-      const updateRes = await runPixel(updatePixel, insightId);
-      const { output } = updateRes.pixelReturn[0] as { output: string };
-      replayFromFile(output);
-    } catch (err) {
-      console.error("Failed to update script:", err);
-      alert("Error updating script");
-    }
   }
 
   function normalizeShot(raw: any | undefined | null): ScreenshotResponse | undefined {
@@ -313,21 +280,29 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
   
   async function handleNextStep(){
 
-    let paramValues = {[editedData[0].label] : editedData[0].text}
-
-    let pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${selectedRecording}", paramValues=[${JSON.stringify(paramValues)}]);`;
+    const nextAction = editedData[0];
+    let pixel;
+    if ("TYPE" in nextAction) {
+      const {label, text} = nextAction.TYPE;
+      let paramValues = {[label]: text};
+      pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${selectedRecording}", paramValues=[${JSON.stringify(paramValues)}], executeAll=false);`;
+    } else {
+      pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${selectedRecording}", executeAll=false);`;
+    }
+    setLoading(true);
     const res = await runPixel(pixel, insightId);
     const { output } = res.pixelReturn[0] as {output : ReplayPixelOutput};
 
     const newEditedData = editedData.slice(1);
 
   if (!newEditedData ||newEditedData.length === 0) {
-    setEditedData(output.inputs);
-    setUpdatedData(output.inputs);
+    setEditedData(output.actions);
+    setUpdatedData(output.actions);
   } else {
     setEditedData(newEditedData);
   }
-
+  setLoading(false);
+  setUpdatedData(output.actions);
   setShowData(true);
   setIsLastPage(output.isLastPage);
   setShot(output.screenshot);
@@ -336,18 +311,20 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
   }
 
   async function handleExecuteAll(){
-    const result = updatedData.reduce<Record<string, string>>((acc, item) => {
-      acc[item.label] = item.text;
+    const result = updatedData.reduce<Record<string, string>[]>((acc, action) => {
+      if ("TYPE" in action) {
+        acc.push({[action.TYPE.label]: action.TYPE.text});
+      }
       return acc;
-    }, {});
+    }, []);
     
-    let pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${selectedRecording}", paramValues=[${JSON.stringify(result)}]);`;
+    let pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${selectedRecording}", executeAll=true, paramValues=${JSON.stringify(result)});`;
     const res = await runPixel(pixel, insightId);
     const { output } = res.pixelReturn[0] as {output : ReplayPixelOutput};
 
 
-    setEditedData(output.inputs);
-    setUpdatedData(output.inputs);
+    setEditedData(output.actions);
+    setUpdatedData(output.actions);
     setShowData(true);
     setIsLastPage(output.isLastPage);
     setShot(output.screenshot);
@@ -493,44 +470,12 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
 
       {shot && (
         <>
-          <div
-            style={{
-              width: shot.width ? `${shot.width}px` : "75vw", // match screenshot width
-              background: "#f5f6fa",
-              padding: "16px",
-              boxSizing: "border-box",
-              marginBottom: "12px",
-              borderRadius: "8px",
-            }}
-          >
-            <div style={{ marginBottom: "12px" }}>
-              <TextField
-                label="Title"
-                value={title}
-                required
-                fullWidth
-                onChange={(e) => setTitle(e.target.value)}
-              />
-            </div>
-
-            <div style={{ marginBottom: "12px" }}>
-              <TextField
-                label="Description"
-                value={description}
-                fullWidth
-                multiline
-                rows={2}
-                onChange={(e) => setDescription(e.target.value)}
-              />
-            </div>
-          </div>
-
           <div style={{ position: "relative", display: "inline-block" }}>
             <img
               ref={imgRef}
               onClick={handleClick}
               src={`data:image/png;base64,${shot.base64Png}`}
-              alt="remote"
+              alt="Replay Screenshot"
               style={{
                 border: "1px solid #ccc",
                 maxWidth: "100%",
@@ -543,6 +488,23 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
               }}
               onLoad={() => setLoading(false)}
             />
+
+            {highlight && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: (highlight.y * imgRef.current!.height) / shot.height - 15,
+                  left: (highlight.x * imgRef.current!.width) / shot.width - 15,
+                  width: 30,
+                  height: 30,
+                  border: "3px solid red",
+                  borderRadius: "50%",
+                  pointerEvents: "none",
+                  boxSizing: "border-box",
+                  animation: "pulse 1s infinite",
+                }}
+              ></div>)}
+              
 
             {loading && (
               <div
@@ -582,39 +544,103 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
                 <th style={{ borderBottom: "1px solid #ddd", textAlign: "left", padding: 4 }}></th>
               </tr>
             </thead>
-            <tbody>
-              {editedData.map((obj, index) => (
-                <tr key={obj.label}>
-                  <td style={{ borderBottom: "1px solid #eee", padding: 4 }}>{obj.label}</td>
-                  <td style={{ borderBottom: "1px solid #eee", padding: 4 }}>
-                    <input
-                      style={{ width: "100%" }}
-                      type={obj.isPassword ? "password" : "text"} 
-                      value={obj.text}
-                      onChange={(e) => {
-                        const newValue = e.target.value;
-                        setEditedData((cur) => 
-                          cur.map(item => item.label === obj.label ? { ...item, text: newValue } : item)
+                <tbody>
+                  {editedData.map((action, index) => {
+                    const type = Object.keys(action)[0] as keyof Action;
+                    const details = action[type] as any;
+
+                    switch (type) {
+                      case "TYPE":
+                        return (
+                          <tr key={index}>
+                            <td>{details.label}</td>
+                            <td>
+                              <input
+                                style={{ width: "100%" }}
+                                type={details.isPassword ? "password" : "text"}
+                                value={details.text}
+                                onChange={(e) => {
+                                  const newValue = e.target.value;
+                                  setEditedData((cur) =>
+                                    cur.map((item, i) =>
+                                      i === index
+                                        ? { TYPE: { ...details, text: newValue } }
+                                        : item
+                                    )
+                                  );
+                                }}
+                              />
+                            </td>
+                            {index === 0 && (
+                              <td>
+                                <button onClick={handleNextStep}>Execute →</button>
+                              </td>
+                            )}
+                          </tr>
                         );
-                        setUpdatedData((cur) => 
-                          cur.map(item => item.label === obj.label ? { ...item, text: newValue } : item)
+
+                      case "CLICK":
+                        return (
+                          <tr key={index}>
+                            <td>Click</td>
+                            <td>
+                              ({details.x}, {details.y})
+                              <button onClick={() => showHighlight(details.x, details.y)}>
+                                ℹ️
+                              </button>
+                            </td>
+                            {index === 0 && (
+                              <td>
+                                <button onClick={handleNextStep}>Execute →</button>
+                              </td>
+                            )}
+                          </tr>
                         );
-                      }}
-                    />
-                  </td>
-                  {index === 0 && !isLastPage && (  
-                    <td style={{ borderBottom: "1px solid #eee", padding: 4 }}>
-                      <button
-                        style={{ padding: "4px 10px", borderRadius: 4, cursor: "pointer" }}
-                        onClick={handleNextStep}
-                      >
-                        Execute →
-                      </button>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
+
+                      case "NAVIGATE":
+                        return (
+                          <tr key={index}>
+                            <td>Navigate</td>
+                            <td>{details.url}</td>
+                            {index === 0 && (
+                              <td>
+                                <button onClick={handleNextStep}>Execute →</button>
+                              </td>
+                            )}
+                          </tr>
+                        );
+
+                      case "SCROLL":
+                        return (
+                          <tr key={index}>
+                            <td>Scroll</td>
+                            <td>DeltaY: {details.deltaY}</td>
+                            {index === 0 && (
+                              <td>
+                                <button onClick={handleNextStep}>Execute →</button>
+                              </td>
+                            )}
+                          </tr>
+                        );
+
+                      case "WAIT": 
+                        return (
+                          <tr key={index}>
+                            <td>Wait</td>
+                            <td>{details as number / 1000} sec</td>
+                            {index === 0 && (
+                              <td>
+                                <button onClick={handleNextStep}>Execute →</button>
+                              </td>
+                            )}
+                          </tr>
+                        );
+
+                      default:
+                        return null;
+                    }
+                  })}
+                </tbody>
           </table>
         )}
 

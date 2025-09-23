@@ -7,13 +7,14 @@ import {
   ArrowDownward as ArrowDownIcon,
   AccessTime as AccessTimeIcon,
   Sync as SyncIcon,
-
-
+  CropFree as CropIcon, 
 } from "@mui/icons-material";
-import { CircularProgress, TextField, FormControlLabel, Checkbox } from "@mui/material";
+import { CircularProgress, TextField, FormControlLabel, Checkbox, styled, Button } from "@mui/material";
 import { IconButton } from "@mui/material";
 import { Check, Close } from "@mui/icons-material";
 import Draggable from "react-draggable";
+import ReactCrop, { type Crop } from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
 
 type ScreenshotResponse = {
   base64Png: string;
@@ -49,6 +50,12 @@ type RemoteRunnerProps = {
   metadata: Record<string, string>; 
   insightId: string;
 }
+type CropArea = {
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+};
 
 type ElementMetrics = {
   offsetWidth: number;
@@ -102,6 +109,10 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     draftValue?: string;
     draftLabel?: string | null;
   } | null>(null);
+  const [crop, setCrop] = useState<Crop>();
+ // const { actions } = useInsight();
+ const [visionPopup, setVisionPopup] = useState<{x: number; y: number; query: string; response: string | null; } | null>(null);
+ const [currentCropArea, setCurrentCropArea] = useState<CropArea | null>(null);
 
   const viewport: Viewport = {
     width: shot?.width ?? 1280,
@@ -139,7 +150,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     return { x: Math.round(x), y: Math.round(y) };
   }
 
-  type Mode = "click" | "type" | "scroll" | "confirm";
+  type Mode = "click" | "type" | "scroll" | "confirm" | "crop";
   const [mode, setMode] = useState<Mode>("click");
 
 
@@ -507,15 +518,6 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       return;
     }
   
-    // build envelope for the first paramValues element
-    const envelope = {
-      version: "1.0",
-      meta: {
-        title: title,
-        description: description,
-      },
-      steps: steps
-    };
     const today = new Date().toISOString().split("T")[0];
     const name = title ? `${title}-${today}`: `${scriptName}`;
     try {
@@ -566,7 +568,132 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     const step: Step = { type: "WAIT", waitAfterMs: ms, viewport, timestamp: Date.now() };
     await sendStep(step); // server will wait + return a fresh screenshot
   }
+
+   
+  // async function handleLLMAnalysis(engineId: string | null) {
+  //   if (!visionPopup || !visionPopup.query.trim() || !currentCropArea) return;
+  //   
+    
+  //   try {
+  //     const pixel = `ImageContext(
+  //       sessionId="${sessionId}",
+  //       engine="${engineId ? engineId : '029a1323-db79-415c-be3e-3945438b0808'}", 
+  //       paramValues=[{
+  //         "startX": ${cropArea.startX}, 
+  //         "startY": ${cropArea.startY}, 
+  //         "endX": ${cropArea.endX}, 
+  //         "endY": ${cropArea.endY},
+  //         "userPrompt": "${userPrompt}"
+  //       }]
+  //     )`;
+      
+  //     const res = await runPixel(pixel, insightId);
+  //     const output = res.pixelReturn[0].output as { response: string };
+      
+  //    
+        //setVisionPopup({ ...visionPopup, response: resp });
+
+      
+  //   } catch (err) {
+  //     console.error("LLM Vision error:", err);
+  //   }
+  // }
   
+  async function handleLLMAnalysis() {
+    if (!visionPopup || !visionPopup.query.trim() || !currentCropArea) return;
+  
+    try {
+      const cropPixel = `Screenshot(
+        sessionId="${sessionId}", 
+        paramValues=[{
+          "startX": ${currentCropArea.startX}, 
+          "startY": ${currentCropArea.startY}, 
+          "endX": ${currentCropArea.endX}, 
+          "endY": ${currentCropArea.endY}
+        }]
+      )`;
+  
+      const cropRes = await runPixel(cropPixel, insightId);
+      const croppedImage = cropRes.pixelReturn[0].output as ScreenshotResponse;
+      console.log("Cropped image obtained for vision analysis.");
+      console.log(croppedImage);
+      const resp = await callVisionAPI(visionPopup.query, croppedImage.base64Png);
+  
+      setVisionPopup({ ...visionPopup, response: resp });
+    } catch (err) {
+      console.error("Vision analysis error:", err);
+      alert("Error: " + err);
+    }
+  }
+
+  function handleVisionPopup(cropArea: CropArea) { 
+    const dialogX = Math.min(cropArea.endX + 20, (shot?.width ?? 800) - 300);
+    const dialogY = cropArea.startY;
+    console.log(cropArea)
+    console.log()
+    setCurrentCropArea(cropArea);
+    
+    setVisionPopup({
+      x: dialogX, 
+      y: dialogY,  
+      query: "Describe what you see",
+      response: null,
+    });
+  }
+ 
+
+  async function callVisionAPI(query: string, base64Image: string): Promise<string> {
+    const AUTH_TOKEN = "ZjlkMWRkNWUtY2M0Yy00MjUyLWE1ZDQtNDcxMzRmZjRmYWQxOjZjOThjNDMwLWZmMGItNDIzZC05ZmE2LTg0ZTE2OTA3ZjdhZQ==";
+    const ENGINE_ID = "4acbe913-df40-4ac0-b28a-daa5ad91b172";
+    
+    const expression = `Vision(engine="${ENGINE_ID}", command = "${query}", image="data:image/png;base64,${base64Image}")`;
+    
+    const encodedExpression = encodeURIComponent(expression);
+    
+    const requestBody = `expression=${encodedExpression}`;
+    
+    const response = await fetch("https://workshop.cfg.deloitte.com/Monolith/api/engine/runPixel", {
+      method: "POST",
+      headers: {
+        "authorization": `Basic ${AUTH_TOKEN}`,
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      body: requestBody
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API call failed: ${response.status}`);
+    }
+    
+    const result = await response.json();
+    
+    return result.pixelReturn[0].output.response || "No response received";
+  }
+
+
+  const StyledButton = styled(Button)(({ theme }) => ({
+    color: theme.palette.text.primary,
+    border: `0px solid ${theme.palette.divider}`,
+  }));
+  
+  const StyledPrimaryButton = styled(Button)(({ theme }) => ({
+    color: theme.palette.common.white,
+    backgroundColor: theme.palette.primary.main,
+    '&:hover': {
+      backgroundColor: theme.palette.primary.dark,
+    },
+    borderRadius: "8px"
+  }));
+  
+  const StyledDangerButton = styled(Button)(({ theme }) => ({
+    color: theme.palette.common.white,
+    backgroundColor: theme.palette.error.main,
+    '&:hover': {
+      backgroundColor: theme.palette.error.dark,
+    },
+    borderRadius: "8px"
+  }));
+
   return (
     <div style={{ padding: 16 }}>
       <div
@@ -592,6 +719,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
           { m: "scroll-down", icon: <ArrowDownIcon />, label: "Scroll Down" },
           { m: "delay", icon: <AccessTimeIcon />, label: "Delay" },
           { m: "fetch-screenshot", icon: <SyncIcon />, label: "Refresh" },
+          { m: "crop", icon: <CropIcon />, label: "Add Context" }
 
         ] as { m: string; icon: JSX.Element; label: string }[]).map(({ m, icon, label }) => {
           const active = mode === m;
@@ -626,8 +754,9 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
                   await fetchScreenshot();
                 } else if (m === "cancel") {
                   setMode("click");
-                } 
-                else {
+                } else if (m == "crop") {
+                  setMode("crop");
+                } else {
                   setMode(m as Mode);
                 }
               }}
@@ -675,6 +804,9 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
           Save
         </button>
         <span>Steps: {steps.length}</span>
+        {mode === "crop" && <span style={{ color: "#ff0000", fontWeight: "bold" }}>
+          Drag to select crop area
+        </span>}
       </div>
       {!shot && loading && (
         <div
@@ -729,24 +861,57 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
           </div>
 
           <div style={{ position: "relative", display: "inline-block" }}>
-            <img
-              ref={imgRef}
-              onClick={handleClick}
-              src={`data:image/png;base64,${shot.base64Png}`}
-              alt="remote"
-              style={{
-                border: "1px solid #ccc",
-                maxWidth: "100%",
-                cursor:
-                  mode === "type"
-                    ? "text"
-                    : mode === "scroll"
-                    ? "ns-resize"
-                    : "pointer",
-              }}
-              onLoad={() => setLoading(false)}
-            />
-            
+            {mode === "crop" ? (
+              <ReactCrop
+                crop={crop}
+                onChange={(c) => setCrop(c)}
+                onComplete={(c) => {
+                  if (c.width && c.height) {
+                    const cropArea: CropArea = {
+                      startX: c.x,
+                      startY: c.y,
+                      endX: c.x + c.width,
+                      endY: c.y + c.height,
+                    };
+                    handleVisionPopup(cropArea);
+                    //setMode("click");
+                    //setCrop(undefined);
+                  }
+                }}
+                aspect={undefined}
+              >
+                <img
+                  ref={imgRef}
+                  src={`data:image/png;base64,${shot.base64Png}`}
+                  alt="remote"
+                  style={{
+                    border: "1px solid #ccc",
+                    maxWidth: "100%",
+                  }}
+                  onLoad={() => setLoading(false)}
+                />
+              </ReactCrop>
+            ) : (
+              <img
+                ref={imgRef}
+                onClick={handleClick}
+                src={`data:image/png;base64,${shot.base64Png}`}
+                alt="remote"
+                style={{
+                  border: "1px solid #ccc",
+                  maxWidth: "100%",
+                  cursor:
+                    mode === "type"
+                      ? "text"
+                      : mode === "scroll"
+                      ? "ns-resize"
+                      : "pointer",
+                }}
+                onLoad={() => setLoading(false)}
+              />
+            )}
+
+            {/* // float slightly above click */}
 
             {overlay && shot && (
               <>
@@ -809,6 +974,86 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
                 <CircularProgress color="inherit" />
               </div>
             )}
+          {visionPopup && (
+            <Draggable>
+              <div style={{
+                position: "absolute",
+                top: visionPopup.y,
+                left: visionPopup.x,
+                transform: "translate(-50%, -100%)",
+                background: "white",
+                border: "1px solid #ccc",
+                borderRadius: "8px",
+                padding: "12px",
+                zIndex: 2000,
+                width: "320px",
+                maxHeight: "400px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+                display: "flex",
+                flexDirection: "column",
+                gap: "12px",
+                cursor: "move",
+              }}>
+                {!visionPopup.response ? (
+                  <>
+                    <TextField
+                      label="Ask about this area"
+                      size="small"
+                      fullWidth
+                      value={visionPopup.query}
+                      onChange={(e) =>
+                        setVisionPopup({ ...visionPopup, query: e.target.value })
+                      }
+                    />
+                    <StyledPrimaryButton
+                      onClick={handleLLMAnalysis}
+                      fullWidth
+                    >
+                      Submit
+                    </StyledPrimaryButton>
+                  </>
+                ) : (
+                  <>
+                    <div style={{
+                      fontSize: "16px",
+                      background: "#f8f9fa",
+                      padding: "12px",
+                      borderRadius: "4px",
+                      color: "#333",
+                      maxHeight: "250px",
+                      overflowY: "auto",
+                      whiteSpace: "pre-wrap"
+                    }}>
+                      {visionPopup.response}
+                    </div>
+                    <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+                      <StyledButton onClick={() => {
+                        setVisionPopup(null);
+                        setCurrentCropArea(null);
+                        setMode("click");
+                        setCrop(undefined);
+                      }}>
+                        Close
+                      </StyledButton>
+                      <StyledPrimaryButton onClick={() => {
+                        setVisionPopup(null);
+                        setCurrentCropArea(null);
+                        setMode("click");
+                        setCrop(undefined);
+                      }}>
+                        Add to Context
+                      </StyledPrimaryButton>
+                      <StyledDangerButton onClick={async () => {
+                        setVisionPopup({ ...visionPopup, response: null });
+                      }}>
+                        Retry
+                      </StyledDangerButton>
+                    </div>
+                  </>
+                )}
+              </div>
+            </Draggable>
+          )}
           </div>
         </>
       )}

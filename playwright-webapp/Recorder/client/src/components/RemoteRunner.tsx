@@ -143,9 +143,8 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
   const [mode, setMode] = useState<Mode>("click");
 
 
-  const [showTypeDialog, setShowTypeDialog] = useState(false);
-  const [pendingCoords, setPendingCoords] = useState<Coords | null>(null);
-  const [typeForm, setTypeForm] = useState({
+
+  const [typeForm] = useState({
     text: "",
     label: "",
     pressEnter: false,
@@ -256,6 +255,25 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
               defaultValue={ol.draftLabel ?? probe.labelText ?? ""}
               onChange={(e) => (ol.draftLabel = e.target.value)}
             />
+
+              <FormControlLabel
+                  control={
+                    <Checkbox
+                      defaultChecked
+                      onChange={(e) => {
+                        (ol as any).draftStoreValue = e.target.checked;
+                      }}
+                    />
+                  }
+                  label="Store Value"
+                  title="Store Value"
+                  sx={{
+                    "& .MuiFormControlLabel-label": {
+                      fontSize: "0.7rem", // smaller text
+                    },
+                  }}
+                />
+
 
             <IconButton
               size="small"
@@ -729,7 +747,6 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
               onLoad={() => setLoading(false)}
             />
             
-            {/* // float slightly above click */}
 
             {overlay && shot && (
               <>
@@ -741,6 +758,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
                   onCancel={() => setOverlay(null)}
                   onSubmit={async (value, label) => {
                     const { probe } = overlay!;
+                    const draftStoreValue = (overlay as any).draftStoreValue ?? true;
                     const coords = {
                       x: Math.round(probe.rect.x + probe.rect.width / 2),
                       y: Math.round(probe.rect.y + probe.rect.height / 2)
@@ -753,6 +771,8 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
                         text: value ?? "",
                         label: label ?? null,
                         pressEnter: false,
+                        isPassword: probe.type === "password",
+                        storeValue: draftStoreValue,   
                         viewport,
                         waitAfterMs: 300,
                         timestamp: Date.now()

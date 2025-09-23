@@ -768,7 +768,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
                       await sendStep({
                         type: "TYPE",
                         coords,
-                        text: value ?? "",
+                        text: draftStoreValue ? value ?? "" : "",
                         label: label ?? null,
                         pressEnter: false,
                         isPassword: probe.type === "password",

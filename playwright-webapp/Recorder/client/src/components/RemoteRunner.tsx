@@ -123,9 +123,11 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
   async function sendStep(step: Step) {
     if (!sessionId) return;
 
+    let shouldStore = step.type == "TYPE" && step.storeValue;
+
     setLoading(true);
     try {
-      let pixel = `Step ( sessionId = "${sessionId}", shouldStore = ${typeForm.storeValue}, paramValues = [ ${JSON.stringify(step)} ] )`;
+      let pixel = `Step ( sessionId = "${sessionId}", shouldStore = ${shouldStore}, paramValues = [ ${JSON.stringify(step)} ] )`;
       const res = await runPixel(pixel, insightId);
 
       const { output } = res.pixelReturn[0];
@@ -933,7 +935,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
                       await sendStep({
                         type: "TYPE",
                         coords,
-                        text: draftStoreValue ? value ?? "" : "",
+                        text: value ?? "" ,
                         label: label ?? null,
                         pressEnter: false,
                         isPassword: probe.type === "password",

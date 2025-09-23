@@ -83,7 +83,7 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
   const [intervalMs] = useState(1000);
   const [allRecordings, setAllRecordings] = useState<string[]>([]);
   const [selectedRecording, setSelectedRecording] = useState<string | null>(null);
-  const [isLastPage, setIsLastPage] = useState(false);
+  const [lastPage, setIsLastPage] = useState(false);
   const [highlight, setHighlight] = useState<Coords | null>(null);
   const [visionPopup, setVisionPopup] = useState<{x: number; y: number; query: string; response: string | null; } | null>(null);
   const [currentCropArea, setCurrentCropArea] = useState<CropArea | null>(null);
@@ -325,6 +325,7 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
   }
 
   async function handleExecuteAll(){
+    setLoading(true);
     const result = updatedData.reduce<Record<string, string>[]>((acc, action) => {
       if ("TYPE" in action) {
         acc.push({[action.TYPE.label]: action.TYPE.text});
@@ -335,8 +336,8 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
     let pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${selectedRecording}", executeAll=true, paramValues=${JSON.stringify(result)});`;
     const res = await runPixel(pixel, insightId);
     const { output } = res.pixelReturn[0] as {output : ReplayPixelOutput};
-
-
+    
+    setLoading(false);
     setEditedData(output.actions);
     setUpdatedData(output.actions);
     setShowData(true);
@@ -773,7 +774,7 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
         </>
       )}
 
-    {showData && (
+    {showData && !lastPage && (
       <div style={{ marginTop: 12, padding: 12, border: "1px solid #ccc", borderRadius: 8 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <h4>Edit Replay Variables </h4>

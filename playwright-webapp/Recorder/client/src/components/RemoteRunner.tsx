@@ -269,24 +269,26 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
               onChange={(e) => (ol.draftLabel = e.target.value)}
             />
 
-              <FormControlLabel
-                  control={
-                    <Checkbox
-                      defaultChecked
-                      onChange={(e) => {
-                        (ol as any).draftStoreValue = e.target.checked;
-                      }}
-                    />
-                  }
-                  label="Store Value"
-                  title="Store Value"
-                  sx={{
-                    "& .MuiFormControlLabel-label": {
-                      fontSize: "0.7rem", // smaller text
-                    },
-                  }}
-                />
 
+            {!(probe.type === "password" || probe.type === "email") && (
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    defaultChecked
+                    onChange={(e) => {
+                      (ol as any).draftStoreValue = e.target.checked;
+                    }}
+                  />
+                }
+                label="Store Value"
+                title="Store Value"
+                sx={{
+                  "& .MuiFormControlLabel-label": {
+                    fontSize: "0.7rem", 
+                  },
+                }}
+              />
+            )}
 
             <IconButton
               size="small"
@@ -939,7 +941,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
                         label: label ?? null,
                         pressEnter: false,
                         isPassword: probe.type === "password",
-                        storeValue: draftStoreValue,   
+                        storeValue: probe.type == "password" || probe.type == "email" ? false : draftStoreValue,   
                         viewport,
                         waitAfterMs: 300,
                         timestamp: Date.now()

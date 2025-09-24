@@ -2,7 +2,6 @@ import React, { useRef, useState, type JSX } from "react";
 import { runPixel } from "@semoss/sdk";
 import {
   Mouse as MouseIcon,
-  Keyboard as KeyboardIcon,
   ArrowUpward as ArrowUpIcon,
   ArrowDownward as ArrowDownIcon,
   AccessTime as AccessTimeIcon,
@@ -152,19 +151,8 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     return { x: Math.round(x), y: Math.round(y) };
   }
 
-  type Mode = "click" | "type" | "scroll" | "confirm" | "crop";
+  type Mode = "click" | "scroll" | "confirm" | "crop";
   const [mode, setMode] = useState<Mode>("click");
-
-
-
-  const [typeForm] = useState({
-    text: "",
-    label: "",
-    pressEnter: false,
-    editable: false,
-    isPassword: false,  
-    storeValue: true,    
-  });
 
   async function probeAt(pendingCoords: Coords | null) {
     if (!sessionId) return ;
@@ -426,35 +414,33 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
   async function handleClick(e: React.MouseEvent<HTMLImageElement, MouseEvent>) {
     if (!shot) return;
     const coords = imageToPageCoords(e);
+    const p = await probeAt(coords);
+    if (!p) return;
 
-    if (mode === "click") {
-      await sendStep({
-        type: "CLICK",
-        coords,
-        viewport,
-        waitAfterMs: 300,
-        timestamp: Date.now(),
-      });
-    } else if (mode === "type") {
-      const p = await probeAt(coords);
-      if (!p) return;
-      const isTextField =
-        !!p.isTextControl || 
+    const isTextField =
+        
         (p.tag === "input" && p.type && !["button","submit","checkbox","radio","file"].includes(p.type)) ||
         p.tag === "textarea" ||
         p.contentEditable;
 
-      if (!isTextField) {
-        console.warn("Clicked element is not a text field; showing input anyway");
+      if (isTextField) {
+        setOverlay({ kind: "input", probe: p, draftValue: p.value ?? "", draftLabel: p.labelText ?? "" });
+      } else if (p.tag === "a" && p.href && p.href.startsWith("http")) {
+        await sendStep({
+          type: "NAVIGATE",
+          viewport,
+          waitAfterMs: 300,
+          timestamp: Date.now(),
+          url: p.href
+        });
+      } else {
+        await sendStep({
+          type: "CLICK",
+          coords,
+          viewport,
+          waitAfterMs: 300,
+          timestamp: Date.now()});
       }
-      setOverlay({ kind: "input", probe: p, draftValue: p.value ?? "", draftLabel: p.labelText ?? "" });
-    }
-    else if (mode === "confirm") {
-      const p = await probeAt(coords);
-      if (!p) return;
-      setOverlay({ kind: "confirm", probe: p });
-    }
-
   }
 
 
@@ -718,7 +704,6 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       >
         {([
           { m: "click", icon: <MouseIcon />, label: "Click" },
-          { m: "type", icon: <KeyboardIcon />, label: "Type" },
           { m: "scroll-up", icon: <ArrowUpIcon />, label: "Scroll Up" },
           { m: "scroll-down", icon: <ArrowDownIcon />, label: "Scroll Down" },
           { m: "delay", icon: <AccessTimeIcon />, label: "Delay" },
@@ -905,9 +890,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
                   border: "1px solid #ccc",
                   maxWidth: "100%",
                   cursor:
-                    mode === "type"
-                      ? "text"
-                      : mode === "scroll"
+                    mode === "scroll"
                       ? "ns-resize"
                       : "pointer",
                 }}

@@ -633,7 +633,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
  
 
   async function callVisionAPI(query: string, base64Image: string): Promise<string> {
-    const AUTH_TOKEN = "ZjlkMWRkNWUtY2M0Yy00MjUyLWE1ZDQtNDcxMzRmZjRmYWQxOjZjOThjNDMwLWZmMGItNDIzZC05ZmE2LTg0ZTE2OTA3ZjdhZQ==";
+    const AUTH_TOKEN = import.meta.env.VITE_AUTH_KEY;
     const ENGINE_ID = "4acbe913-df40-4ac0-b28a-daa5ad91b172";
     
     const expression = `Vision(engine="${ENGINE_ID}", command = "${query}", image="data:image/png;base64,${base64Image}")`;
@@ -853,8 +853,8 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
             {mode === "crop" ? (
               <ReactCrop
                 crop={crop}
-                onChange={(c) => setCrop(c)}
-                onComplete={(c) => {
+                onChange={(c: Crop) => setCrop(c)}
+                onComplete={(c: Crop) => {
                   if (c.width && c.height) {
                     const cropArea: CropArea = {
                       startX: c.x,

@@ -2,15 +2,16 @@ import React, { useRef, useState, useEffect, type JSX } from "react";
 import { runPixel } from "@semoss/sdk";
 import {
   Mouse as MouseIcon,
-  Keyboard as KeyboardIcon,
   ArrowUpward as ArrowUpIcon,
   ArrowDownward as ArrowDownIcon,
   AccessTime as AccessTimeIcon,
   Sync as SyncIcon,
   CropFree as CropIcon, 
 } from "@mui/icons-material";
-import { CircularProgress, Menu, MenuItem, Dialog, DialogTitle, DialogContent, DialogActions, Button,
+import { CircularProgress, Button,
    TextField, FormControlLabel, Checkbox, Autocomplete, styled } from "@mui/material";
+import { IconButton } from "@mui/material";
+import { Check, Close } from "@mui/icons-material";
 import Draggable from "react-draggable";
 import ReactCrop, { type Crop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css'; 
@@ -21,6 +22,39 @@ type CropArea = {
   endX: number;
   endY: number;
 };
+
+type ElementMetrics = {
+  offsetWidth: number;
+  offsetHeight: number;
+  clientWidth: number;
+  clientHeight: number;
+  scrollWidth: number;
+  scrollHeight: number;
+};
+
+type CSSMap = Record<string, string>;
+
+type ProbeRect = { x: number; y: number; width: number; height: number };
+
+type Probe = {
+  tag: string | null;
+  type: string | null;
+  role: string | null;
+  selector: string | null;
+  placeholder: string | null;
+  labelText: string | null;
+  value: string | null;
+  href: string | null;
+  contentEditable: boolean;
+  rect: ProbeRect;
+
+  metrics?: ElementMetrics | null;
+  styles?: CSSMap | null;             
+  placeholderStyle?: CSSMap | null;   
+  attrs?: Record<string, string> | null;
+  isTextControl?: boolean;
+};
+
 type ScreenshotResponse = {
   base64Png: string;
   width: number;
@@ -57,7 +91,6 @@ type Action = | { TYPE: { label: string; text: string; isPassword?: boolean} }
 
 type RemoteRunnerProps = {
   sessionId: string; 
-  metadata: Record<string, string>; 
   insightId: string;
 }
 
@@ -68,10 +101,9 @@ type ReplayPixelOutput = {
 };
 
 
-export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteRunnerProps) {
+export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps) {
 
   const [loading, setLoading] = useState(false);
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [shot, setShot] = useState<ScreenshotResponse>();
   const [steps, setSteps] = useState<Step[]>([]);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -85,6 +117,12 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
   const [selectedRecording, setSelectedRecording] = useState<string | null>(null);
   const [lastPage, setIsLastPage] = useState(false);
   const [highlight, setHighlight] = useState<Coords | null>(null);
+  const [overlay, setOverlay] = useState<{
+    kind: "input" | "confirm";
+    probe: Probe;
+    draftValue?: string;
+    draftLabel?: string | null;
+  } | null>(null);
   const [visionPopup, setVisionPopup] = useState<{x: number; y: number; query: string; response: string | null; } | null>(null);
   const [currentCropArea, setCurrentCropArea] = useState<CropArea | null>(null);
   const [crop, setCrop] = useState<Crop>();
@@ -132,7 +170,8 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
 
     setLoading(true);
     try {
-      let pixel = `Step ( sessionId = "${sessionId}", shouldStore = ${typeForm.storeValue}, paramValues = [ ${JSON.stringify(step)} ] )`;
+      let shouldStore = step.type == "TYPE" && step.storeValue;
+      let pixel = `Step ( sessionId = "${sessionId}", shouldStore = ${shouldStore}, paramValues = [ ${JSON.stringify(step)} ] )`;
       const res = await runPixel(pixel, insightId);
 
       const { output } = res.pixelReturn[0];
@@ -157,49 +196,52 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
     return { x: Math.round(x), y: Math.round(y) };
   }
 
-  type Mode = "click" | "type" | "scroll" | "crop";
+  async function probeAt(pendingCoords: Coords | null) {
+    if (!sessionId) return ;
+    if (!pendingCoords) alert("Invalid Coordinates");
+
+    let pixel = `ProbeElement (sessionId = "${sessionId}" , coords = "${pendingCoords?.x}, ${pendingCoords?.y}");`
+    const res = await runPixel(pixel, insightId);
+    const { output } = res.pixelReturn[0] as { output: Probe };
+    console.log(output)
+    return output;
+
+  }
+
+  type Mode = "click" | "scroll" | "crop";
   const [mode, setMode] = useState<Mode>("click");
 
-  const [scrollConfig] = useState({
-    deltaY: 400,
-  });
 
-  const [showTypeDialog, setShowTypeDialog] = useState(false);
-  const [pendingCoords, setPendingCoords] = useState<Coords | null>(null);
-  const [typeForm, setTypeForm] = useState({
-    text: "",
-    label: "",
-    pressEnter: false,
-    editable: false,
-    isPassword: false,  
-    storeValue: true,    
-  });
 
   async function handleClick(e: React.MouseEvent<HTMLImageElement, MouseEvent>) {
     if (!shot) return;
     const coords = imageToPageCoords(e);
+    const p = await probeAt(coords);
+    if (!p) return;
 
-    if (mode === "click") {
-      await sendStep({
-        type: "CLICK",
-        coords,
-        viewport,
-        waitAfterMs: 300,
-        timestamp: Date.now(),
-      });
-    } else if (mode === "type") {
-      setPendingCoords(coords);
-      setShowTypeDialog(true);
-    } else if (mode === "scroll") {
-      await sendStep({
-        type: "SCROLL",
-        coords,
-        deltaY: scrollConfig.deltaY,
-        viewport,
-        waitAfterMs: 300,
-        timestamp: Date.now(),
-      });
-    }
+    const isTextField =
+        (p.tag === "input" && p.type && !["button","submit","checkbox","radio","file"].includes(p.type)) ||
+        p.tag === "textarea" ||
+        p.contentEditable;
+
+      if (isTextField) {
+        setOverlay({ kind: "input", probe: p, draftValue: p.value ?? "", draftLabel: p.labelText ?? "" });
+      } else if (p.tag === "a" && p.href && p.href.startsWith("http")) {
+        await sendStep({
+          type: "NAVIGATE",
+          viewport,
+          waitAfterMs: 300,
+          timestamp: Date.now(),
+          url: p.href
+        });
+      } else {
+        await sendStep({
+          type: "CLICK",
+          coords,
+          viewport,
+          waitAfterMs: 300,
+          timestamp: Date.now()});
+      }
   }
 
   async function replayFromFile(optionalName?: string) {
@@ -460,6 +502,232 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
     },
     borderRadius: "8px"
   }));
+
+  function Overlay({
+    ol,
+    shot,
+    onCancel,
+    onSubmit,
+    imgRef,
+  }: {
+    ol: NonNullable<typeof overlay>;
+    shot: ScreenshotResponse;
+    onCancel: () => void;
+    onSubmit: (value?: string, label?: string | null) => void;
+    imgRef: React.RefObject<HTMLImageElement | null>;
+  }) {
+    const imgEl = imgRef.current;
+    if (!imgEl) return null;
+  
+    const { probe } = ol;
+    const box = pageRectToImageCss(probe.rect, imgEl, shot);
+  
+    const wrapperStyle: React.CSSProperties = {
+      position: "absolute",
+      left: box.left,
+      top: box.top,
+      width: Math.max(box.width, 120),
+      height: Math.max(box.height, 16),
+      zIndex: 1000,
+      background: "transparent",
+      pointerEvents: "auto"
+    };
+  
+    const controlStyle = buildInputStyleFromProbe(probe);
+  
+    const placeholderClass = React.useMemo(
+      () => `ph-${Math.random().toString(36).slice(2)}`,
+      []
+    );
+    const ph = probe.placeholderStyle || {};
+    const placeholderCss = `
+      .${placeholderClass}::placeholder {
+        ${ph.color ? `color: ${ph.color} !important;` : ""}
+        ${ph.opacity ? `opacity: ${ph.opacity} !important;` : ""}
+        ${ph.fontStyle ? `font-style: ${ph.fontStyle} !important;` : ""}
+        ${ph.fontWeight ? `font-weight: ${ph.fontWeight} !important;` : ""}
+        ${ph.fontSize ? `font-size: ${ph.fontSize} !important;` : ""}
+        ${ph.fontFamily ? `font-family: ${ph.fontFamily} !important;` : ""}
+        ${ph.letterSpacing ? `letter-spacing: ${ph.letterSpacing} !important;` : ""}
+      }
+    `;
+  
+    if (ol.kind === "input") {
+      const isTextarea = probe.tag === "textarea";
+      const commonProps = {
+        autoFocus: true,
+        className: placeholderClass,
+        placeholder: probe.placeholder ?? "",
+        defaultValue: ol.draftValue ?? probe.value ?? "",
+        onKeyDown: (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+          if (e.key === "Enter" && !isTextarea) {
+            onSubmit((e.target as HTMLInputElement | HTMLTextAreaElement).value, ol.draftLabel ?? null);
+          }
+          if (e.key === "Escape") onCancel();
+        },
+        onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+          ol.draftValue = e.target.value;
+        },
+        style: controlStyle,
+      } as const;
+  
+      return (
+        <div style={wrapperStyle}>
+          <style dangerouslySetInnerHTML={{ __html: placeholderCss }} />
+          {isTextarea ? (
+            <textarea {...commonProps} />
+          ) : (
+            <input {...commonProps} type={probe.type ?? "text"} />
+          )}
+  
+           <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>
+            <input
+              style={{ flex: 1, padding: 6, border: "1px solid #eee", borderRadius: 6 }}
+              placeholder="Optional label (e.g., username)"
+              defaultValue={ol.draftLabel ?? probe.labelText ?? ""}
+              onChange={(e) => (ol.draftLabel = e.target.value)}
+            />
+
+            {!(probe.type === "password" || probe.type === "email") && (
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    defaultChecked
+                    onChange={(e) => {
+                      (ol as any).draftStoreValue = e.target.checked;
+                    }}
+                  />
+                }
+                label="Store Value"
+                title="Store Value"
+                sx={{
+                  "& .MuiFormControlLabel-label": {
+                    fontSize: "0.7rem", 
+                  },
+                }}
+              />
+            )}
+
+            <IconButton
+              size="small"
+              onClick={() =>
+                onSubmit(ol.draftValue ?? probe.value ?? "", ol.draftLabel ?? probe.labelText ?? null)
+              }
+              color="success"
+            >
+              <Check fontSize="small" />
+            </IconButton>
+
+            <IconButton size="small" onClick={onCancel} color="error">
+              <Close fontSize="small" />
+            </IconButton>
+          </div>
+        </div>
+      );
+    }
+  
+    return (
+      <div style={{
+        position: "absolute",
+        left: box.left,
+        top: Math.max(0, box.top - 8),
+        width: 160,
+        zIndex: 1000,
+        background: "white",
+        border: "1px solid #ddd",
+        borderRadius: 8,
+        padding: 8,
+        boxShadow: "0 6px 16px rgba(0,0,0,0.2)"
+      }}>
+        <div style={{ marginBottom: 6 }}>Click this?</div>
+        <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+          <button onClick={() => onSubmit(undefined, ol.draftLabel ?? null)}>✔ Yes</button>
+          <button onClick={onCancel}>✖ No</button>
+        </div>
+        <input
+          style={{ marginTop: 6, width: "100%", padding: 6, border: "1px solid #eee", borderRadius: 6 }}
+          placeholder="Optional label"
+          defaultValue={ol.draftLabel ?? ""}
+          onChange={(e) => (ol.draftLabel = e.target.value)}
+        />
+      </div>
+    );
+  }
+
+  function pageRectToImageCss(rect: ProbeRect, imgEl: HTMLImageElement, shot: ScreenshotResponse) {
+    const ib = imgEl.getBoundingClientRect();
+    const sx = ib.width / shot.width;
+    const sy = ib.height / shot.height;
+    return {
+      left: rect.x * sx,
+      top: rect.y * sy,
+      width: rect.width * sx,
+      height: rect.height * sy
+    };
+  }
+
+  function buildInputStyleFromProbe(p: Probe): React.CSSProperties {
+    const s = p.styles || {};
+    const st: React.CSSProperties = {
+      boxSizing: (s.boxSizing as any) || "border-box",
+      paddingTop: s.paddingTop, paddingRight: s.paddingRight,
+      paddingBottom: s.paddingBottom, paddingLeft: s.paddingLeft,
+  
+      borderTopWidth: s.borderTopWidth, borderRightWidth: s.borderRightWidth,
+      borderBottomWidth: s.borderBottomWidth, borderLeftWidth: s.borderLeftWidth,
+      borderTopStyle: s.borderTopStyle as any, borderRightStyle: s.borderRightStyle as any,
+      borderBottomStyle: s.borderBottomStyle as any, borderLeftStyle: s.borderLeftStyle as any,
+      borderTopColor: s.borderTopColor, borderRightColor: s.borderRightColor,
+      borderBottomColor: s.borderBottomColor, borderLeftColor: s.borderLeftColor,
+  
+      borderTopLeftRadius: s.borderTopLeftRadius, borderTopRightRadius: s.borderTopRightRadius,
+      borderBottomRightRadius: s.borderBottomRightRadius, borderBottomLeftRadius: s.borderBottomLeftRadius,
+  
+      color: s.color,
+      backgroundColor: s.backgroundColor,
+      backgroundImage: s.backgroundImage,
+      backgroundClip: s.backgroundClip as any,
+      outlineWidth: s.outlineWidth,
+      outlineStyle: s.outlineStyle as any,
+      outlineColor: s.outlineColor,
+      outlineOffset: s.outlineOffset,
+      boxShadow: s.boxShadow,
+      textShadow: s.textShadow,
+  
+      fontFamily: s.fontFamily,
+      fontSize: s.fontSize,
+      fontWeight: s.fontWeight as any,
+      fontStyle: s.fontStyle as any,
+      fontStretch: s.fontStretch as any,
+      fontVariant: s.fontVariant as any,
+      lineHeight: s.lineHeight,
+      letterSpacing: s.letterSpacing,
+      textAlign: s.textAlign as any,
+      textTransform: s.textTransform as any,
+      textDecorationLine: s.textDecorationLine as any,
+      textDecorationStyle: s.textDecorationStyle as any,
+      textDecorationColor: s.textDecorationColor,
+  
+      caretColor: s.caretColor as any,
+      overflow: s.overflow as any,
+      overflowX: s.overflowX as any,
+      overflowY: s.overflowY as any,
+  
+      width: "100%",
+      height: "100%",
+    };
+  
+    if (!st.paddingTop) st.paddingTop = "6px";
+    if (!st.paddingBottom) st.paddingBottom = "6px";
+    if (!st.paddingLeft) st.paddingLeft = "8px";
+    if (!st.paddingRight) st.paddingRight = "8px";
+  
+    if (!s.borderTopStyle && !s.borderTopWidth) {
+      st.border = "1px solid rgba(0,0,0,0.15)";
+    }
+  
+    return st;
+  }
   
 
   return (
@@ -482,7 +750,6 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
       >
         {([
           { m: "click", icon: <MouseIcon />, label: "Click" },
-          { m: "type", icon: <KeyboardIcon />, label: "Type" },
           { m: "scroll-up", icon: <ArrowUpIcon />, label: "Scroll Up" },
           { m: "scroll-down", icon: <ArrowDownIcon />, label: "Scroll Down" },
           { m: "delay", icon: <AccessTimeIcon />, label: "Delay" },
@@ -645,9 +912,7 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
                   border: "1px solid #ccc",
                   maxWidth: "100%",
                   cursor:
-                    mode === "type"
-                      ? "text"
-                      : mode === "scroll"
+                    mode === "scroll"
                       ? "ns-resize"
                       : "pointer",
                 }}
@@ -688,6 +953,49 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
               >
                 <CircularProgress color="inherit" />
               </div>
+            )}
+
+            {overlay && shot && (
+              <>
+                <Overlay
+                  ol={overlay}
+                  shot={shot}
+                   imgRef={imgRef}
+                  onCancel={() => setOverlay(null)}
+                  onSubmit={async (value, label) => {
+                    const { probe } = overlay!;
+                    const draftStoreValue = (overlay as any).draftStoreValue ?? true;
+                    const coords = {
+                      x: Math.round(probe.rect.x + probe.rect.width / 2),
+                      y: Math.round(probe.rect.y + probe.rect.height / 2)
+                    };
+
+                    if (overlay!.kind === "input") {
+                      await sendStep({
+                        type: "TYPE",
+                        coords,
+                        text: value ?? "" ,
+                        label: label ?? null,
+                        pressEnter: false,
+                        isPassword: probe.type === "password",
+                        storeValue: probe.type == "password" || probe.type == "email" ? false : draftStoreValue,   
+                        viewport,
+                        waitAfterMs: 300,
+                        timestamp: Date.now()
+                      } as Step);
+                    } else {
+                      await sendStep({
+                        type: "CLICK",
+                        coords,
+                        viewport,
+                        waitAfterMs: 300,
+                        timestamp: Date.now()
+                      } as Step);
+                    }
+                    setOverlay(null);
+                  }}
+                />
+              </>
             )}
 
           {visionPopup && (
@@ -904,143 +1212,6 @@ export default function RemoteRunner({ sessionId, metadata, insightId }: RemoteR
     )}
 
 
-      <Dialog open={showTypeDialog} onClose={() => setShowTypeDialog(false)}>
-        <DialogTitle>Type Input</DialogTitle>
-        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 400 }}>
-          <TextField
-            label="Text"
-            type={typeForm.isPassword ? "password" : "text"} 
-            value={typeForm.text}
-            onChange={(e) => setTypeForm((cur) => ({ ...cur, text: e.target.value }))}
-            required
-          />
-          {typeForm.editable && (
-            <TextField
-              label="Label"
-              value={typeForm.label}
-              onChange={(e) =>
-                setTypeForm((cur) => ({ ...cur, label: e.target.value }))
-              }
-              required
-              error={!typeForm.label.trim()}
-              helperText={
-                !typeForm.label.trim()
-                  ? "Label is required when Editable is checked"
-                  : ""
-              }
-            />
-          )}
-
-          {showTypeDialog && (
-            <>
-              <Button
-                variant="outlined"
-                onClick={(e) => setAnchorEl(e.currentTarget)} // open menu
-              >
-                Insert Var
-              </Button>
-              <Menu
-                anchorEl={anchorEl}
-                open={Boolean(anchorEl)}
-                onClose={() => setAnchorEl(null)}
-              >
-                {Object.entries(metadata).map(([key, value]) => (
-                  <MenuItem
-                    key={key}
-                    onClick={() => {
-                      setTypeForm((cur) => ({ ...cur, text: typeForm.text + value }));
-                      setAnchorEl(null);
-                    }}
-                  >
-                    {key}
-                  </MenuItem>
-                ))}
-              </Menu>
-            </>
-          )}
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={typeForm.editable}
-                onChange={(e) => setTypeForm((cur) => ({ ...cur, editable: e.target.checked }))}
-              />
-            }
-            label="Editable"
-          />
-
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={typeForm.isPassword}
-              onChange={(e) =>
-                setTypeForm((cur) => ({
-                  ...cur,
-                  isPassword: e.target.checked,
-                  storeValue: cur.storeValue
-                }))
-              }
-            />
-          }
-          label="Password"
-        />
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={typeForm.storeValue}
-                onChange={(e) =>
-                  setTypeForm((cur) => ({ ...cur, storeValue: e.target.checked }))
-                }
-                disabled={!typeForm.editable}   // disable if editable
-              />
-            }
-            label="Store Value"
-          />
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={typeForm.pressEnter}
-                onChange={(e) => setTypeForm((cur) => ({ ...cur, pressEnter: e.target.checked }))}
-              />
-            }
-            label="Press Enter after typing"
-          />
-       
-
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowTypeDialog(false)}>Cancel</Button>
-          <Button
-            variant="contained"
-            onClick={async () => {
-              if (!pendingCoords) return;
-
-              if (typeForm.editable && !typeForm.label.trim()) {
-                alert("Label is required when Editable is checked.");
-                return;
-              }
-
-              await sendStep({
-                type: "TYPE",
-                coords: pendingCoords,
-                text: typeForm.text,
-                pressEnter: typeForm.pressEnter,
-                viewport,
-                waitAfterMs: 300,
-                timestamp: Date.now(),
-                label: typeForm.label || "",
-                isPassword: typeForm.isPassword,   
-                storeValue: typeForm.storeValue,
-              });
-
-              setShowTypeDialog(false);
-              setPendingCoords(null);
-              setTypeForm({ text: "", label: "", pressEnter: true, editable: false, isPassword: false, storeValue: true});
-            }}
-          >
-            Submit
-          </Button>
-        </DialogActions>
-      </Dialog>
 
     </div>
   );

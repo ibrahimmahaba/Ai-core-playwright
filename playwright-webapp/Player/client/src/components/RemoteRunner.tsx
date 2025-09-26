@@ -7,14 +7,16 @@ import {
   AccessTime as AccessTimeIcon,
   Sync as SyncIcon,
   CropFree as CropIcon, 
+  Check, Close
 } from "@mui/icons-material";
 import {
   CircularProgress, Button,
-  TextField, Autocomplete, styled
+  TextField, Autocomplete, styled, IconButton
 } from "@mui/material";
 import Draggable from "react-draggable";
 import ReactCrop, { type Crop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
+import { rgba } from 'polished';
 
 type CropArea = {
   startX: number;
@@ -366,11 +368,15 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
         setShot(snap);
         
         // If there's an overlay, re-probe to get updated coordinates
-        if (overlay) {
-          const oldRect = overlay.probe.rect;
-          const updatedProbe = await probeAt({ x: Math.round(oldRect.x), y: Math.round(oldRect.y) });
-          if (updatedProbe) {
-            setOverlay(prev => prev ? { ...prev, probe: updatedProbe } : null);
+        if (overlay && editedData.length > 0 && "TYPE" in editedData[0]) {
+          const typeAction = editedData[0].TYPE;
+          //set overlay to null to force re-probe
+          setOverlay(null);
+          const p = await probeAt({x: typeAction.coords?.x, y: typeAction.coords?.y} as Coords);
+          if (p) {
+            setOverlay({ ...overlay, probe: p });
+          } else {
+            setOverlay(null);
           }
         }
       }   
@@ -584,6 +590,16 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
  
   function buildInputStyleFromProbe(p: Probe): React.CSSProperties {
     const s = p.styles || {};
+    let overlayBackground;
+    if (s.backgroundColor === 'rgba(0, 0, 0, 0)' || s.backgroundColor === 'transparent' || !s.backgroundColor) {
+      overlayBackground = 'rgba(255, 255, 255, 0.5)';
+    } else {
+      try {
+        overlayBackground = rgba(s.backgroundColor, 0.5);
+      } catch {
+        overlayBackground = s.backgroundColor;
+      }
+    }
     // Keep values as strings (e.g., "12px", "rgb(...)")
     const st: React.CSSProperties = {
       // box model
@@ -603,7 +619,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
   
       // visual
       color: s.color,
-      backgroundColor: s.backgroundColor,
+      backgroundColor: overlayBackground,
       backgroundImage: s.backgroundImage,      // often 'none'
       backgroundClip: s.backgroundClip as any, // e.g., 'padding-box'
       outlineWidth: s.outlineWidth,
@@ -736,6 +752,21 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
           ) : (
             <input {...commonProps} type={probe.type ?? "text"}   />
           )}
+          <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>
+            <IconButton
+              size="small"
+              onClick={() => onSubmit(ol.draftValue, ol.draftLabel ?? null)}
+              color="success"
+              sx ={{ backgroundColor: 'rgba(25, 118, 210, 0.1)' }}
+            >
+              <Check fontSize="small" />
+            </IconButton>
+
+            <IconButton size="small" onClick={onCancel} color="error" sx ={{ backgroundColor: 'rgba(25, 118, 210, 0.1)' }}
+>
+              <Close fontSize="small" />
+            </IconButton>
+          </div>
         </div>
       );
     }

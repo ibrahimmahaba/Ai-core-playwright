@@ -135,7 +135,7 @@ export interface ScreenshotResponse {
     insightId: string;
     shot?: ScreenshotResponse;
     setShot?: React.Dispatch<React.SetStateAction<ScreenshotResponse | undefined>>;
-    steps?: Step[] ;
+    steps?: Step[] | null;
     setSteps?: React.Dispatch<React.SetStateAction<Step[]>>;
     setLoading?: React.Dispatch<React.SetStateAction<boolean>>;
   }

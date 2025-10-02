@@ -56,6 +56,25 @@ function Header(props : HeaderProps) {
       }
   return (
     <>
+        
+        <h2>Playwright Recorder App</h2>
+        <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+            <input
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            style={{ width: 420 }}
+            placeholder="Enter URL"
+            />
+            <button onClick={() => sendStep({ type: "NAVIGATE", url: url, waitAfterMs: 100, viewport, timestamp: Date.now() })}>Open</button>
+            <button onClick={saveSession} disabled={!sessionId}>
+            Save
+            </button>
+            <span>Steps: {steps ? steps.length : 0}</span>
+            {mode === "crop" && <span style={{ color: "#ff0000", fontWeight: "bold" }}>
+            Drag to select crop area
+            </span>}
+        </div>
+
         { shot && (
           <div
             style={{
@@ -89,23 +108,6 @@ function Header(props : HeaderProps) {
             </div>
           </div>
         )}
-        <h2>Playwright Recorder App</h2>
-        <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
-            <input
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            style={{ width: 420 }}
-            placeholder="Enter URL"
-            />
-            <button onClick={() => sendStep({ type: "NAVIGATE", url: url, waitAfterMs: 100, viewport, timestamp: Date.now() })}>Open</button>
-            <button onClick={saveSession} disabled={!sessionId}>
-            Save
-            </button>
-            <span>Steps: {steps ? steps.length : 0}</span>
-            {mode === "crop" && <span style={{ color: "#ff0000", fontWeight: "bold" }}>
-            Drag to select crop area
-            </span>}
-        </div>
     </>
   )
 }

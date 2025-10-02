@@ -1,0 +1,35 @@
+.vision-popup-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: translate(-50%, -100%);
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 12px;
+  z-index: 2000;
+  width: 320px;
+  max-height: 400px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  cursor: move;
+}
+
+.vision-popup-response {
+  font-size: 16px;
+  background: #f8f9fa;
+  padding: 12px;
+  border-radius: 4px;
+  color: #333;
+  max-height: 250px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+.vision-popup-button-group {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}

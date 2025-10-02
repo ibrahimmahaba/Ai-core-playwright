@@ -10,6 +10,7 @@ import { type JSX } from "react";
 import { runPixel } from "@semoss/sdk";
 import type { ToolbarProps, ScreenshotResponse, Step, Viewport } from "../../types";
 import {useSendStep} from"../../hooks/useSendStep"
+import '../../css/toolbar.css';
 
 function Toolbar(props: ToolbarProps) {
     const { sessionId, insightId, shot, setShot, mode, setMode, steps, setSteps, setLoading} = props;
@@ -86,22 +87,7 @@ function Toolbar(props: ToolbarProps) {
     }
 
   return (
-    <div
-        style={{
-          position: "fixed",
-          top: "20%",
-          left: "20px",
-          zIndex: 1000,
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-          padding: 8,
-          borderRadius: 12,
-          background: "#fff",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-          alignItems: "center",
-        }}
-      >
+    <div className="toolbar-container">
         {([
           { m: "click", icon: <MouseIcon />, label: "Click" },
           { m: "scroll-up", icon: <ArrowUpIcon />, label: "Scroll Up" },
@@ -135,27 +121,7 @@ function Toolbar(props: ToolbarProps) {
               }}
               title={label}
               aria-pressed={active}
-              style={{
-                width: "40px",
-                height: "40px",
-                borderRadius: "50%",
-                border: active ? "2px solid #666" : "1px solid #bbb",
-                background: active ? "#e0e0e0" : "#fafafa",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                transition: "all 0.2s ease",
-                color: active ? "#444" : "#888",
-                fontSize: "18px",
-                padding: 0,
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.borderRadius = "12px";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.borderRadius = "50%";
-              }}
+              className={`toolbar-button ${active ? 'active' : ''}`}
             >
               {icon}
             </button>

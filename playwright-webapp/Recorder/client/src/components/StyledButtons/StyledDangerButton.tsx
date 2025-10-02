@@ -1,5 +1,6 @@
 import { styled } from '@mui/material/styles';
 import Button from '@mui/material/Button';
+import '../../css/main.css';
 
 const StyledDangerButtonRoot = styled(Button)(({ theme }) => ({
   color: theme.palette.common.white,
@@ -11,7 +12,7 @@ const StyledDangerButtonRoot = styled(Button)(({ theme }) => ({
 }));
 
 const StyledDangerButton = (props : any) => {
-  return <StyledDangerButtonRoot {...props} />;
+  return <StyledDangerButtonRoot {...props} className="danger-button" />;
 };
 
 export default StyledDangerButton;

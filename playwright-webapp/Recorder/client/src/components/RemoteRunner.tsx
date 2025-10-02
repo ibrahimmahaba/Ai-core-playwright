@@ -10,6 +10,7 @@ import type { Coords, CropArea, Probe, ProbeRect, RemoteRunnerProps, ScreenshotR
 import Header from "./Header/Header";
 import { useSendStep } from "../hooks/useSendStep";
 import VisionPopup from "./VisionPopup/VisionPopup";
+import '../css/remote-runner.css';
 
 
 export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps)  {
@@ -222,25 +223,14 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
   
     // Confirm click overlay (unchanged)
     return (
-      <div style={{
-        position: "absolute",
-        left: box.left,
-        top: Math.max(0, box.top - 8),
-        width: 160,
-        zIndex: 1000,
-        background: "white",
-        border: "1px solid #ddd",
-        borderRadius: 8,
-        padding: 8,
-        boxShadow: "0 6px 16px rgba(0,0,0,0.2)"
-      }}>
+      <div className="remote-runner-confirm-overlay" style={{ left: box.left, top: Math.max(0, box.top - 8) }}>
         <div style={{ marginBottom: 6 }}>Click this?</div>
-        <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+        <div className="remote-runner-overlay-buttons">
           <button onClick={() => onSubmit(undefined, ol.draftLabel ?? null)}>✔ Yes</button>
           <button onClick={onCancel}>✖ No</button>
         </div>
         <input
-          style={{ marginTop: 6, width: "100%", padding: 6, border: "1px solid #eee", borderRadius: 6 }}
+          className="remote-runner-overlay-input"
           placeholder="Optional label"
           defaultValue={ol.draftLabel ?? ""}
           onChange={(e) => (ol.draftLabel = e.target.value)}
@@ -381,10 +371,8 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
   }
  
 
-
-
   return (
-    <div style={{ padding: 16 }}>
+    <div className="remote-runner-container">
       {/* toolbar */}
       <Toolbar 
       sessionId={sessionId}
@@ -416,26 +404,14 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
 
       
       {!shot && loading && (
-        <div
-        style={{
-          width: "100%",
-          height: "500px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "#f5f6fa",
-          padding: "16px",
-          boxSizing: "border-box",
-          marginBottom: "12px",
-          borderRadius: "8px",
-        }}
-        >{loading && <CircularProgress />}
+        <div className="remote-runner-loading-container">
+          {loading && <CircularProgress />}
         </div>
       )}
 
       {shot && (
         <>          
-          <div style={{ position: "relative", display: "inline-block" }}>
+          <div className="remote-runner-image-container">
             {mode === "crop" ? (
               <ReactCrop
                 crop={crop}
@@ -459,10 +435,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
                   ref={imgRef}
                   src={`data:image/png;base64,${shot.base64Png}`}
                   alt="remote"
-                  style={{
-                    border: "1px solid #ccc",
-                    maxWidth: "100%",
-                  }}
+                  className="remote-runner-image"
                   onLoad={() => setLoading(false)}
                 />
               </ReactCrop>
@@ -472,11 +445,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
                 onClick={handleClick}
                 src={`data:image/png;base64,${shot.base64Png}`}
                 alt="remote"
-                style={{
-                  border: "1px solid #ccc",
-                  maxWidth: "100%",
-                  cursor: "pointer",
-                }}
+                className="remote-runner-image"
                 onLoad={() => setLoading(false)}
               />
             )}
@@ -526,19 +495,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
             )}
 
             {loading && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: "rgba(0,0,0,0.3)",
-                }}
-              >
+              <div className="remote-runner-loading-overlay">
                 <CircularProgress color="inherit" />
               </div>
             )}
@@ -561,5 +518,3 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     </div>
   );
 }
-
-

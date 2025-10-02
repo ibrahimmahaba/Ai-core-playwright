@@ -5,6 +5,7 @@ import StyledButton from "../StyledButtons/StyledButtonRoot";
 import StyledDangerButton from "../StyledButtons/StyledDangerButton";
 import type { ScreenshotResponse, VisionPopupProps } from "../../types";
 import { runPixel } from "@semoss/sdk";
+import '../../css/vision-popup.css';
 
 
 export function VisionPopup(props : VisionPopupProps) {
@@ -100,24 +101,7 @@ export function VisionPopup(props : VisionPopupProps) {
     <div>
         {visionPopup && (
             <Draggable>
-              <div style={{
-                position: "absolute",
-                top: visionPopup.y,
-                left: visionPopup.x,
-                transform: "translate(-50%, -100%)",
-                background: "white",
-                border: "1px solid #ccc",
-                borderRadius: "8px",
-                padding: "12px",
-                zIndex: 2000,
-                width: "320px",
-                maxHeight: "400px",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
-                display: "flex",
-                flexDirection: "column",
-                gap: "12px",
-                cursor: "move",
-              }}>
+              <div className="vision-popup-container">
                 {!visionPopup.response ? (
                   <>
                     <TextField
@@ -138,19 +122,10 @@ export function VisionPopup(props : VisionPopupProps) {
                   </>
                 ) : (
                   <>
-                    <div style={{
-                      fontSize: "16px",
-                      background: "#f8f9fa",
-                      padding: "12px",
-                      borderRadius: "4px",
-                      color: "#333",
-                      maxHeight: "250px",
-                      overflowY: "auto",
-                      whiteSpace: "pre-wrap"
-                    }}>
+                    <div className="vision-popup-response">
                       {visionPopup.response}
                     </div>
-                    <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+                    <div className="vision-popup-button-group">
                       <StyledButton onClick={() => {
                         setVisionPopup(null);
                         setCurrentCropArea(null);

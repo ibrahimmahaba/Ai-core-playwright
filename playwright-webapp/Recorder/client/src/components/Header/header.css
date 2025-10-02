@@ -1,0 +1,40 @@
+.header-container h2 {
+  margin-bottom: 16px;
+}
+
+.header-input-group {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.header-input {
+  width: 420px;
+}
+
+.header-steps-count {
+  margin-left: auto;
+}
+
+.header-crop-mode {
+  color: #ff0000;
+  font-weight: bold;
+}
+
+.header-shot-container {
+  width: 75vw;
+  background: #f5f6fa;
+  padding: 16px;
+  box-sizing: border-box;
+  margin-bottom: 12px;
+  border-radius: 8px;
+}
+
+.header-title-field {
+  margin-bottom: 12px;
+}
+
+.header-description-field {
+  margin-bottom: 12px;
+}

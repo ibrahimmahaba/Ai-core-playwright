@@ -1,5 +1,6 @@
 import { styled } from '@mui/material/styles';
 import Button from '@mui/material/Button';
+import '../../css/main.css';
 
 const StyledPrimaryButtonRoot = styled(Button)(({ theme }) => ({
   color: theme.palette.common.white,
@@ -11,7 +12,7 @@ const StyledPrimaryButtonRoot = styled(Button)(({ theme }) => ({
 }));
 
 const StyledPrimaryButton = (props : any) => {
-  return <StyledPrimaryButtonRoot {...props} />;
+  return <StyledPrimaryButtonRoot {...props} className="primary-button" />;
 };
 
 export default StyledPrimaryButton;

@@ -1,92 +1,16 @@
 import React, { useRef, useState, type JSX } from "react";
 import { runPixel } from "@semoss/sdk";
-import {
-  Mouse as MouseIcon,
-  ArrowUpward as ArrowUpIcon,
-  ArrowDownward as ArrowDownIcon,
-  AccessTime as AccessTimeIcon,
-  Sync as SyncIcon,
-  CropFree as CropIcon, 
-} from "@mui/icons-material";
-import { CircularProgress, TextField, FormControlLabel, Checkbox, styled, Button } from "@mui/material";
+import { CircularProgress, FormControlLabel, Checkbox } from "@mui/material";
 import { IconButton } from "@mui/material";
 import { Check, Close } from "@mui/icons-material";
-import Draggable from "react-draggable";
 import ReactCrop, { type Crop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
+import Toolbar from "./Toolbar/Toolbar";
+import type { Coords, CropArea, Probe, ProbeRect, RemoteRunnerProps, ScreenshotResponse, Step, Viewport } from "../types";
+import Header from "./Header/Header";
+import { useSendStep } from "../hooks/useSendStep";
+import VisionPopup from "./VisionPopup/VisionPopup";
 
-type ScreenshotResponse = {
-  base64Png: string;
-  width: number;
-  height: number;
-  deviceScaleFactor: number;
-};
-
-type Coords = { x: number; y: number };
-type Viewport = { width: number; height: number; deviceScaleFactor: number };
-
-type Step =
-  | { type: "NAVIGATE"; url: string; waitUntil?: "networkidle" | "domcontentloaded"; viewport: Viewport; waitAfterMs?: number; timestamp: number }
-  | { type: "CLICK"; coords: Coords; viewport: Viewport; waitAfterMs?: number; timestamp: number }
-  | {
-    type: "TYPE";
-    coords: Coords;
-    text: string;
-    pressEnter?: boolean;
-    viewport: Viewport;
-    waitAfterMs?: number;
-    timestamp: number;
-    label?: string;
-    isPassword?: boolean;   
-    storeValue?: boolean;
-    }
-  | { type: "SCROLL"; coords: Coords; deltaY?: number; viewport: Viewport; waitAfterMs?: number; timestamp: number }
-  | { type: "WAIT"; waitAfterMs: number; viewport: Viewport; timestamp: number };
-
-type VariableRecord = { label: string; text: string; isPassword?: boolean };
-type RemoteRunnerProps = {
-  sessionId: string; 
-  metadata: Record<string, string>; 
-  insightId: string;
-}
-type CropArea = {
-  startX: number;
-  startY: number;
-  endX: number;
-  endY: number;
-};
-
-type ElementMetrics = {
-  offsetWidth: number;
-  offsetHeight: number;
-  clientWidth: number;
-  clientHeight: number;
-  scrollWidth: number;
-  scrollHeight: number;
-};
-
-type CSSMap = Record<string, string>;
-
-type ProbeRect = { x: number; y: number; width: number; height: number };
-
-type Probe = {
-  tag: string | null;
-  type: string | null;
-  role: string | null;
-  selector: string | null;
-  placeholder: string | null;
-  labelText: string | null;
-  value: string | null;
-  href: string | null;
-  contentEditable: boolean;
-  rect: ProbeRect;
-
-  metrics?: ElementMetrics | null;
-  styles?: CSSMap | null;             
-  placeholderStyle?: CSSMap | null;   
-  attrs?: Record<string, string> | null;
-  isTextControl?: boolean;
-};
 
 export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps)  {
 
@@ -94,13 +18,8 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [shot, setShot] = useState<ScreenshotResponse>();
-  const [url, setUrl] = useState("https://example.com");
   const [steps, setSteps] = useState<Step[]>([]);
   const imgRef = useRef<HTMLImageElement>(null);
-  const [showData, setShowData] = React.useState(false);
-  const [editedData, setEditedData] = React.useState<VariableRecord[]>([]);
-  const [updatedData, setUpdatedData] = React.useState<VariableRecord[]>([]);
-  const [scriptName] = useState("script-1");
   const [overlay, setOverlay] = useState<{
     kind: "input" | "confirm";
     probe: Probe;
@@ -109,9 +28,10 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     draftLabel?: string | null;
   } | null>(null);
   const [crop, setCrop] = useState<Crop>();
- // const { actions } = useInsight();
  const [visionPopup, setVisionPopup] = useState<{x: number; y: number; query: string; response: string | null; } | null>(null);
  const [currentCropArea, setCurrentCropArea] = useState<CropArea | null>(null);
+ const [mode, setMode] = useState<string>("click");
+
 
   const viewport: Viewport = {
     width: shot?.width ?? 1280,
@@ -119,26 +39,34 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     deviceScaleFactor: shot?.deviceScaleFactor ?? 1,
   };
 
-  async function sendStep(step: Step) {
-    if (!sessionId) return;
+  const { sendStep } = useSendStep({
+    insightId : insightId,
+    sessionId : sessionId,
+    shot: shot,
+    setShot: setShot,
+    steps: steps,
+    setSteps: setSteps,
+    setLoading: setLoading
+});
+  // async function sendStep(step: Step) {
+  //   if (!sessionId) return;
 
-    let shouldStore = step.type == "TYPE" && step.storeValue;
+  //   let shouldStore = step.type == "TYPE" && step.storeValue;
 
-    setLoading(true);
-    try {
-      let pixel = `Step ( sessionId = "${sessionId}", shouldStore = ${shouldStore}, paramValues = [ ${JSON.stringify(step)} ] )`;
-      const res = await runPixel(pixel, insightId);
+  //   setLoading(true);
+  //   try {
+  //     let pixel = `Step ( sessionId = "${sessionId}", shouldStore = ${shouldStore}, paramValues = [ ${JSON.stringify(step)} ] )`;
+  //     const res = await runPixel(pixel, insightId);
 
-      const { output } = res.pixelReturn[0];
+  //     const { output } = res.pixelReturn[0];
 
-      const data: ScreenshotResponse = output as ScreenshotResponse;
-      setShot(data);
-      setSteps(prev => [...prev, step]);
-    } finally {
-      setLoading(false);
-    }
-  }
-
+  //     const data: ScreenshotResponse = output as ScreenshotResponse;
+  //     setShot(data);
+  //     setSteps(prev => [...prev, step]);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // }
   function imageToPageCoords(e: React.MouseEvent<HTMLImageElement, MouseEvent>): Coords {
     const img = imgRef.current!;
     const rect = img.getBoundingClientRect();
@@ -150,10 +78,6 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
 
     return { x: Math.round(x), y: Math.round(y) };
   }
-
-  type Mode = "click" | "scroll" | "confirm" | "crop";
-  const [mode, setMode] = useState<Mode>("click");
-
   async function probeAt(pendingCoords: Coords | null) {
     if (!sessionId) return ;
     if (!pendingCoords) alert("Invalid Coordinates");
@@ -324,7 +248,6 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       </div>
     );
   }
-
   function pageRectToImageCss(rect: ProbeRect, imgEl: HTMLImageElement, shot: ScreenshotResponse) {
     const ib = imgEl.getBoundingClientRect();
     const sx = ib.width / shot.width;
@@ -442,180 +365,6 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
           timestamp: Date.now()});
       }
   }
-
-
-  async function replayFromFile(optionalName?: string) {
-    setLoading(true);
-    try{
-    const name =
-      optionalName ||
-      window.prompt("Replay file (name in 'recordings' or absolute path):", scriptName) ||
-      scriptName;
-
-    let pixel = `ReplayFromFile ( sessionId = "${sessionId}", paramValues = [ { "name": "${name}" } ] )`;
-    const res = await runPixel(pixel, insightId);
-    const { output } = res.pixelReturn[0] as { output: any };
-
-    if (output && typeof output === "object" && output.base64Png) {
-      setShot(output as ScreenshotResponse);
-    } else {
-      console.error("Invalid response structure:", output);
-      alert("Error: Invalid response from replayFile endpoint");
-    }
-  } finally {
-    setLoading(false);
-  }
-}
-
-  async function updatePlaywrightScript(currentDataParam?: VariableRecord[]) {
-    const currentData = currentDataParam ?? updatedData;
-    if (!currentData || Object.keys(currentData).length === 0) {
-      alert("No variables provided!");
-      return;
-    }
-
-    const newName = window.prompt("Enter the new file name:", scriptName) || scriptName;
-
-    let Variables = Object.entries(currentData)
-      .map(([k, v]) => `{ "${k}": "${v}" }`)
-      .join(", ");
-    
-    let metadataVariables = Object.entries(currentData)
-    .filter(([k]) => k === "title" || k === "description")
-    .map(([k, v]) => `{ "${k}": "${v}" }`)
-    .join(", ");
-
-    if (metadataVariables) {
-      const patchPixel = `PatchFileMeta(name="${scriptName}", paramValues=[${metadataVariables}])`;
-      await runPixel(patchPixel, insightId);
-    }
-    const updatePixel = `UpdatePlaywrightScriptVariables(Script="${scriptName}", Variables=[${Variables}], OutputScript="${newName}")`;
-    try {
-      const updateRes = await runPixel(updatePixel, insightId);
-      const { output } = updateRes.pixelReturn[0] as { output: string };
-      replayFromFile(output);
-    } catch (err) {
-      console.error("Failed to update script:", err);
-      alert("Error updating script");
-    }
-  }
-
-  async function saveSession() {
-    if (!sessionId) return;
-  
-    if (!title.trim()) {
-      alert("Please enter a title before saving the session.");
-      return;
-    }
-  
-    const today = new Date().toISOString().split("T")[0];
-    const name = title ? `${title}-${today}`: `${scriptName}`;
-    try {
-      const pixel = `SaveAll(
-        sessionId="${sessionId}",
-        name="${name}",
-        title="${title}",
-        description="${description}"
-      );`;
-  
-      console.log("Running pixel:", pixel);
-      const res = await runPixel(pixel, insightId);
-      console.log("SaveAll success:", res.pixelReturn[0].output);
-      alert("Session saved successfully!");
-    } catch (err) {
-      console.error("Error saving session:", err);
-      alert("Failed to save session");
-    }
-  }
-
-  function normalizeShot(raw: any | undefined | null): ScreenshotResponse | undefined {
-    if (!raw) return undefined;
-    const base64 =
-      raw.base64Png ?? raw.base64 ?? raw.imageBase64 ?? raw.pngBase64 ?? raw.data ?? "";
-    const width = raw.width ?? raw.w ?? 1280;
-    const height = raw.height ?? raw.h ?? 800;
-    const dpr = raw.deviceScaleFactor ?? raw.dpr ?? 1;
-    if (!base64 || typeof base64 !== "string") return undefined;
-    return { base64Png: base64, width, height, deviceScaleFactor: dpr };
-  }
-
-  async function fetchScreenshot() {
-    if (!sessionId) return;
-    try {
-      let pixel = `Screenshot ( sessionId = "${sessionId}" )`;
-      const res = await runPixel(pixel, insightId);
-      const { output } = res.pixelReturn[0];
-      const snap = normalizeShot(output);
-      if (snap) setShot(snap);
-    } catch (err) {
-      console.error("fetchScreenshot error:", err);
-    }
-  }
-
-  async function waitAndShot() {
-    if (!sessionId) return;
-    const ms = Number(window.prompt("Wait how many ms?", "800")) || 800;
-    const step: Step = { type: "WAIT", waitAfterMs: ms, viewport, timestamp: Date.now() };
-    await sendStep(step); // server will wait + return a fresh screenshot
-  }
-
-   
-  // async function handleLLMAnalysis(engineId: string | null) {
-  //   if (!visionPopup || !visionPopup.query.trim() || !currentCropArea) return;
-  //   
-    
-  //   try {
-  //     const pixel = `ImageContext(
-  //       sessionId="${sessionId}",
-  //       engine="${engineId ? engineId : '029a1323-db79-415c-be3e-3945438b0808'}", 
-  //       paramValues=[{
-  //         "startX": ${cropArea.startX}, 
-  //         "startY": ${cropArea.startY}, 
-  //         "endX": ${cropArea.endX}, 
-  //         "endY": ${cropArea.endY},
-  //         "userPrompt": "${userPrompt}"
-  //       }]
-  //     )`;
-      
-  //     const res = await runPixel(pixel, insightId);
-  //     const output = res.pixelReturn[0].output as { response: string };
-      
-  //    
-        //setVisionPopup({ ...visionPopup, response: resp });
-
-      
-  //   } catch (err) {
-  //     console.error("LLM Vision error:", err);
-  //   }
-  // }
-  
-  async function handleLLMAnalysis() {
-    if (!visionPopup || !visionPopup.query.trim() || !currentCropArea) return;
-  
-    try {
-      const cropPixel = `Screenshot(
-        sessionId="${sessionId}", 
-        paramValues=[{
-          "startX": ${currentCropArea.startX}, 
-          "startY": ${currentCropArea.startY}, 
-          "endX": ${currentCropArea.endX}, 
-          "endY": ${currentCropArea.endY}
-        }]
-      )`;
-  
-      const cropRes = await runPixel(cropPixel, insightId);
-      const croppedImage = cropRes.pixelReturn[0].output as ScreenshotResponse;
-      console.log("Cropped image obtained for vision analysis.");
-      console.log(croppedImage);
-      const resp = await callVisionAPI(visionPopup.query, croppedImage.base64Png);
-  
-      setVisionPopup({ ...visionPopup, response: resp });
-    } catch (err) {
-      console.error("Vision analysis error:", err);
-      alert("Error: " + err);
-    }
-  }
-
   function handleVisionPopup(cropArea: CropArea) { 
     const dialogX = Math.min(cropArea.endX + 20, (shot?.width ?? 800) - 300);
     const dialogY = cropArea.startY;
@@ -632,171 +381,40 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
   }
  
 
-  async function callVisionAPI(query: string, base64Image: string): Promise<string> {
-    const AUTH_TOKEN = import.meta.env.VITE_AUTH_KEY;
-    const ENGINE_ID = "4acbe913-df40-4ac0-b28a-daa5ad91b172";
-    
-    const expression = `Vision(engine="${ENGINE_ID}", command = "${query}", image="data:image/png;base64,${base64Image}")`;
-    
-    const encodedExpression = encodeURIComponent(expression);
-    
-    const requestBody = `expression=${encodedExpression}`;
-    
-    const response = await fetch("https://workshop.cfg.deloitte.com/Monolith/api/engine/runPixel", {
-      method: "POST",
-      headers: {
-        "authorization": `Basic ${AUTH_TOKEN}`,
-        "content-type": "application/x-www-form-urlencoded",
-      },
-      body: requestBody
-    });
-    
-    if (!response.ok) {
-      throw new Error(`API call failed: ${response.status}`);
-    }
-    
-    const result = await response.json();
-    
-    return result.pixelReturn[0].output.response || "No response received";
-  }
 
-
-  const StyledButton = styled(Button)(({ theme }) => ({
-    color: theme.palette.text.primary,
-    border: `0px solid ${theme.palette.divider}`,
-  }));
-  
-  const StyledPrimaryButton = styled(Button)(({ theme }) => ({
-    color: theme.palette.common.white,
-    backgroundColor: theme.palette.primary.main,
-    '&:hover': {
-      backgroundColor: theme.palette.primary.dark,
-    },
-    borderRadius: "8px"
-  }));
-  
-  const StyledDangerButton = styled(Button)(({ theme }) => ({
-    color: theme.palette.common.white,
-    backgroundColor: theme.palette.error.main,
-    '&:hover': {
-      backgroundColor: theme.palette.error.dark,
-    },
-    borderRadius: "8px"
-  }));
 
   return (
     <div style={{ padding: 16 }}>
-      <div
-        style={{
-          position: "fixed",
-          top: "20%",
-          left: "20px",
-          zIndex: 1000,
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-          padding: 8,
-          borderRadius: 12,
-          background: "#fff",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-          alignItems: "center",
-        }}
-      >
-        {([
-          { m: "click", icon: <MouseIcon />, label: "Click" },
-          { m: "scroll-up", icon: <ArrowUpIcon />, label: "Scroll Up" },
-          { m: "scroll-down", icon: <ArrowDownIcon />, label: "Scroll Down" },
-          { m: "delay", icon: <AccessTimeIcon />, label: "Delay" },
-          { m: "fetch-screenshot", icon: <SyncIcon />, label: "Refresh" },
-          { m: "crop", icon: <CropIcon />, label: "Add Context" }
+      {/* toolbar */}
+      <Toolbar 
+      sessionId={sessionId}
+      insightId={insightId}
+      mode={mode}
+      setMode={setMode}
+      shot={shot}
+      setShot={setShot}
+      loading={loading}
+      setLoading={setLoading}
+      steps={steps}
+      setSteps={setSteps}/>
 
-        ] as { m: string; icon: JSX.Element; label: string }[]).map(({ m, icon, label }) => {
-          const active = mode === m;
+      {/* Header / and metadata form */}
+      <Header 
+      insightId={insightId}
+      sessionId={sessionId}
+      shot={shot}
+      setShot={setShot}
+      steps={steps}
+      setSteps={setSteps}
+      loading={loading}
+      setLoading={setLoading}
+      title={title}
+      setTitle={setTitle}
+      setDescription={setDescription}
+      description={description}
+      mode={mode}/>
 
-          return (
-            <button
-              key={m}
-              onClick={async () => {
-                if (m === "scroll-up") {
-                  if (!shot) return;
-                  await sendStep({
-                    type: "SCROLL",
-                    coords: { x: 0, y: 0 },
-                    deltaY: -400,
-                    viewport,
-                    waitAfterMs: 300,
-                    timestamp: Date.now(),
-                  });
-                } else if (m === "scroll-down") {
-                  if (!shot) return;
-                  await sendStep({
-                    type: "SCROLL",
-                    coords: { x: 0, y: 0 },
-                    deltaY: 400,
-                    viewport,
-                    waitAfterMs: 300,
-                    timestamp: Date.now(),
-                  });
-                } else if (m == "delay") {
-                  await waitAndShot();
-                } else if (m == "fetch-screenshot") {
-                  await fetchScreenshot();
-                } else if (m === "cancel") {
-                  setMode("click");
-                } else if (m == "crop") {
-                  setMode("crop");
-                } else {
-                  setMode(m as Mode);
-                }
-              }}
-              title={label}
-              aria-pressed={active}
-              style={{
-                width: "40px",
-                height: "40px",
-                borderRadius: "50%",
-                border: active ? "2px solid #666" : "1px solid #bbb",
-                background: active ? "#e0e0e0" : "#fafafa",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                transition: "all 0.2s ease",
-                color: active ? "#444" : "#888",
-                fontSize: "18px",
-                padding: 0,
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.borderRadius = "12px";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.borderRadius = "50%";
-              }}
-            >
-              {icon}
-            </button>
-          );
-        })}
-      </div>
-
-
-      <h2>Playwright Recorder App</h2>
-      <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
-        <input
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          style={{ width: 420 }}
-          placeholder="Enter URL"
-        />
-        <button onClick={() => sendStep({ type: "NAVIGATE", url: url, waitAfterMs: 100, viewport, timestamp: Date.now() })}>Open</button>
-        <button onClick={saveSession} disabled={!sessionId}>
-          Save
-        </button>
-        <span>Steps: {steps.length}</span>
-        {mode === "crop" && <span style={{ color: "#ff0000", fontWeight: "bold" }}>
-          Drag to select crop area
-        </span>}
-      </div>
+      
       {!shot && loading && (
         <div
         style={{
@@ -816,39 +434,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       )}
 
       {shot && (
-        <>
-          <div
-            style={{
-              width: shot.width ? `${shot.width}px` : "75vw", // match screenshot width
-              background: "#f5f6fa",
-              padding: "16px",
-              boxSizing: "border-box",
-              marginBottom: "12px",
-              borderRadius: "8px",
-            }}
-          >
-            <div style={{ marginBottom: "12px" }}>
-              <TextField
-                label="Title"
-                value={title}
-                required
-                fullWidth
-                onChange={(e) => setTitle(e.target.value)}
-              />
-            </div>
-
-            <div style={{ marginBottom: "12px" }}>
-              <TextField
-                label="Description"
-                value={description}
-                fullWidth
-                multiline
-                rows={2}
-                onChange={(e) => setDescription(e.target.value)}
-              />
-            </div>
-          </div>
-
+        <>          
           <div style={{ position: "relative", display: "inline-block" }}>
             {mode === "crop" ? (
               <ReactCrop
@@ -889,16 +475,11 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
                 style={{
                   border: "1px solid #ccc",
                   maxWidth: "100%",
-                  cursor:
-                    mode === "scroll"
-                      ? "ns-resize"
-                      : "pointer",
+                  cursor: "pointer",
                 }}
                 onLoad={() => setLoading(false)}
               />
             )}
-
-            {/* // float slightly above click */}
 
             {overlay && shot && (
               <>
@@ -906,7 +487,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
                 <Overlay
                   ol={overlay}
                   shot={shot}
-                   imgRef={imgRef}
+                  imgRef={imgRef}
                   onCancel={() => setOverlay(null)}
                   onSubmit={async (value, label) => {
                     const { probe } = overlay!;
@@ -961,7 +542,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
                 <CircularProgress color="inherit" />
               </div>
             )}
-          {visionPopup && (
+          {/* {visionPopup && (
             <Draggable>
               <div style={{
                 position: "absolute",
@@ -1040,66 +621,23 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
                 )}
               </div>
             </Draggable>
-          )}
+          )} */}
+
+          <VisionPopup 
+            sessionId={sessionId} 
+            insightId={insightId}
+            visionPopup={visionPopup} 
+            setVisionPopup={setVisionPopup}
+            currentCropArea={currentCropArea}
+            setCurrentCropArea={setCurrentCropArea}
+            mode={mode}
+            setMode={setMode} 
+            crop={crop}
+            setCrop={setCrop}          
+          />
           </div>
         </>
       )}
-
-      {showData && (
-        <div style={{ marginTop: 12, padding: 12, border: "1px solid #ccc", borderRadius: 8 }}>
-          <h4>Edit Replay Variables </h4>
-
-          {editedData.length === 0 ? (
-            <div>No variables found.</div>
-          ) : (
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr>
-                  <th style={{ borderBottom: "1px solid #ddd", textAlign: "left", padding: 4 }}>Label</th>
-                  <th style={{ borderBottom: "1px solid #ddd", textAlign: "left", padding: 4 }}>Value</th>
-                </tr>
-              </thead>
-              <tbody>
-                {editedData.map((obj) => (
-                  <tr key={obj.label}>
-                    <td style={{ borderBottom: "1px solid #eee", padding: 4 }}>{obj.label}</td>
-                    <td style={{ borderBottom: "1px solid #eee", padding: 4 }}>
-                      <input
-                        style={{ width: "100%" }}
-                        type={obj.isPassword ? "password" : "text"} 
-                        value={obj.text}
-                        onChange={(e) => {
-                          const newValue = e.target.value;
-                          setEditedData((cur) => 
-                            cur.map(item => item.label === obj.label ? { ...item, text: newValue } : item)
-                          );
-                          setUpdatedData((cur) => 
-                            cur.map(item => item.label === obj.label ? { ...item, text: newValue } : item)
-                          );
-                        }}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-
-          <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
-            <button
-              onClick={async () => {
-                await updatePlaywrightScript(updatedData);
-                setShowData(false);
-              }}
-            >
-              Execute 
-            </button>
-
-            <button onClick={() => setShowData(false)}>Cancel</button>
-          </div>
-        </div>
-      )}
-
     </div>
   );
 }

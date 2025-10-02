@@ -1,0 +1,13 @@
+import { styled } from '@mui/material/styles';
+import Button from '@mui/material/Button';
+
+const StyledButtonRoot = styled(Button)(({ theme }) => ({
+  color: theme.palette.text.primary,
+  border: 'none',
+}));
+
+const StyledButton = (props : any) => {
+  return <StyledButtonRoot {...props} />;
+};
+
+export default StyledButton;

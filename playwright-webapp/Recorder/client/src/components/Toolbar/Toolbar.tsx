@@ -10,7 +10,7 @@ import { type JSX } from "react";
 import { runPixel } from "@semoss/sdk";
 import type { ToolbarProps, ScreenshotResponse, Step, Viewport } from "../../types";
 import {useSendStep} from"../../hooks/useSendStep"
-import '../../css/toolbar.css';
+import './toolbar.css';
 
 function Toolbar(props: ToolbarProps) {
     const { sessionId, insightId, shot, setShot, mode, setMode, steps, setSteps, setLoading} = props;

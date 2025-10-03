@@ -1,6 +1,6 @@
 import { styled } from '@mui/material/styles';
 import Button from '@mui/material/Button';
-import '../../css/main.css';
+import './main.css';
 
 const StyledDangerButtonRoot = styled(Button)(({ theme }) => ({
   color: theme.palette.common.white,

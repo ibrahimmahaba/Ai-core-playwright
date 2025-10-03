@@ -3,7 +3,7 @@ import { useSendStep } from '../../hooks/useSendStep';
 import type { HeaderProps, Viewport } from '../../types';
 import { runPixel } from "@semoss/sdk";
 import { TextField } from '@mui/material';
-import '../../css/header.css';
+import './header.css';
 
 
 

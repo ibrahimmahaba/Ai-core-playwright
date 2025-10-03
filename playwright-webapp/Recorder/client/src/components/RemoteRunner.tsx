@@ -10,7 +10,7 @@ import type { Coords, CropArea, Probe, ProbeRect, RemoteRunnerProps, ScreenshotR
 import Header from "./Header/Header";
 import { useSendStep } from "../hooks/useSendStep";
 import VisionPopup from "./VisionPopup/VisionPopup";
-import '../css/remote-runner.css';
+import './remote-runner.css';
 
 
 export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps)  {

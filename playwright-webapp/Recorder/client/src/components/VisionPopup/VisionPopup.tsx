@@ -5,7 +5,7 @@ import StyledButton from "../StyledButtons/StyledButtonRoot";
 import StyledDangerButton from "../StyledButtons/StyledDangerButton";
 import type { ScreenshotResponse, VisionPopupProps } from "../../types";
 import { runPixel } from "@semoss/sdk";
-import '../../css/vision-popup.css';
+import './vision-popup.css';
 
 
 export function VisionPopup(props : VisionPopupProps) {

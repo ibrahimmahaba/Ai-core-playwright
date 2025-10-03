@@ -384,7 +384,8 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       loading={loading}
       setLoading={setLoading}
       steps={steps}
-      setSteps={setSteps}/>
+      setSteps={setSteps}
+      />
 
       {/* Header / and metadata form */}
       <Header 

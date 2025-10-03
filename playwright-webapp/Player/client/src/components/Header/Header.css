@@ -1,0 +1,15 @@
+.header-title {
+  margin-bottom: 8px;
+}
+
+.header-controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.header-recording-count {
+  display: flex;
+  align-items: center;
+}

@@ -5,6 +5,7 @@ import { runPixel } from "@semoss/sdk";
 import {
     Insight
 } from "https://cdn.jsdelivr.net/npm/@semoss/sdk@1.0.0-beta.29/+esm";
+import './Header.css';
 
 function Header(props : HeaderProps) {
     const {insightId, sessionId, steps, selectedRecording, setSelectedRecording
@@ -71,8 +72,8 @@ function Header(props : HeaderProps) {
 
   return (
     <>
-        <h2>Playwright Script Player App</h2>
-      <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+        <h2 className="header-title">Playwright Script Player App</h2>
+      <div className="header-controls">
 
         <Autocomplete
           options={Array.isArray(allRecordings) ? allRecordings : []}
@@ -92,7 +93,7 @@ function Header(props : HeaderProps) {
           Start Live Replay
         </button>
         <button onClick={() => setLive(false)} disabled={!live}>Stop Live</button>
-        <span>Steps: {steps.length}</span>
+        <span className="header-recording-count">Steps: {steps.length}</span>
       </div>
     </>
   )

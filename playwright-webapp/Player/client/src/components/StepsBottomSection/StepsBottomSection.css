@@ -1,0 +1,33 @@
+.steps-container {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+
+.steps-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.steps-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.steps-table th {
+  border-bottom: 1px solid #ddd;
+  text-align: left;
+  padding: 4px;
+}
+
+.steps-table td {
+  text-align: start;
+}
+
+.steps-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+}

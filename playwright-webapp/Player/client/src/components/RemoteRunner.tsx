@@ -1,3 +1,4 @@
+
 import React, { useRef, useState, useEffect } from "react";
 import { runPixel } from "@semoss/sdk";
 import {
@@ -17,6 +18,7 @@ import Header from "./Header/Header";
 import StepsBottomSection from "./StepsBottomSection/StepsBottomSection";
 import VisionPopup from "./VisionPopup/VisionPopup";
 import ModelResults from "./ModelResults/ModelResults";
+import './RemoteRunner.css';
 export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps) {
 
   const [loading, setLoading] = useState(false);
@@ -566,7 +568,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     );
   }
   return (
-    <div style={{ padding: 16 }}>
+    <div className="remote-runner-container">
       {/* toolbar */}
 
       <Toolbar 
@@ -620,7 +622,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
 
       {shot && (
         <>
-          <div style={{ position: "relative", display: "inline-block" }}>
+          <div className="screenshot-container">
           {mode === "crop" || mode === "generate-steps" ? (
               <ReactCrop
                 crop={crop}
@@ -648,10 +650,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
                   ref={imgRef}
                   src={`data:image/png;base64,${shot.base64Png}`}
                   alt="remote"
-                  style={{
-                    border: "1px solid #ccc",
-                    maxWidth: "100%",
-                  }}
+                  className="screenshot-image"
                   onLoad={() => setLoading(false)}
                 />
               </ReactCrop>
@@ -661,49 +660,25 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
                 onClick={handleClick}
                 src={`data:image/png;base64,${shot.base64Png}`}
                 alt="remote"
-                style={{
-                  border: "1px solid #ccc",
-                  maxWidth: "100%",
-                  cursor:
-                    mode === "scroll"
-                      ? "ns-resize"
-                      : "pointer",
-                }}
+                className={`screenshot-image ${mode === "scroll" ? "screenshot-image-scroll" : "screenshot-image-click"}`}
                 onLoad={() => setLoading(false)}
               />
             )}
 
             {highlight && (
               <div
+                className="highlight-indicator"
                 style={{
-                  position: "absolute",
                   top: (highlight.y * imgRef.current!.height) / shot.height - 15,
                   left: (highlight.x * imgRef.current!.width) / shot.width - 15,
                   width: 30,
                   height: 30,
-                  border: "3px solid red",
-                  borderRadius: "50%",
-                  pointerEvents: "none",
-                  boxSizing: "border-box",
-                  animation: "pulse 1s infinite",
                 }}
               ></div>)}
               
 
             {loading && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: "rgba(0,0,0,0.3)",
-                }}
-              >
+              <div className="loading-overlay">
                 <CircularProgress color="inherit" />
               </div>
             )}

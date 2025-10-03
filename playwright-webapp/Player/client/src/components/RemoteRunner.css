@@ -1,0 +1,55 @@
+.remote-runner-container {
+  padding: 16px;
+}
+
+.screenshot-container {
+  position: relative;
+  display: inline-block;
+}
+
+.screenshot-placeholder {
+  width: 100%;
+  height: 500px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f6fa;
+  padding: 16px;
+  box-sizing: border-box;
+  margin-bottom: 12px;
+  border-radius: 8px;
+}
+
+.screenshot-image {
+  border: 1px solid #ccc;
+  max-width: 100%;
+}
+
+.screenshot-image-click {
+  cursor: pointer;
+}
+
+.screenshot-image-scroll {
+  cursor: ns-resize;
+}
+
+.highlight-indicator {
+  position: absolute;
+  border: 3px solid red;
+  border-radius: 50%;
+  pointer-events: none;
+  box-sizing: border-box;
+  animation: pulse 1s infinite;
+}
+
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.3);
+}

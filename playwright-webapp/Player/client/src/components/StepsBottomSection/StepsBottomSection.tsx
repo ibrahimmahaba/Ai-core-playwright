@@ -1,5 +1,6 @@
 import type { Action, ReplayPixelOutput, StepsBottomSectionProps } from "../../types";
 import { runPixel } from "@semoss/sdk";
+import './StepsBottomSection.css';
 
 function StepsBottomSection(props : StepsBottomSectionProps) {
     const {
@@ -79,20 +80,20 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
   return (
     <>
         {showData && !lastPage && (
-            <div style={{ marginTop: 12, padding: 12, border: "1px solid #ccc", borderRadius: 8 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div className="steps-container">
+                <div className="steps-header">
                 <h4>Edit Replay Variables </h4>
                 </div>
 
                 {!editedData || editedData.length === 0 ? (
                     <div>No variables found.</div>
                 ) : (
-                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <table className="steps-table">
                     <thead>
                         <tr>
-                        <th style={{ borderBottom: "1px solid #ddd", textAlign: "left", padding: 4 }}>Label</th>
-                        <th style={{ borderBottom: "1px solid #ddd", textAlign: "left", padding: 4 }}>Value</th>
-                        <th style={{ borderBottom: "1px solid #ddd", textAlign: "left", padding: 4 }}></th>
+                        <th>Label</th>
+                        <th>Value</th>
+                        <th></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -104,7 +105,7 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
                             case "TYPE":
                             return (
                                 <tr key={index}>
-                                <td style={{textAlign: "start"}} >{details.label}</td>
+                                <td>{details.label}</td>
                                 <td></td>
                                 {index === 0 && (
                                     <td>
@@ -116,7 +117,7 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
 
                             case "CLICK":
                             return (
-                                <tr key={index} style={{textAlign: "start"}}>
+                                <tr key={index}>
                                 <td >Click</td>
                                 <td>
                                     ({details.x}, {details.y})
@@ -134,7 +135,7 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
 
                             case "NAVIGATE":
                             return (
-                                <tr key={index} style={{textAlign: "start"}}>
+                                <tr key={index}>
                                 <td >Navigate</td>
                                 <td>{details.url}</td>
                                 {index === 0 && (
@@ -147,7 +148,7 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
 
                             case "SCROLL":
                             return (
-                                <tr key={index} style={{textAlign: "start"}}>
+                                <tr key={index}>
                                 <td >Scroll</td>
                                 <td>DeltaY: {details.deltaY}</td>
                                 {index === 0 && (
@@ -160,7 +161,7 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
 
                             case "WAIT":
                             return (
-                                <tr key={index} style={{textAlign: "start"}}>
+                                <tr key={index}>
                                 <td >Wait</td>
                                 <td>{details as number / 1000} sec</td>
                                 {index === 0 && (
@@ -179,7 +180,7 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
                     </table>
                 )}
 
-                <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
+                <div className="steps-actions">
                     <button
                     onClick={handleExecuteAll}
                     >

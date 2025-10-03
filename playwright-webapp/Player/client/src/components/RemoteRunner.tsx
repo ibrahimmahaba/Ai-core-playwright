@@ -1,109 +1,22 @@
-import React, { useRef, useState, useEffect, type JSX } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { runPixel } from "@semoss/sdk";
 import {
-  Mouse as MouseIcon,
-  ArrowUpward as ArrowUpIcon,
-  ArrowDownward as ArrowDownIcon,
-  AccessTime as AccessTimeIcon,
-  Sync as SyncIcon,
-  CropFree as CropIcon, 
   Check, Close
 } from "@mui/icons-material";
 import {
-  CircularProgress, Button,
-  TextField, Autocomplete, styled, IconButton
+  CircularProgress, IconButton
 } from "@mui/material";
-import Draggable from "react-draggable";
 import ReactCrop, { type Crop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { rgba } from 'polished';
-
-type CropArea = {
-  startX: number;
-  startY: number;
-  endX: number;
-  endY: number;
-};
-
-type ElementMetrics = {
-  offsetWidth: number;
-  offsetHeight: number;
-  clientWidth: number;
-  clientHeight: number;
-  scrollWidth: number;
-  scrollHeight: number;
-};
-
-type CSSMap = Record<string, string>;
-
-type ProbeRect = { x: number; y: number; width: number; height: number };
-
-type Probe = {
-  tag: string | null;
-  type: string | null;
-  role: string | null;
-  selector: string | null;
-  placeholder: string | null;
-  labelText: string | null;
-  value: string | null;
-  href: string | null;
-  contentEditable: boolean;
-  rect: ProbeRect;
-
-  metrics?: ElementMetrics | null;
-  styles?: CSSMap | null;
-  placeholderStyle?: CSSMap | null;
-  attrs?: Record<string, string> | null;
-  isTextControl?: boolean;
-};
-
-type ScreenshotResponse = {
-  base64Png: string;
-  width: number;
-  height: number;
-  deviceScaleFactor: number;
-};
-
-type Coords = { x: number; y: number };
-type Viewport = { width: number; height: number; deviceScaleFactor: number };
-
-type Step =
-  | { type: "NAVIGATE"; url: string; waitUntil?: "networkidle" | "domcontentloaded"; viewport: Viewport; waitAfterMs?: number; timestamp: number }
-  | { type: "CLICK"; coords: Coords; viewport: Viewport; waitAfterMs?: number; timestamp: number }
-  | {
-    type: "TYPE";
-    coords: Coords;
-    text: string;
-    pressEnter?: boolean;
-    viewport: Viewport;
-    waitAfterMs?: number;
-    timestamp: number;
-    label?: string;
-    isPassword?: boolean;
-    storeValue?: boolean;
-  }
-  | { type: "SCROLL"; coords: Coords; deltaY?: number; viewport: Viewport; waitAfterMs?: number; timestamp: number }
-  | { type: "WAIT"; waitAfterMs: number; viewport: Viewport; timestamp: number };
-
-type Action = | { TYPE: { label: string; text: string; isPassword?: boolean; coords?: Coords; probe?: Probe; } }
-  | { CLICK: { coords: Coords } }
-  | { SCROLL: { deltaY: number } }
-  | { WAIT: number } // waitAftermilliseconds 
-  | { NAVIGATE: string; }; // url
-
-type RemoteRunnerProps = {
-  sessionId: string;
-  metadata: Record<string, string>; 
-  insightId: string;
-}
-
-type ReplayPixelOutput = {
-  isLastPage: boolean;
-  actions: Action[];
-  screenshot: ScreenshotResponse
-};
-
-
+import type { Action, Coords, CropArea, Overlay, Probe, ProbeRect, RemoteRunnerProps, ReplayPixelOutput, ScreenshotResponse, Step, Viewport
+  , modelGeneratedSteps } from "../types";
+import { useSendStep } from "../hooks/useSendStep";
+import Toolbar from "./Toolbar/Toolbar";
+import Header from "./Header/Header";
+import StepsBottomSection from "./StepsBottomSection/StepsBottomSection";
+import VisionPopup from "./VisionPopup/VisionPopup";
+import ModelResults from "./ModelResults/ModelResults";
 export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps) {
 
   const [loading, setLoading] = useState(false);
@@ -113,29 +26,19 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
   const [showData, setShowData] = React.useState(false);
   const [editedData, setEditedData] = React.useState<Action[]>([]);
   const [updatedData, setUpdatedData] = React.useState<Action[]>([]);
-  const [scriptName, setScriptName] = useState("script-1");
   const [live, setLive] = useState(false);
   const [intervalMs] = useState(1000);
-  const [allRecordings, setAllRecordings] = useState<string[]>([]);
   const [selectedRecording, setSelectedRecording] = useState<string | null>(null);
   const [lastPage, setIsLastPage] = useState(false);
   const [highlight, setHighlight] = useState<Coords | null>(null);
-  const [overlay, setOverlay] = useState<{
-    kind: "input" | "confirm";
-    probe: Probe;
-    draftValue?: string;
-    draftLabel?: string | null;
-  } | null>(null);
+  const [overlay, setOverlay] = useState< Overlay | null>(null);
   const [visionPopup, setVisionPopup] = useState<{ x: number; y: number; query: string; response: string | null; } | null>(null);
   const [currentCropArea, setCurrentCropArea] = useState<CropArea | null>(null);
   const [crop, setCrop] = useState<Crop>();
-  //const [overlayKey, setOverlayKey] = useState(0);
+  const [modelGeneratedSteps, setModelGeneratedSteps] = useState<modelGeneratedSteps | null>(null);
+  const [showModelResults, setShowModelResults] = useState(false);
+  const [mode, setMode] = useState<string>("click");
 
-
-  const showHighlight = (x: number, y: number) => {
-    setHighlight({ x, y });
-    setTimeout(() => setHighlight(null), 4000); // Remove highlight after 2 seconds
-  }
 
 
   useEffect(() => {
@@ -152,16 +55,34 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     return () => { cancelled = true; };
   }, [sessionId, live, intervalMs]);
 
+  //   const fetchRecordings = async () => {
+  //     let pixel = `ListPlaywrightScripts();`
+  //     console.log(insightId);
+  //     const res = await runPixel(pixel, insightId);
+  //     const { output } = res.pixelReturn[0];
 
-  useEffect(() => {
-    const fetchRecordings = async () => {
-      let pixel = `ListPlaywrightScripts();`
-      const res = await runPixel(pixel, insightId);
-      const { output } = res.pixelReturn[0];
-      setAllRecordings(output as string[]);
-    };
-    fetchRecordings();
-  }, []);
+  //     if (Array.isArray(output))
+  //     {      
+  //       setAllRecordings(output as string[]);
+  //     } else {
+  //       console.error("Invalid response structure for recordings:", output);
+  //       setAllRecordings([]);
+  //     }
+
+            
+  //     const insight = new Insight();
+
+  //     const initRes: any = await insight.initialize();
+
+  //     const tool = await initRes?.tool;
+
+  //     const maybeSymbol = tool?.parameters?.sessionId;
+
+  //     setSelectedRecording(maybeSymbol);
+      
+  //   };
+  //   fetchRecordings();
+  // }, []);
 
   useEffect(() => {
     // Auto-show input overlay for TYPE steps
@@ -181,7 +102,6 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     const nextAction = editedData[0];
     if ("TYPE" in nextAction) {
       const typeAction = nextAction.TYPE;
-      // Use probe data if available from server response
       const probe: Probe = typeAction.probe || {
         tag: "input",
         type: typeAction.isPassword ? "password" : "text",
@@ -212,25 +132,16 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       });
     }
   }
-
-  async function sendStep(step: Step) {
-    if (!sessionId) return;
-
-    setLoading(true);
-    try {
-      let shouldStore = step.type == "TYPE" && step.storeValue;
-      let pixel = `Step ( sessionId = "${sessionId}", shouldStore = ${shouldStore}, paramValues = [ ${JSON.stringify(step)} ] )`;
-      const res = await runPixel(pixel, insightId);
-
-      const { output } = res.pixelReturn[0];
-
-      const data: ScreenshotResponse = output as ScreenshotResponse;
-      setShot(data);
-      setSteps(prev => [...prev, step]);
-    } finally {
-      setLoading(false);
-    }
-  }
+  
+  const { sendStep } = useSendStep({
+    insightId : insightId,
+    sessionId : sessionId,
+    shot: shot,
+    setShot: setShot,
+    steps: steps,
+    setSteps: setSteps,
+    setLoading: setLoading
+  });
 
   function imageToPageCoords(e: React.MouseEvent<HTMLImageElement, MouseEvent>): Coords {
     const img = imgRef.current!;
@@ -256,8 +167,6 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
 
   }
 
-  type Mode = "click" | "scroll" | "crop";
-  const [mode, setMode] = useState<Mode>("click");
 
   async function handleClick(e: React.MouseEvent<HTMLImageElement, MouseEvent>) {
     if (!shot) return;
@@ -289,61 +198,6 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
         timestamp: Date.now()
       });
     }
-  }
-
-  async function replayFromFile(optionalName?: string) {
-    setLoading(true);
-    try {
-      let name: string | null;
-
-      if (optionalName) {
-        name = optionalName;
-      } else {
-        const input = window.prompt("Replay file (name in 'recordings' or absolute path):", scriptName);
-        if (input === null) {
-          return;
-        }
-        name = input || scriptName;
-      }
-      let pixel = `ReplayFromFile ( sessionId = "${sessionId}", paramValues = [ { "name": "${name}" } ] )`;
-      const res = await runPixel(pixel, insightId);
-      const { output } = res.pixelReturn[0] as { output: any };
-
-      if (output && typeof output === "object" && output.base64Png) {
-        setShot(output as ScreenshotResponse);
-      } else {
-        console.error("Invalid response structure:", output);
-        alert("Error: Invalid response from replayFile endpoint");
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function editRecording() {
-
-    if (!selectedRecording) {
-      alert("Please select a recording first.");
-      return;
-    }
-
-    const name = selectedRecording;
-
-    // TODO: lama ados -> pixel call ReplayStep (sessionId = "", fileName = "", paramValues = []);
-    // 1. display first screen -> set the shot -> logic from ReplayFile
-    // 2. list of variables if exists -> set the list -> setShowData and update editedData and updatedData (logic from Update)
-    setLoading(true);
-    let pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${name}", executeAll=false);`;
-    const res = await runPixel(pixel, insightId);
-    const { output } = res.pixelReturn[0] as { output: ReplayPixelOutput };
-
-    setLoading(false);
-    setEditedData(output.actions);
-    setUpdatedData(output.actions);
-    setShowData(true);
-    setScriptName(name);
-    setIsLastPage(output.isLastPage);
-    setShot(output.screenshot);
   }
 
   function normalizeShot(raw: any | undefined | null): ScreenshotResponse | undefined {
@@ -385,16 +239,6 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     }
   }
 
-  async function waitAndShot() {
-    if (!sessionId) return;
-    const ms = Number(window.prompt("Wait how many ms?", "800")) || 800;
-    const step: Step = { type: "WAIT", waitAfterMs: ms, viewport, timestamp: Date.now() };
-    await sendStep(step); // server will wait + return a fresh screenshot
-  }
-
-  async function startLiveReplay() {
-    setLive(true);
-  }
   async function handleNextStep() {
     const nextAction = editedData[0];
     let pixel;
@@ -438,82 +282,6 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
   }
 
 
-  async function handleExecuteAll() {
-    setLoading(true);
-    const result = updatedData.reduce<Record<string, string>[]>((acc, action) => {
-      if ("TYPE" in action) {
-        acc.push({ [action.TYPE.label]: action.TYPE.text });
-      }
-      return acc;
-    }, []);
-
-    let pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${selectedRecording}", executeAll=true, paramValues=${JSON.stringify(result)});`;
-    const res = await runPixel(pixel, insightId);
-    const { output } = res.pixelReturn[0] as { output: ReplayPixelOutput };
-
-    setLoading(false);
-    setEditedData(output.actions);
-    setUpdatedData(output.actions);
-    setShowData(true);
-    setIsLastPage(output.isLastPage);
-    setShot(output.screenshot);
-  }
-
-  // async function handleLLMAnalysis(engineId: string | null) {
-  //   if (!visionPopup || !visionPopup.query.trim() || !currentCropArea) return;
-  //   
-
-  //   try {
-  //     const pixel = `ImageContext(
-  //       sessionId="${sessionId}",
-  //       engine="${engineId ? engineId : '029a1323-db79-415c-be3e-3945438b0808'}", 
-  //       paramValues=[{
-  //         "startX": ${cropArea.startX}, 
-  //         "startY": ${cropArea.startY}, 
-  //         "endX": ${cropArea.endX}, 
-  //         "endY": ${cropArea.endY},
-  //         "userPrompt": "${userPrompt}"
-  //       }]
-  //     )`;
-
-  //     const res = await runPixel(pixel, insightId);
-  //     const output = res.pixelReturn[0].output as { response: string };
-
-  //    
-  //setVisionPopup({ ...visionPopup, response: resp });
-
-
-  //   } catch (err) {
-  //     console.error("LLM Vision error:", err);
-  //   }
-  // }
-
-
-  async function handleLLMAnalysis() {
-    if (!visionPopup || !visionPopup.query.trim() || !currentCropArea) return;
-
-    try {
-      const cropPixel = `Screenshot(
-        sessionId="${sessionId}", 
-        paramValues=[{
-          "startX": ${currentCropArea.startX}, 
-          "startY": ${currentCropArea.startY}, 
-          "endX": ${currentCropArea.endX}, 
-          "endY": ${currentCropArea.endY}
-        }]
-      )`;
-
-      const cropRes = await runPixel(cropPixel, insightId);
-      const croppedImage = cropRes.pixelReturn[0].output as ScreenshotResponse;
-      const resp = await callVisionAPI(visionPopup.query, croppedImage.base64Png);
-
-      setVisionPopup({ ...visionPopup, response: resp });
-    } catch (err) {
-      console.error("Vision analysis error:", err);
-      alert("Error: " + err);
-    }
-  }
-
   function handleVisionPopup(cropArea: CropArea) {
     const dialogX = Math.min(cropArea.endX + 20, (shot?.width ?? 800) - 300);
     const dialogY = cropArea.startY;
@@ -527,53 +295,51 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     });
   }
 
-  async function callVisionAPI(query: string, base64Image: string): Promise<string> {
-    const AUTH_TOKEN = import.meta.env.VITE_AUTH_KEY;
-    const ENGINE_ID = "4acbe913-df40-4ac0-b28a-daa5ad91b172";
 
-    const expression = `Vision(engine="${ENGINE_ID}", command = "${query}", image="data:image/png;base64,${base64Image}")`;
-    const encodedExpression = encodeURIComponent(expression);
-    const requestBody = `expression=${encodedExpression}`;
-
-    const response = await fetch("https://workshop.cfg.deloitte.com/Monolith/api/engine/runPixel", {
-      method: "POST",
-      headers: {
-        "authorization": `Basic ${AUTH_TOKEN}`,
-        "content-type": "application/x-www-form-urlencoded",
-      },
-      body: requestBody
-    });
-
-    if (!response.ok) {
-      throw new Error(`API call failed: ${response.status}`);
+  async function handleAiStepGeneration(cropArea: CropArea) {
+    if (!sessionId) return;
+    
+    setLoading(true);
+    try {
+      // Extract HTML
+      const extractPixel = `ExtractHtml(
+        sessionId="${sessionId}", 
+        paramValues=[{
+          "startX": ${cropArea.startX}, 
+          "startY": ${cropArea.startY}, 
+          "endX": ${cropArea.endX}, 
+          "endY": ${cropArea.endY}
+        }]
+      )`;
+      
+      const extractRes = await runPixel(extractPixel, insightId);
+      const extractionData = extractRes.pixelReturn[0].output;
+      
+      console.log("Extracted:", extractionData);
+      
+      // Generate steps with AI
+      const generatePixel = `GeneratePlaywrightSteps(
+        engine="88ffe1ef-6c5b-49c7-a704-6203f5caf35d", 
+        paramValues=[{"extractionData": ${JSON.stringify(extractionData)}}]
+      )`;
+      
+      const generateRes = await runPixel(generatePixel, insightId);
+      const aiResult = generateRes.pixelReturn[0].output as modelGeneratedSteps;
+      
+      console.log("AI Result:", aiResult);
+      setModelGeneratedSteps(aiResult);
+      setShowModelResults(true);
+      setMode("click");
+      setCrop(undefined);
+      
+    } catch (err) {
+      console.error("Error:", err);
+      alert("Error: " + err);
+    } finally {
+      setLoading(false);
     }
-
-    const result = await response.json();
-    return result.pixelReturn[0].output.response || "No response received";
   }
-
-  const StyledButton = styled(Button)(({ theme }) => ({
-    color: theme.palette.text.primary,
-    border: `0px solid ${theme.palette.divider}`,
-  }));
-
-  const StyledPrimaryButton = styled(Button)(({ theme }) => ({
-    color: theme.palette.common.white,
-    backgroundColor: theme.palette.primary.main,
-    '&:hover': {
-      backgroundColor: theme.palette.primary.dark,
-    },
-    borderRadius: "8px"
-  }));
-
-  const StyledDangerButton = styled(Button)(({ theme }) => ({
-    color: theme.palette.common.white,
-    backgroundColor: theme.palette.error.main,
-    '&:hover': {
-      backgroundColor: theme.palette.error.dark,
-    },
-    borderRadius: "8px"
-  }));
+  
   
   function pageRectToImageCss(rect: ProbeRect, imgEl: HTMLImageElement, shot: ScreenshotResponse) {
     const ib = imgEl.getBoundingClientRect();
@@ -801,125 +567,39 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
   }
   return (
     <div style={{ padding: 16 }}>
-      <div
-        style={{
-          position: "fixed",
-          top: "20%",
-          left: "20px",
-          zIndex: 1000,
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-          padding: 8,
-          borderRadius: 12,
-          background: "#fff",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-          alignItems: "center",
-        }}
-      >
-        {([
-          { m: "click", icon: <MouseIcon />, label: "Click" },
-          { m: "scroll-up", icon: <ArrowUpIcon />, label: "Scroll Up" },
-          { m: "scroll-down", icon: <ArrowDownIcon />, label: "Scroll Down" },
-          { m: "delay", icon: <AccessTimeIcon />, label: "Delay" },
-          { m: "fetch-screenshot", icon: <SyncIcon />, label: "Refresh" },
-          { m: "crop", icon: <CropIcon />, label: "Add Context" }
+      {/* toolbar */}
+
+      <Toolbar 
+        sessionId={sessionId}
+        insightId={insightId}
+        mode={mode}
+        setMode={setMode}
+        shot={shot}
+        setShot={setShot}
+        loading={loading}
+        setLoading={setLoading}
+        steps={steps}
+        setSteps={setSteps}
+      />
+
+      {/* header */}
+
+      <Header
+      insightId={insightId} 
+      sessionId={sessionId}
+      steps={steps}
+      selectedRecording={selectedRecording}
+      setSelectedRecording={setSelectedRecording}
+      setLoading={setLoading}
+      setEditedData={setEditedData}
+      setUpdatedData={setUpdatedData}
+      setShowData={setShowData}
+      setShot={setShot} 
+      setIsLastPage={setIsLastPage}
+      live={live}
+      setLive={setLive}/>
 
 
-        ] as { m: string; icon: JSX.Element; label: string }[]).map(({ m, icon, label }) => {
-          const active = mode === m;
-
-          return (
-            <button
-              key={m}
-              onClick={async () => {
-                if (m === "scroll-up") {
-                  if (!shot) return;
-                  await sendStep({
-                    type: "SCROLL",
-                    coords: { x: 0, y: 0 },
-                    deltaY: -400,
-                    viewport,
-                    waitAfterMs: 300,
-                    timestamp: Date.now(),
-                  });
-                } else if (m === "scroll-down") {
-                  if (!shot) return;
-                  await sendStep({
-                    type: "SCROLL",
-                    coords: { x: 0, y: 0 },
-                    deltaY: 400,
-                    viewport,
-                    waitAfterMs: 300,
-                    timestamp: Date.now(),
-                  });
-                } else if (m == "delay") {
-                  await waitAndShot();
-                } else if (m == "fetch-screenshot") {
-                  await fetchScreenshot();
-                } else if (m == "crop") {
-                  setMode("crop");
-                } else {
-                  setMode(m as Mode);
-                }
-              }}
-              title={label}
-              aria-pressed={active}
-              style={{
-                width: "40px",
-                height: "40px",
-                borderRadius: "50%",
-                border: active ? "2px solid #666" : "1px solid #bbb",
-                background: active ? "#e0e0e0" : "#fafafa",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                transition: "all 0.2s ease",
-                color: active ? "#444" : "#888",
-                fontSize: "18px",
-                padding: 0,
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.borderRadius = "12px";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.borderRadius = "50%";
-              }}
-            >
-              {icon}
-            </button>
-          );
-        })}
-      </div>
-
-
-      <h2>Playwright Script Player App</h2>
-      <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
-        <button onClick={() => replayFromFile()} >
-          Replay From File
-        </button>
-
-        <Autocomplete
-          options={allRecordings}
-          value={selectedRecording}
-          onChange={(_, newValue) => setSelectedRecording(newValue)}
-          renderInput={(params) => (
-            <TextField {...params} label="Select Recording" placeholder="Search recordings..." />
-          )}
-          sx={{ minWidth: 250 }}
-        />
-
-        <button onClick={editRecording}>
-          Load Recording (Edit)
-        </button>
-
-        <button onClick={startLiveReplay}>
-          Start Live Replay
-        </button>
-        <button onClick={() => setLive(false)} disabled={!live}>Stop Live</button>
-        <span>Steps: {steps.length}</span>
-      </div>
       {!shot && loading && (
         <div
         style={{
@@ -941,10 +621,10 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       {shot && (
         <>
           <div style={{ position: "relative", display: "inline-block" }}>
-          {mode === "crop" ? (
+          {mode === "crop" || mode === "generate-steps" ? (
               <ReactCrop
                 crop={crop}
-                onChange={(c) => setCrop(c)}
+                onChange={(c) => setCrop(c)} 
                 onComplete={(c) => {
                   if (c.width && c.height) {
                     const cropArea: CropArea = {
@@ -953,7 +633,11 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
                       endX: c.x + c.width,
                       endY: c.y + c.height,
                     };
-                    handleVisionPopup(cropArea);
+                    if (mode === "generate-steps") {
+                      handleAiStepGeneration(cropArea);
+                    } else {
+                      handleVisionPopup(cropArea);
+                    }
                     //setMode("click");
                     //setCrop(undefined);
                   }
@@ -1039,202 +723,49 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
               </>
             )}
 
-          {visionPopup && (
-            <Draggable>
-              <div style={{
-                position: "absolute",
-                top: visionPopup.y,
-                left: visionPopup.x,
-                transform: "translate(-50%, -100%)",
-                background: "white",
-                border: "1px solid #ccc",
-                borderRadius: "8px",
-                padding: "12px",
-                zIndex: 2000,
-                width: "320px",
-                maxHeight: "400px",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
-                display: "flex",
-                flexDirection: "column",
-                gap: "12px",
-                cursor: "move",
-              }}>
-                {!visionPopup.response ? (
-                  <>
-                    <TextField
-                      label="Ask about this area"
-                      size="small"
-                      fullWidth
-                      value={visionPopup.query}
-                      onChange={(e) =>
-                        setVisionPopup({ ...visionPopup, query: e.target.value })
-                      }
-                    />
-                    <StyledPrimaryButton
-                      onClick={handleLLMAnalysis}
-                      fullWidth
-                    >
-                      Submit
-                    </StyledPrimaryButton>
-                  </>
-                ) : (
-                  <>
-                    <div style={{
-                      fontSize: "16px",
-                      background: "#f8f9fa",
-                      padding: "12px",
-                      borderRadius: "4px",
-                      color: "#333",
-                      maxHeight: "250px",
-                      overflowY: "auto",
-                      whiteSpace: "pre-wrap"
-                    }}>
-                      {visionPopup.response}
-                    </div>
-                    <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-                      <StyledButton onClick={() => {
-                        setVisionPopup(null);
-                        setCurrentCropArea(null);
-                        setMode("click");
-                        setCrop(undefined);
-                      }}>
-                        Close
-                      </StyledButton>
-                      <StyledPrimaryButton onClick={() => {
-                        setVisionPopup(null);
-                        setCurrentCropArea(null);
-                        setMode("click");
-                        setCrop(undefined);
-                      }}>
-                        Add to Context
-                        </StyledPrimaryButton>
-                        <StyledDangerButton onClick={async () => {
-                          setVisionPopup({ ...visionPopup, response: null });
-                        }}>
-                          Retry
-                        </StyledDangerButton>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </Draggable>
-            )}
+          {/* VisionPopup */}
+          <VisionPopup 
+            sessionId={sessionId} 
+            insightId={insightId}
+            visionPopup={visionPopup} 
+            setVisionPopup={setVisionPopup}
+            currentCropArea={currentCropArea}
+            setCurrentCropArea={setCurrentCropArea}
+            mode={mode}
+            setMode={setMode} 
+            crop={crop}
+            setCrop={setCrop}          
+          />
+          
           </div>
         </>
       )}
 
-    {showData && !lastPage && (
-      <div style={{ marginTop: 12, padding: 12, border: "1px solid #ccc", borderRadius: 8 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h4>Edit Replay Variables </h4>
-        </div>
+      {/* steps / buttom section */}
 
-          {!editedData || editedData.length === 0 ? (
-            <div>No variables found.</div>
-          ) : (
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr>
-                  <th style={{ borderBottom: "1px solid #ddd", textAlign: "left", padding: 4 }}>Label</th>
-                  <th style={{ borderBottom: "1px solid #ddd", textAlign: "left", padding: 4 }}>Value</th>
-                  <th style={{ borderBottom: "1px solid #ddd", textAlign: "left", padding: 4 }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {editedData.map((action, index) => {
-                  const type = Object.keys(action)[0] as keyof Action;
-                  const details = action[type] as any;
+      <StepsBottomSection 
+      insightId={insightId}
+      sessionId={sessionId}
+      showData={showData}
+      setShowData={setShowData}
+      lastPage={lastPage}
+      setIsLastPage={setIsLastPage}
+      editedData={editedData}
+      overlay={overlay}
+      setOverlay={setOverlay}
+      selectedRecording={selectedRecording}
+      setLoading={setLoading}
+      setEditedData={setEditedData}
+      updatedData={updatedData}
+      setUpdatedData={setUpdatedData}
+      setShot={setShot}
+      setHighlight={setHighlight}/>
 
-                  switch (type) {
-                    case "TYPE":
-                      return (
-                        <tr key={index}>
-                          <td style={{textAlign: "start"}} >{details.label}</td>
-                          <td></td>
-                          {index === 0 && (
-                            <td>
-                              <button onClick={handleNextStep}>Execute →</button>
-                            </td>
-                          )}
-                        </tr>
-                      );
 
-                    case "CLICK":
-                      return (
-                        <tr key={index} style={{textAlign: "start"}}>
-                          <td >Click</td>
-                          <td>
-                            ({details.x}, {details.y})
-                            <button onClick={() => showHighlight(details.x, details.y)}>
-                              ℹ️
-                            </button>
-                          </td>
-                          {index === 0 && (
-                            <td>
-                              <button onClick={handleNextStep}>Execute →</button>
-                            </td>
-                          )}
-                        </tr>
-                      );
-
-                    case "NAVIGATE":
-                      return (
-                        <tr key={index} style={{textAlign: "start"}}>
-                          <td >Navigate</td>
-                          <td>{details.url}</td>
-                          {index === 0 && (
-                            <td>
-                              <button onClick={handleNextStep}>Execute →</button>
-                            </td>
-                          )}
-                        </tr>
-                      );
-
-                    case "SCROLL":
-                      return (
-                        <tr key={index} style={{textAlign: "start"}}>
-                          <td >Scroll</td>
-                          <td>DeltaY: {details.deltaY}</td>
-                          {index === 0 && (
-                            <td>
-                              <button onClick={handleNextStep}>Execute →</button>
-                            </td>
-                          )}
-                        </tr>
-                      );
-
-                    case "WAIT":
-                      return (
-                        <tr key={index} style={{textAlign: "start"}}>
-                          <td >Wait</td>
-                          <td>{details as number / 1000} sec</td>
-                          {index === 0 && (
-                            <td>
-                              <button onClick={handleNextStep}>Execute →</button>
-                            </td>
-                          )}
-                        </tr>
-                      );
-
-                    default:
-                      return null;
-                  }
-                })}
-              </tbody>
-            </table>
-          )}
-
-          <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
-            <button
-              onClick={handleExecuteAll}
-            >
-              {(!editedData || editedData.length === 0) ? "Next" : "Execute All"}
-            </button>
-
-            <button onClick={() => setShowData(false)}>Cancel</button>
-          </div>
-        </div>
-      )}
+      <ModelResults 
+      showModelResults={showModelResults}
+      setShowModelResults={setShowModelResults}
+      modelGeneratedSteps={modelGeneratedSteps}/>
     </div>
   );
 }

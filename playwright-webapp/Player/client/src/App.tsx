@@ -8,7 +8,7 @@ import { Alert, CircularProgress } from '@mui/material';
 
 function App() {
 
-  const { insightId } = useInsight();
+  const { insightId, isInitialized } = useInsight();
   const [metadata, setMetadata] = useState<Record<string, string>>({});
   const [sessionId, setSessionId] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
@@ -21,6 +21,12 @@ function App() {
   
   useEffect( () => { const init = async() => {
     try{
+      if(!isInitialized) {
+        // wait until initialized
+        console.log("Waiting for initialization...");
+        return;
+   
+      }
     fetchMetadata();
    
     let pixel = `Session ( )`;
@@ -35,7 +41,7 @@ function App() {
     }
   };
     init();
-}, [] );
+}, [isInitialized] );
 
 async function fetchMetadata() {
     const res = await runPixel("Metadata ( )", insightId);

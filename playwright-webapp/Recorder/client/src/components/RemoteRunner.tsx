@@ -1,4 +1,4 @@
-import React, { useRef, useState, type JSX } from "react";
+import React, { useRef, useState } from "react";
 import { runPixel } from "@semoss/sdk";
 import { CircularProgress, FormControlLabel, Checkbox } from "@mui/material";
 import { IconButton } from "@mui/material";

@@ -1,10 +1,7 @@
 import { Autocomplete, TextField } from "@mui/material"
 import { useEffect, useState } from "react";
 import type { HeaderProps, ReplayPixelOutput } from "../../types";
-import { runPixel } from "@semoss/sdk";
-import {
-    Insight
-} from "https://cdn.jsdelivr.net/npm/@semoss/sdk@1.0.0-beta.29/+esm";
+import {Insight, runPixel } from "@semoss/sdk";
 import './Header.css';
 
 function Header(props : HeaderProps) {

@@ -23,6 +23,7 @@ export type CropArea = {
   export type Probe = {
     tag: string | null;
     type: string | null;
+    inputCategory: string | null;
     role: string | null;
     selector: string | null;
     placeholder: string | null;
@@ -48,25 +49,28 @@ export type CropArea = {
   export type Coords = { x: number; y: number };
   
   export type Viewport = { width: number; height: number; deviceScaleFactor: number };
-  
+
+  export type Selector = { strategy: "id" | "testId" | "text" | "css" | "xpath" | "role"; value: string };
+
   export type Step =
-    | { type: "NAVIGATE"; url: string; waitUntil?: "networkidle" | "domcontentloaded"; viewport: Viewport; waitAfterMs?: number; timestamp: number }
-    | { type: "CLICK"; coords: Coords; viewport: Viewport; waitAfterMs?: number; timestamp: number }
-    | {
-        type: "TYPE";
-        coords: Coords;
-        text: string;
-        pressEnter?: boolean;
-        viewport: Viewport;
-        waitAfterMs?: number;
-        timestamp: number;
-        label?: string;
-        isPassword?: boolean;
-        storeValue?: boolean;
-      }
-    | { type: "SCROLL"; coords: Coords; deltaY?: number; viewport: Viewport; waitAfterMs?: number; timestamp: number }
-    | { type: "WAIT"; waitAfterMs: number; viewport: Viewport; timestamp: number };
-  
+  | { type: "NAVIGATE"; url: string; waitUntil?: "networkidle" | "domcontentloaded"; viewport: Viewport; waitAfterMs?: number; timestamp: number }
+  | { type: "CLICK"; coords: Coords; viewport: Viewport; waitAfterMs?: number; timestamp: number, selector: Selector }
+  | {
+    type: "TYPE";
+    coords: Coords;
+    text: string;
+    pressEnter?: boolean;
+    viewport: Viewport;
+    waitAfterMs?: number;
+    timestamp: number;
+    label?: string;
+    isPassword?: boolean;
+    storeValue?: boolean;
+    selector: Selector;
+  }
+  | { type: "SCROLL"; coords: Coords; deltaY?: number; viewport: Viewport; waitAfterMs?: number; timestamp: number }
+  | { type: "WAIT"; waitAfterMs: number; viewport: Viewport; timestamp: number };
+
   export type Action =
     | { TYPE: { label: string; text: string; isPassword?: boolean; coords?: Coords; probe?: Probe } }
     | { CLICK: { coords: Coords } }

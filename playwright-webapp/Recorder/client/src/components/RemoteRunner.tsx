@@ -9,6 +9,7 @@ import Toolbar from "./Toolbar/Toolbar";
 import type { Coords, CropArea, Probe, ProbeRect, RemoteRunnerProps, ScreenshotResponse, Step, Viewport } from "../types";
 import Header from "./Header/Header";
 import { useSendStep } from "../hooks/useSendStep";
+import { preferSelectorFromProbe } from "../hooks/usePreferSelector";
 import VisionPopup from "./VisionPopup/VisionPopup";
 import './remote-runner.css';
 
@@ -336,7 +337,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
         p.tag === "textarea" ||
         p.contentEditable;
 
-      if (isTextField) {
+      if (isTextField && p.isTextControl) {
         setOverlay({ kind: "input", probe: p, draftValue: p.value ?? "", draftLabel: p.labelText ?? "" });
       } else if (p.tag === "a" && p.href && p.href.startsWith("http")) {
         await sendStep({
@@ -352,7 +353,9 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
           coords,
           viewport,
           waitAfterMs: 300,
-          timestamp: Date.now()});
+          timestamp: Date.now(),
+          selector: preferSelectorFromProbe(p) || { strategy: "css", value: "body" }
+        });
       }
   }
   function handleVisionPopup(cropArea: CropArea) { 

@@ -17,6 +17,8 @@ export interface ScreenshotResponse {
     height: number;
     deviceScaleFactor: number;
   }
+
+  export type Selector = { strategy: "id" | "testId" | "text" | "css" | "xpath" | "role"; value: string };
   
   // Base interface for all step types
   interface BaseStep {
@@ -35,6 +37,7 @@ export interface ScreenshotResponse {
   export interface ClickStep extends BaseStep {
     type: 'CLICK';
     coords: Coords;
+    selector: Selector;
   }
   
   export interface TypeStep extends BaseStep {
@@ -45,6 +48,7 @@ export interface ScreenshotResponse {
     label?: string;
     isPassword?: boolean;
     storeValue?: boolean;
+    selector: Selector;
   }
   
   export interface ScrollStep extends BaseStep {
@@ -101,6 +105,7 @@ export interface ScreenshotResponse {
   export interface Probe {
     tag: string | null;
     type: string | null;
+    inputCategory: string | null;
     role: string | null;
     selector: string | null;
     placeholder: string | null;

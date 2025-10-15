@@ -13,6 +13,7 @@ import { rgba } from 'polished';
 import type { Action, Coords, CropArea, Overlay, Probe, ProbeRect, RemoteRunnerProps, ReplayPixelOutput, ScreenshotResponse, Step, Viewport
   , modelGeneratedSteps } from "../types";
 import { useSendStep } from "../hooks/useSendStep";
+import { preferSelectorFromProbe } from "../hooks/usePreferSelector";
 import Toolbar from "./Toolbar/Toolbar";
 import Header from "./Header/Header";
 import StepsBottomSection from "./StepsBottomSection/StepsBottomSection";
@@ -107,6 +108,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       const probe: Probe = typeAction.probe || {
         tag: "input",
         type: typeAction.isPassword ? "password" : "text",
+        inputCategory: "text",
         role: null,
         selector: null,
         placeholder: null,
@@ -181,7 +183,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       p.tag === "textarea" ||
       p.contentEditable;
 
-    if (isTextField) {
+    if (isTextField && p.isTextControl) {
       setOverlay({ kind: "input", probe: p, draftValue: p.value ?? "", draftLabel: p.labelText ?? "" });
     } else if (p.tag === "a" && p.href && p.href.startsWith("http")) {
       await sendStep({
@@ -197,7 +199,8 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
         coords,
         viewport,
         waitAfterMs: 300,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        selector: preferSelectorFromProbe(p) || { strategy: "css", value: "body" }
       });
     }
   }

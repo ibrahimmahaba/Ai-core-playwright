@@ -100,6 +100,13 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
                         {editedData.map((action, index) => {
                         const type = Object.keys(action)[0] as keyof Action;
                         const details = action[type] as any;
+                        const detailCoords = details?.coords 
+                          ? { x: details.coords.x, y: details.coords.y } 
+                          : details.x 
+                          ? { x: details.x, y: details.y } 
+                          : { x: 0, y: 0 };
+                        console.log("Rendering action:", action);
+                        console.log("Type:", type, "Details:", details);
 
                         switch (type) {
                             case "TYPE":
@@ -120,8 +127,8 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
                                 <tr key={index}>
                                 <td >Click</td>
                                 <td>
-                                    ({details.x}, {details.y})
-                                    <button onClick={() => showHighlight(details.x, details.y)}>
+                                  ({detailCoords.x}, {detailCoords.y})
+                                  <button onClick={() => showHighlight(detailCoords.x, detailCoords.y)}>
                                     ℹ️
                                     </button>
                                 </td>

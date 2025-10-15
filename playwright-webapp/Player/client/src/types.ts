@@ -113,11 +113,13 @@ export type CropArea = {
     shot: ScreenshotResponse | undefined;
     setShot: React.Dispatch<React.SetStateAction<ScreenshotResponse | undefined>>;
     mode: string;
-    setMode:React.Dispatch<React.SetStateAction<string>>;
+    setMode: React.Dispatch<React.SetStateAction<string>>;
     loading: boolean;
     setLoading: React.Dispatch<React.SetStateAction<boolean>>;
     steps: Step[] | null;
-    setSteps:  React.Dispatch<React.SetStateAction<Step[]>>;
+    setSteps: React.Dispatch<React.SetStateAction<Step[]>>;
+    generationUserPrompt: string;
+    setGenerationUserPrompt: React.Dispatch<React.SetStateAction<string>>;
   }
 
 
@@ -184,3 +186,56 @@ export type CropArea = {
     setShowModelResults:React.Dispatch<React.SetStateAction<boolean>>;
     modelGeneratedSteps: modelGeneratedSteps | null;
   }
+
+  export type ExtractedElement = {
+    tag: string;
+    id: string | null;
+    className: string | null;
+    text: string;
+    html: string;
+    rect: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    };
+    selector: string;
+    attributes: {
+      id?: string;
+      name?: string;
+      class?: string;
+      placeholder?: string;
+      type?: string;
+      value?: string;
+      href?: string;
+      src?: string;
+      alt?: string;
+      title?: string;
+      role?: string;
+      "aria-label"?: string;
+      "data-testid"?: string;
+    };
+    interactive: boolean;
+    visible: boolean;
+  };
+  
+  export type ExtractionData = {
+    html: string;
+    elements: ExtractedElement[];
+    elementCount: number;
+    interactiveCount: number;
+    bounds: {
+      startX: number;
+      startY: number;
+      endX: number;
+      endY: number;
+      width: number;
+      height: number;
+    };
+    summary: {
+      totalElements: number;
+      interactiveElements: number;
+      tags: string[];
+      hasForm: boolean;
+    };
+  };

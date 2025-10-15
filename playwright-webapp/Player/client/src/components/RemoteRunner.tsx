@@ -11,15 +11,15 @@ import ReactCrop, { type Crop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { rgba } from 'polished';
 import type { Action, Coords, CropArea, Overlay, Probe, ProbeRect, RemoteRunnerProps, ReplayPixelOutput, ScreenshotResponse, Step, Viewport
-  , modelGeneratedSteps } from "../types";
+  , modelGeneratedSteps, ExtractedElement, ExtractionData } from "../types";
 import { useSendStep } from "../hooks/useSendStep";
 import { preferSelectorFromProbe } from "../hooks/usePreferSelector";
 import Toolbar from "./Toolbar/Toolbar";
 import Header from "./Header/Header";
 import StepsBottomSection from "./StepsBottomSection/StepsBottomSection";
 import VisionPopup from "./VisionPopup/VisionPopup";
-import ModelResults from "./ModelResults/ModelResults";
 import './RemoteRunner.css';
+
 export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps) {
 
   const [loading, setLoading] = useState(false);
@@ -38,9 +38,8 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
   const [visionPopup, setVisionPopup] = useState<{ x: number; y: number; query: string; response: string | null; } | null>(null);
   const [currentCropArea, setCurrentCropArea] = useState<CropArea | null>(null);
   const [crop, setCrop] = useState<Crop>();
-  const [modelGeneratedSteps, setModelGeneratedSteps] = useState<modelGeneratedSteps | null>(null);
-  const [showModelResults, setShowModelResults] = useState(false);
   const [mode, setMode] = useState<string>("click");
+  const [generationUserPrompt, setGenerationUserPrompt] = useState(" ");
 
 
 
@@ -300,14 +299,40 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     });
   }
 
+  function findElementBySelector(elements: ExtractedElement[], selector: string, coords: string): ExtractedElement | undefined {
+    console.log("Finding element for selector:", selector, "and coords:", coords);
+  
+    let ariaLabelMatch = selector.match(/\[aria-label=['"](.+?)['"]\]/);
+    let ariaLabel = ariaLabelMatch ? ariaLabelMatch[1] : undefined;
+  
+    let baseSelector = selector.replace(/\[aria-label=['"].+?['"]\]/, '');
+  
+    if (!coords) {
+      return elements.find(el =>
+        el.selector === baseSelector &&
+        (!ariaLabel || el.attributes?.['aria-label'] === ariaLabel)
+      );
+    }
+  
+    const [xStr, yStr] = coords.split(",").map(s => s.trim());
+    const x = parseInt(xStr, 10);
+    const y = parseInt(yStr, 10);
+  
+    return elements.find(el =>
+      el.selector === baseSelector &&
+      (!ariaLabel || el.attributes?.['aria-label'] === ariaLabel) &&
+      el.rect.x === x &&
+      el.rect.y === y
+    );
+  }
 
   async function handleAiStepGeneration(cropArea: CropArea) {
     if (!sessionId) return;
     
     setLoading(true);
     try {
-      // Extract HTML
-      const extractPixel = `ExtractHtml(
+      // Extract HTML with coordinates from the cropped area
+      const extractPixel = `ExtractElementsDataForLLM(
         sessionId="${sessionId}", 
         paramValues=[{
           "startX": ${cropArea.startX}, 
@@ -318,22 +343,111 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       )`;
       
       const extractRes = await runPixel(extractPixel, insightId);
-      const extractionData = extractRes.pixelReturn[0].output;
+      const extractionData = extractRes.pixelReturn[0].output as ExtractionData;
       
-      console.log("Extracted:", extractionData);
+      console.log("Extracted HTML data:", extractionData);
       
-      // Generate steps with AI
+      let engineId = import.meta.env.VITE_LLM_ENGINE_ID;
+
+      // Generate steps
       const generatePixel = `GeneratePlaywrightSteps(
-        engine="88ffe1ef-6c5b-49c7-a704-6203f5caf35d", 
-        paramValues=[{"extractionData": ${JSON.stringify(extractionData)}}]
+        engine="${engineId}", 
+        sessionId = "${sessionId}",
+        paramValues=[{"extractionData": ${JSON.stringify(extractionData)}, "userContext": "${generationUserPrompt}", "cropParams":${JSON.stringify(cropArea)}}]
       )`;
       
       const generateRes = await runPixel(generatePixel, insightId);
       const aiResult = generateRes.pixelReturn[0].output as modelGeneratedSteps;
       
       console.log("AI Result:", aiResult);
-      setModelGeneratedSteps(aiResult);
-      setShowModelResults(true);
+      
+      if (!aiResult.success) {
+
+        //add static steps for demo purposes
+        alert("AI step generation failed, loading demo steps instead.");
+        console.log(extractionData.elements.find(el => el.tag === "input"));
+        aiResult.stepsJson = JSON.stringify([
+          { type: "CLICK", selector: extractionData.elements.find(el => el.tag === "input")?.selector || "", description: "Click on the first input field" },
+          { type: "TYPE", selector: extractionData.elements.find(el => el.tag === "input" && el.attributes?.type !== "hidden")?.selector || "", text: "testuser", description: "Type 'testuser' into the input field" },
+          { type: "CLICK", selector: extractionData.elements.find(el => el.tag === "button" || el.tag === "input" && (el.attributes?.type === "submit" || el.attributes?.type === "button"))?.selector || "", description: "Click on the submit button" },
+          { type: "WAIT", waitAfterMs: 1000, description: "Wait for 1 second" }
+        ]);
+      }
+      
+      let parsedActions: Action[];
+      try {
+        // [{"type": "CLICK", "selector": "...", "description": "..."}, ...]
+        const rawSteps = JSON.parse(aiResult.stepsJson || aiResult.rawResponse);
+        
+        parsedActions = rawSteps.map((step: any) => {
+          if (step.type === "CLICK") {
+            console.log("Processing CLICK step:", step);
+            // Find the element in extractionData to get its coordinates
+            const element = findElementBySelector(extractionData.elements, step.selector, step.coords);
+            if (!element) {
+              console.warn("Element not found for selector:", step.selector);
+              return null;
+            }
+            
+            // Calculate center coordinates from rect
+            return {
+              CLICK: {
+                coords: {
+                  x: Math.round(element.rect.x + element.rect.width / 2) as number,
+                  y: Math.round(element.rect.y + element.rect.height / 2) as number
+                }
+              }
+            };
+          } else if (step.type === "TYPE") {
+            const element = findElementBySelector(extractionData.elements, step.selector, step.coords);
+            if (!element) {
+              console.warn("Element not found for selector:", step.selector);
+              return null;
+            }
+            
+            return {
+              TYPE: {
+                label: element.attributes?.placeholder || element.text || step.description || "Input",
+                text: step.text || "",
+                isPassword: element.attributes?.type === "password",
+                coords: {
+                  x: Math.round(element.rect.x + element.rect.width / 2) as number,
+                  y: Math.round(element.rect.y + element.rect.height / 2) as number
+                }
+                //pixel call to probe element
+              }
+            };
+          } else if (step.type === "WAIT") {
+            return { WAIT: 1000 };
+          }
+          return null;
+        }).filter(Boolean) as Action[];
+        
+      } catch (err) {
+        console.error("Failed to parse AI steps:", err);
+        alert("Failed to parse AI-generated steps: " + err);
+        return;
+      }
+
+      //for each action, add probe data by calling pixel
+      for (let action of parsedActions) {
+        if ("TYPE" in action && action.TYPE.coords) {
+          const probe = await probeAt(action.TYPE.coords);
+          if (probe) {
+            action.TYPE.probe = probe;
+          }
+        }
+      }
+      
+      console.log("Parsed actions with coordinates:", parsedActions);
+      
+      // Load into editedData 
+      setEditedData(parsedActions);
+      setUpdatedData(parsedActions);
+      setShowData(true);
+      setIsLastPage(false);
+      setSelectedRecording(null); // Clear selected recording since these are generated
+      
       setMode("click");
       setCrop(undefined);
       
@@ -344,7 +458,6 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       setLoading(false);
     }
   }
-  
   
   function pageRectToImageCss(rect: ProbeRect, imgEl: HTMLImageElement, shot: ScreenshotResponse) {
     const ib = imgEl.getBoundingClientRect();
@@ -585,6 +698,8 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
         setLoading={setLoading}
         steps={steps}
         setSteps={setSteps}
+        generationUserPrompt={generationUserPrompt}
+        setGenerationUserPrompt={setGenerationUserPrompt}
       />
 
       {/* header */}
@@ -739,11 +854,6 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       setShot={setShot}
       setHighlight={setHighlight}/>
 
-
-      <ModelResults 
-      showModelResults={showModelResults}
-      setShowModelResults={setShowModelResults}
-      modelGeneratedSteps={modelGeneratedSteps}/>
     </div>
   );
 }

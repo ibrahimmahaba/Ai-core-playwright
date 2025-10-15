@@ -5,6 +5,7 @@ import {
     AccessTime as AccessTimeIcon,
     Sync as SyncIcon,
     CropFree as CropIcon, 
+    AutoAwesome as AutoAwesomeIcon,
   } from "@mui/icons-material";
 import { type JSX } from "react";
 import { runPixel } from "@semoss/sdk";
@@ -13,7 +14,7 @@ import {useSendStep} from"../../hooks/useSendStep"
 import './Toolbar.css';
 
 function Toolbar(props: ToolbarProps) {
-    const { sessionId, insightId, shot, setShot, mode, setMode, steps, setSteps, setLoading} = props;
+  const { sessionId, insightId, shot, setShot, mode, setMode, steps, setSteps, setLoading, generationUserPrompt, setGenerationUserPrompt } = props;
 
     const viewport: Viewport = {
         width: shot?.width ?? 1280,
@@ -94,7 +95,9 @@ function Toolbar(props: ToolbarProps) {
           { m: "scroll-down", icon: <ArrowDownIcon />, label: "Scroll Down" },
           { m: "delay", icon: <AccessTimeIcon />, label: "Delay" },
           { m: "fetch-screenshot", icon: <SyncIcon />, label: "Refresh" },
-          { m: "crop", icon: <CropIcon />, label: "Add Context" }
+          { m: "crop", icon: <CropIcon />, label: "Add Context" },
+          { m: "generate-steps", icon: <AutoAwesomeIcon />, label: "Generate Steps" }
+
 
         ] as { m: string; icon: JSX.Element; label: string }[]).map(({ m, icon, label }) => {
           const active = mode === m;
@@ -115,6 +118,14 @@ function Toolbar(props: ToolbarProps) {
                   setMode("click");
                 } else if (m == "crop") {
                   setMode("crop");
+                } else if (m == "generate-steps") {
+                  if (!shot) {
+                    alert("No screenshot available");
+                    return;
+                  }
+                  const prompt = window.prompt("Provide context for AI step generation:", generationUserPrompt);
+                  if (prompt) setGenerationUserPrompt(prompt);
+                  setMode("generate-steps");
                 } else {
                   setMode(m);
                 }

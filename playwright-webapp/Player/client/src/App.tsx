@@ -1,7 +1,7 @@
 import './App.css'
 import RemoteRunner from './components/RemoteRunner'
 import { Env } from '@semoss/sdk/react';
-import { runPixel } from "@semoss/sdk";
+import { runPixel, Insight } from "@semoss/sdk";
 import { useInsight } from "@semoss/sdk-react";
 import { useEffect, useState } from 'react';
 import { Alert, CircularProgress } from '@mui/material';
@@ -12,6 +12,7 @@ function App() {
   const [metadata, setMetadata] = useState<Record<string, string>>({});
   const [sessionId, setSessionId] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
+  const [initialParamValues, setInitialParamValues] = useState<Record<string, string> | undefined>(undefined);
   
   Env.update({
     MODULE: process.env.MODULE || '',
@@ -28,6 +29,20 @@ function App() {
    
       }
     fetchMetadata();
+    
+    // Extract initial parameter values from tool if available
+    try {
+      const insight = new Insight();
+      const initRes: any = await insight.initialize();
+      const tool = await initRes?.tool;
+      
+      if (tool?.parameters?.paramValues) {
+        console.log("Extracted paramValues from tool:", tool.parameters.paramValues);
+        setInitialParamValues(tool.parameters.paramValues);
+      }
+    } catch (e) {
+      console.log("No tool parameters found, proceeding normally");
+    }
    
     let pixel = `Session ( )`;
     const res = await runPixel(pixel, insightId);
@@ -67,7 +82,7 @@ async function fetchMetadata() {
 
   return (
       <>
-          <RemoteRunner sessionId={sessionId} insightId={insightId} metadata={metadata} ></RemoteRunner>
+          <RemoteRunner sessionId={sessionId} insightId={insightId} metadata={metadata} initialParamValues={initialParamValues} ></RemoteRunner>
       </>
   )
 }

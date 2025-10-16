@@ -77,129 +77,149 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
         setShot(output.screenshot);
       }
 
-  return (
-    <>
-        {showData && !lastPage && (
-            <div className="steps-container">
-                <div className="steps-header">
-                <h4>Edit Replay Variables </h4>
+      async function handleSkipStep() {
+        
+
+        let pixel = `SkipStep (sessionId = "${sessionId}", fileName = "${selectedRecording}");`;
+        const res = await runPixel(pixel, insightId);
+        const { output } = res.pixelReturn[0] as { output: ReplayPixelOutput };
+        setEditedData(output.actions);
+        setIsLastPage(output.isLastPage);
+        setOverlay(null);
+    }
+
+    function handleSkipAll() {
+        setEditedData([]);
+        setUpdatedData([]);
+        setShowData(false);
+        setOverlay(null);
+    }
+
+    return (
+        <>
+            {showData && !lastPage && (
+                <div className="steps-container">
+                    <div className="steps-header">
+                        <h4>Edit Replay Variables</h4>
+                    </div>
+
+                    {!editedData || editedData.length === 0 ? (
+                        <div>No variables found.</div>
+                    ) : (
+                        <table className="steps-table">
+                            <thead>
+                                <tr>
+                                    <th>Label</th>
+                                    <th>Value</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {editedData.map((action, index) => {
+                                    const type = Object.keys(action)[0] as keyof Action;
+                                    const details = action[type] as any;
+                                    const detailCoords = details?.coords
+                                        ? { x: details.coords.x, y: details.coords.y }
+                                        : details.x
+                                            ? { x: details.x, y: details.y }
+                                            : { x: 0, y: 0 };
+
+                                    switch (type) {
+                                        case "TYPE":
+                                            return (
+                                                <tr key={index}>
+                                                    <td>{details.label}</td>
+                                                    <td></td>
+                                                    {index === 0 && (
+                                                        <td>
+                                                            <button onClick={handleNextStep}>Execute →</button>
+                                                            <button onClick={() => handleSkipStep()}>Skip</button>
+                                                        </td>
+                                                    )}
+                                                </tr>
+                                            );
+
+                                        case "CLICK":
+                                            return (
+                                                <tr key={index}>
+                                                    <td>Click</td>
+                                                    <td>
+                                                        ({detailCoords.x}, {detailCoords.y})
+                                                        <button onClick={() => showHighlight(detailCoords.x, detailCoords.y)}>
+                                                            ℹ️
+                                                        </button>
+                                                    </td>
+                                                    {index === 0 && (
+                                                        <td>
+                                                            <button onClick={handleNextStep}>Execute →</button>
+                                                            <button onClick={() => handleSkipStep()}>Skip</button>
+                                                        </td>
+                                                    )}
+                                                </tr>
+                                            );
+
+                                        case "NAVIGATE":
+                                            return (
+                                                <tr key={index}>
+                                                    <td>Navigate</td>
+                                                    <td>{details.url}</td>
+                                                    {index === 0 && (
+                                                        <td>
+                                                            <button onClick={handleNextStep}>Execute →</button>
+                                                            <button onClick={() => handleSkipStep()}>Skip</button>
+                                                        </td>
+                                                    )}
+                                                </tr>
+                                            );
+
+                                        case "SCROLL":
+                                            return (
+                                                <tr key={index}>
+                                                    <td>Scroll</td>
+                                                    <td>DeltaY: {details.deltaY}</td>
+                                                    {index === 0 && (
+                                                        <td>
+                                                            <button onClick={handleNextStep}>Execute →</button>
+                                                            <button onClick={() => handleSkipStep()}>Skip</button>
+                                                        </td>
+                                                    )}
+                                                </tr>
+                                            );
+
+                                        case "WAIT":
+                                            return (
+                                                <tr key={index}>
+                                                    <td>Wait</td>
+                                                    <td>{details as number / 1000} sec</td>
+                                                    {index === 0 && (
+                                                        <td>
+                                                            <button onClick={handleNextStep}>Execute →</button>
+                                                            <button onClick={() => handleSkipStep()}>Skip</button>
+                                                        </td>
+                                                    )}
+                                                </tr>
+                                            );
+
+                                        default:
+                                            return null;
+                                    }
+                                })}
+                            </tbody>
+                        </table>
+                    )}
+
+                    <div className="steps-actions">
+                        <button onClick={handleExecuteAll}>
+                            {(!editedData || editedData.length === 0) ? "Next" : "Execute All"}
+                        </button>
+                        <button onClick={handleSkipAll}>Skip All</button>
+
+                        <button onClick={() => setShowData(false)}>Cancel</button>
+                    </div>
                 </div>
-
-                {!editedData || editedData.length === 0 ? (
-                    <div>No variables found.</div>
-                ) : (
-                    <table className="steps-table">
-                    <thead>
-                        <tr>
-                        <th>Label</th>
-                        <th>Value</th>
-                        <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {editedData.map((action, index) => {
-                        const type = Object.keys(action)[0] as keyof Action;
-                        const details = action[type] as any;
-                        const detailCoords = details?.coords 
-                          ? { x: details.coords.x, y: details.coords.y } 
-                          : details.x 
-                          ? { x: details.x, y: details.y } 
-                          : { x: 0, y: 0 };
-                        console.log("Rendering action:", action);
-                        console.log("Type:", type, "Details:", details);
-
-                        switch (type) {
-                            case "TYPE":
-                            return (
-                                <tr key={index}>
-                                <td>{details.label}</td>
-                                <td></td>
-                                {index === 0 && (
-                                    <td>
-                                    <button onClick={handleNextStep}>Execute →</button>
-                                    </td>
-                                )}
-                                </tr>
-                            );
-
-                            case "CLICK":
-                            return (
-                                <tr key={index}>
-                                <td >Click</td>
-                                <td>
-                                  ({detailCoords.x}, {detailCoords.y})
-                                  <button onClick={() => showHighlight(detailCoords.x, detailCoords.y)}>
-                                    ℹ️
-                                    </button>
-                                </td>
-                                {index === 0 && (
-                                    <td>
-                                    <button onClick={handleNextStep}>Execute →</button>
-                                    </td>
-                                )}
-                                </tr>
-                            );
-
-                            case "NAVIGATE":
-                            return (
-                                <tr key={index}>
-                                <td >Navigate</td>
-                                <td>{details.url}</td>
-                                {index === 0 && (
-                                    <td>
-                                    <button onClick={handleNextStep}>Execute →</button>
-                                    </td>
-                                )}
-                                </tr>
-                            );
-
-                            case "SCROLL":
-                            return (
-                                <tr key={index}>
-                                <td >Scroll</td>
-                                <td>DeltaY: {details.deltaY}</td>
-                                {index === 0 && (
-                                    <td>
-                                    <button onClick={handleNextStep}>Execute →</button>
-                                    </td>
-                                )}
-                                </tr>
-                            );
-
-                            case "WAIT":
-                            return (
-                                <tr key={index}>
-                                <td >Wait</td>
-                                <td>{details as number / 1000} sec</td>
-                                {index === 0 && (
-                                    <td>
-                                    <button onClick={handleNextStep}>Execute →</button>
-                                    </td>
-                                )}
-                                </tr>
-                            );
-
-                            default:
-                            return null;
-                        }
-                        })}
-                    </tbody>
-                    </table>
-                )}
-
-                <div className="steps-actions">
-                    <button
-                    onClick={handleExecuteAll}
-                    >
-                    {(!editedData || editedData.length === 0) ? "Next" : "Execute All"}
-                    </button>
-
-                    <button onClick={() => setShowData(false)}>Cancel</button>
-                </div>
-            </div>
-        )}
-    </>
-  )
+            )}
+        </>
+    );
 }
 
-export default StepsBottomSection
+export default StepsBottomSection;

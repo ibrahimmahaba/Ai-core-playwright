@@ -87,7 +87,7 @@ export type CropArea = {
   export type ReplayPixelOutput = {
     isLastPage: boolean;
     actions: Action[];
-    screenshot: ScreenshotResponse;
+    screenshot?: ScreenshotResponse;
   };
   
   export type modelGeneratedSteps = {

@@ -78,12 +78,11 @@ export type CropArea = {
     | { WAIT: number } // waitAfterMilliseconds
     | { NAVIGATE: string }; // url
   
-export type RemoteRunnerProps = {
-  sessionId: string;
-  metadata: Record<string, string>;
-  insightId: string;
-  initialParamValues?: Record<string, string>;
-};
+  export type RemoteRunnerProps = {
+    sessionId: string;
+    metadata: Record<string, string>;
+    insightId: string;
+  };
   
   export type ReplayPixelOutput = {
     isLastPage: boolean;
@@ -124,22 +123,21 @@ export type RemoteRunnerProps = {
   }
 
 
-export interface HeaderProps {
- insightId: string;
- sessionId: string
- steps: Step[] 
- selectedRecording: string | null;
- setSelectedRecording: React.Dispatch<React.SetStateAction<string | null>>;
- setLoading: React.Dispatch<React.SetStateAction<boolean>>;
- setEditedData: React.Dispatch<React.SetStateAction<Action[]>>;
- setUpdatedData: React.Dispatch<React.SetStateAction<Action[]>>;
- setShowData: React.Dispatch<React.SetStateAction<boolean>>;
- setShot: React.Dispatch<React.SetStateAction<ScreenshotResponse | undefined>>;
- setIsLastPage: React.Dispatch<React.SetStateAction<boolean>>;
- live: boolean;
- setLive: React.Dispatch<React.SetStateAction<boolean>>;
- initialParamValues?: Record<string, string>;
-}
+  export interface HeaderProps {
+   insightId: string;
+   sessionId: string
+   steps: Step[] 
+   selectedRecording: string | null;
+   setSelectedRecording: React.Dispatch<React.SetStateAction<string | null>>;
+   setLoading: React.Dispatch<React.SetStateAction<boolean>>;
+   setEditedData: React.Dispatch<React.SetStateAction<Action[]>>;
+   setUpdatedData: React.Dispatch<React.SetStateAction<Action[]>>;
+   setShowData: React.Dispatch<React.SetStateAction<boolean>>;
+   setShot: React.Dispatch<React.SetStateAction<ScreenshotResponse | undefined>>;
+   setIsLastPage: React.Dispatch<React.SetStateAction<boolean>>;
+   live: boolean;
+   setLive: React.Dispatch<React.SetStateAction<boolean>>;
+  }
 
   export interface Overlay{
     kind: "input" | "confirm";
@@ -148,7 +146,7 @@ export interface HeaderProps {
     draftLabel?: string | null;
   }
 
-export interface StepsBottomSectionProps{
+  export interface StepsBottomSectionProps{
     insightId: string;
     sessionId: string;
     showData: boolean;
@@ -165,8 +163,7 @@ export interface StepsBottomSectionProps{
     setUpdatedData: React.Dispatch<React.SetStateAction<Action[]>>;
     setShot: React.Dispatch<React.SetStateAction<ScreenshotResponse | undefined>>;
     setHighlight: React.Dispatch<React.SetStateAction<Coords | null>>;
-    initialParamValues?: Record<string, string>;
-}
+  }
 
   export interface VisionPopup {x: number; y: number; query: string; response: string | null;}
 

@@ -7,84 +7,23 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
         showData, setShowData, lastPage, setIsLastPage, editedData,
         overlay, setOverlay, sessionId, selectedRecording, 
         setLoading, insightId, setEditedData, updatedData, setUpdatedData, setShot,
-        setHighlight, initialParamValues
+        setHighlight
     } = props
 
     const showHighlight = (x: number, y: number) => {
         setHighlight({ x, y });
         setTimeout(() => setHighlight(null), 4000); 
       }
-
-    // Handles: "monday" -> "Monday", "attendance_hours_entry_for_tuesday" -> "Attendance Hours entry for Tuesday"
-    function normalizeParamValues(actions: Action[], mcpParams: Record<string, string>): Record<string, string> {
-        const normalized: Record<string, string> = {};
-        
-        // Extract all TYPE action labels from the recording
-        const recordingLabels = actions
-          .filter(action => "TYPE" in action)
-          .map(action => action.TYPE.label);
-        
-        // For each MCP parameter, try to match it to a recording label
-        Object.entries(mcpParams).forEach(([mcpKey, value]) => {
-          // Try exact match first
-          if (recordingLabels.includes(mcpKey)) {
-            normalized[mcpKey] = value;
-            return;
-          }
-          
-          // Try case-insensitive match
-          const caseInsensitiveMatch = recordingLabels.find(
-            label => label.toLowerCase() === mcpKey.toLowerCase()
-          );
-          if (caseInsensitiveMatch) {
-            normalized[caseInsensitiveMatch] = value;
-            return;
-          }
-          
-          // Try converting snake_case to proper label format
-          // "attendance_hours_entry_for_tuesday" -> "Attendance Hours entry for Tuesday"
-          const snakeCaseMatch = recordingLabels.find(label => {
-            // Remove all spaces and convert to lowercase for comparison
-            const labelNormalized = label.toLowerCase().replace(/\s+/g, '_');
-            return labelNormalized === mcpKey.toLowerCase();
-          });
-          if (snakeCaseMatch) {
-            normalized[snakeCaseMatch] = value;
-            return;
-          }
-          
-          // If no match found, keep the original key (backend will handle or ignore)
-          console.warn(`Could not match MCP parameter "${mcpKey}" to any recording label`);
-          normalized[mcpKey] = value;
-        });
-        
-        console.log("Normalized param values in StepsBottomSection:", normalized);
-        return normalized;
-    }
-
     async function handleNextStep() {
         const nextAction = editedData[0];
         let pixel;
         if ("TYPE" in nextAction) {
-          // Determine the value to use: overlay draft value, MCP value, or original value
-          let valueToUse = nextAction.TYPE.text; // default to original
-          
-          // First priority: overlay draft value (user edited)
+          // Use the draftValue and draftLabel from overlay if available
           if (overlay && overlay.draftValue !== undefined) {
-            valueToUse = overlay.draftValue;
             nextAction.TYPE.text = overlay.draftValue;
-          } 
-          // Second priority: MCP parameter value (if available and not overridden by user)
-          else if (initialParamValues && Object.keys(initialParamValues).length > 0) {
-            const normalizedParams = normalizeParamValues(editedData, initialParamValues);
-            if (normalizedParams[nextAction.TYPE.label]) {
-              valueToUse = normalizedParams[nextAction.TYPE.label];
-              nextAction.TYPE.text = valueToUse;
-            }
           }
-          
-          const { label } = nextAction.TYPE;
-          let paramValues = { [label]: valueToUse };
+          const { label, text } = nextAction.TYPE;
+          let paramValues = { [label]: text };
           pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${selectedRecording}", paramValues=[${JSON.stringify(paramValues)}], executeAll=false);`;
           setOverlay(null);
         } else {
@@ -119,24 +58,12 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
 
     async function handleExecuteAll() {
         setLoading(true);
-        
-        // Build parameter values, prioritizing MCP values over original recording values
-        const result: Record<string, string> = {};
-        
-        // First, get normalized MCP parameters if available
-        let normalizedParams: Record<string, string> = {};
-        if (initialParamValues && Object.keys(initialParamValues).length > 0) {
-            normalizedParams = normalizeParamValues(updatedData, initialParamValues);
-        }
-        
-        // Build the final parameter map
-        updatedData.forEach(action => {
-            if ("TYPE" in action) {
-                const label = action.TYPE.label;
-                // Use MCP value if available, otherwise use current text
-                result[label] = normalizedParams[label] || action.TYPE.text;
-            }
-        });
+        const result = updatedData.reduce<Record<string, string>[]>((acc, action) => {
+          if ("TYPE" in action) {
+            acc.push({ [action.TYPE.label]: action.TYPE.text });
+          }
+          return acc;
+        }, []);
     
         let pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${selectedRecording}", executeAll=true, paramValues=${JSON.stringify(result)});`;
         const res = await runPixel(pixel, insightId);
@@ -199,29 +126,10 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
 
                                     switch (type) {
                                         case "TYPE":
-                                            // Determine what value will be used
-                                            let displayValue = details.text; // default to original
-                                            if (initialParamValues && Object.keys(initialParamValues).length > 0) {
-                                                const normalizedParams = normalizeParamValues(editedData, initialParamValues);
-                                                if (normalizedParams[details.label]) {
-                                                    displayValue = normalizedParams[details.label];
-                                                }
-                                            }
-                                            
                                             return (
                                                 <tr key={index}>
                                                     <td>{details.label}</td>
-                                                    <td style={{ 
-                                                        fontWeight: displayValue !== details.text ? 'bold' : 'normal',
-                                                        color: displayValue !== details.text ? '#1976d2' : 'inherit'
-                                                    }}>
-                                                        {displayValue || '(empty)'}
-                                                        {displayValue !== details.text && (
-                                                            <span style={{ fontSize: '0.8em', color: '#666', marginLeft: '8px' }}>
-                                                                (MCP: {displayValue})
-                                                            </span>
-                                                        )}
-                                                    </td>
+                                                    <td></td>
                                                     {index === 0 && (
                                                         <td>
                                                             <button onClick={handleNextStep}>Execute →</button>

@@ -20,7 +20,7 @@ import StepsBottomSection from "./StepsBottomSection/StepsBottomSection";
 import VisionPopup from "./VisionPopup/VisionPopup";
 import './RemoteRunner.css';
 
-export default function RemoteRunner({ sessionId, insightId, initialParamValues }: RemoteRunnerProps) {
+export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps) {
 
   const [loading, setLoading] = useState(false);
   const [shot, setShot] = useState<ScreenshotResponse>();
@@ -717,8 +717,7 @@ export default function RemoteRunner({ sessionId, insightId, initialParamValues 
       setShot={setShot} 
       setIsLastPage={setIsLastPage}
       live={live}
-      setLive={setLive}
-      initialParamValues={initialParamValues}/>
+      setLive={setLive}/>
 
 
       {!shot && loading && (
@@ -853,8 +852,7 @@ export default function RemoteRunner({ sessionId, insightId, initialParamValues 
       updatedData={updatedData}
       setUpdatedData={setUpdatedData}
       setShot={setShot}
-      setHighlight={setHighlight}
-      initialParamValues={initialParamValues}/>
+      setHighlight={setHighlight}/>
 
     </div>
   );

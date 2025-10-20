@@ -1,8 +1,9 @@
 import { Autocomplete, TextField } from "@mui/material"
 import { useEffect, useState } from "react";
 import type { HeaderProps, ReplayPixelOutput } from "../../types";
-import {Insight, runPixel } from "@semoss/sdk";
+import { runPixel } from "@semoss/sdk";
 import './Header.css';
+import {Insight}  from 'https://cdn.jsdelivr.net/npm/@semoss/sdk@1.0.0-beta.29/+esm';
 
 function Header(props : HeaderProps) {
     const {insightId, sessionId, steps, selectedRecording, setSelectedRecording
@@ -32,8 +33,8 @@ function Header(props : HeaderProps) {
     
           const tool = await initRes?.tool;
     
-          const maybeSymbol = tool?.parameters?.sessionId;
-    
+          const maybeSymbol = tool?.parameters?.recordedFile;
+          
           setSelectedRecording(maybeSymbol);
           
         };
@@ -96,4 +97,4 @@ function Header(props : HeaderProps) {
   )
 }
 
-export default Header
+export default Header;

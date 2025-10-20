@@ -852,7 +852,11 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       updatedData={updatedData}
       setUpdatedData={setUpdatedData}
       setShot={setShot}
-      setHighlight={setHighlight}/>
+      setHighlight={setHighlight}
+      steps = {steps}
+      setSteps = {setSteps}
+      shot={shot}
+      />
 
     </div>
   );

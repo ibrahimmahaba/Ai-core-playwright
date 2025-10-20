@@ -163,6 +163,9 @@ export type CropArea = {
     setUpdatedData: React.Dispatch<React.SetStateAction<Action[]>>;
     setShot: React.Dispatch<React.SetStateAction<ScreenshotResponse | undefined>>;
     setHighlight: React.Dispatch<React.SetStateAction<Coords | null>>;
+    steps: Step[] ;
+    setSteps: React.Dispatch<React.SetStateAction<Step[]>>;
+    shot: ScreenshotResponse | undefined;
   }
 
   export interface VisionPopup {x: number; y: number; query: string; response: string | null;}

@@ -1,24 +1,107 @@
-import type { Action, ReplayPixelOutput, StepsBottomSectionProps } from "../../types";
+import type { Action, ReplayPixelOutput, StepsBottomSectionProps, Viewport } from "../../types";
 import { runPixel } from "@semoss/sdk";
 import './StepsBottomSection.css';
+import { useSendStep } from "../../hooks/useSendStep";
+import { preferSelectorFromProbe } from "../../hooks/usePreferSelector";
+import { useProbeAt } from "../../hooks/useProbeAt";
 
 function StepsBottomSection(props : StepsBottomSectionProps) {
     const {
         showData, setShowData, lastPage, setIsLastPage, editedData,
         overlay, setOverlay, sessionId, selectedRecording, 
         setLoading, insightId, setEditedData, updatedData, setUpdatedData, setShot,
-        setHighlight
+        setHighlight, steps, setSteps, shot
     } = props
+
+    const { sendStep } = useSendStep({
+        insightId : insightId,
+        sessionId : sessionId,
+        shot: shot,
+        setShot: setShot,
+        steps: steps,
+        setSteps: setSteps,
+        setLoading: setLoading
+    });
+
+    const viewport: Viewport = {
+    width: shot?.width ?? 1280,
+    height: shot?.height ?? 800,
+    deviceScaleFactor: shot?.deviceScaleFactor ?? 1,
+    };
 
     const showHighlight = (x: number, y: number) => {
         setHighlight({ x, y });
         setTimeout(() => setHighlight(null), 4000); 
       }
-    async function handleNextStep() {
+      async function handleNextStep() {
         const nextAction = editedData[0];
+        console.log("Handling next action:", nextAction);
+        console.log("Selected recording:", selectedRecording);
+
+        if (!selectedRecording) {
+          console.log("Executing step directly via sendStep");
+          setLoading(true);
+          
+          try {
+            // Convert Action to Step and execute
+            if ("CLICK" in nextAction) {
+              const p = await useProbeAt(nextAction.CLICK.coords, sessionId, insightId);
+              await sendStep({
+                type: "CLICK",
+                coords: nextAction.CLICK.coords,
+                viewport,
+                timestamp: Date.now(),
+                waitAfterMs: 1000,
+                selector: preferSelectorFromProbe(p)  || { strategy: "css", value: "body" }
+              });
+            } else if ("TYPE" in nextAction) {
+              const text = overlay?.draftValue ?? nextAction.TYPE.text;
+              await sendStep({
+                type: "TYPE",
+                coords: nextAction.TYPE.coords || { x: 0, y: 0 },
+                text: text,
+                label: nextAction.TYPE.label,
+                isPassword: nextAction.TYPE.isPassword || false,
+                viewport,
+                timestamp: Date.now(),
+                waitAfterMs: 1000,
+                storeValue: false,
+                selector: preferSelectorFromProbe(nextAction.TYPE.probe) ?? { strategy: "css", value: "body"}
+              });
+            } else if ("SCROLL" in nextAction) {
+              await sendStep({
+                type: "SCROLL",
+                coords: { x: 0, y: 0 },
+                deltaY: nextAction.SCROLL.deltaY,
+                viewport,
+                timestamp: Date.now(),
+                waitAfterMs: 500
+              });
+            } else if ("WAIT" in nextAction) {
+              await new Promise(resolve => setTimeout(resolve, nextAction.WAIT));
+            } else if ("NAVIGATE" in nextAction) {
+              await sendStep({
+                type: "NAVIGATE",
+                url: nextAction.NAVIGATE,
+                viewport,
+                timestamp: Date.now(),
+                waitAfterMs: 2000
+              });
+            }
+            
+            // Remove executed step
+            const newEditedData = editedData.slice(1);
+            setEditedData(newEditedData);
+            setUpdatedData(newEditedData);
+            setOverlay(null);
+          } finally {
+            setLoading(false);
+          }
+          return;
+        }
+        console.log("Executing step via ReplayStep pixel");
         let pixel;
         if ("TYPE" in nextAction) {
-          // Use the draftValue and draftLabel from overlay if available
           if (overlay && overlay.draftValue !== undefined) {
             nextAction.TYPE.text = overlay.draftValue;
           }
@@ -29,19 +112,21 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
         } else {
           pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${selectedRecording}", executeAll=false);`;
         }
+        
         setLoading(true);
         const res = await runPixel(pixel, insightId);
         const { output } = res.pixelReturn[0] as { output: ReplayPixelOutput };
-    
-        // Update editedData with the new data that includes coords and probe
+      
         const newEditedData = editedData.slice(1);
+        console.log("Received output from ReplayStep pixel:", output);
         if (!newEditedData || newEditedData.length === 0) {
+          console.log("Setting editedData to returned actions from pixel");
           setEditedData(output.actions);
           setUpdatedData(output.actions);
-    
         } else {
-          // Merge the server response data (coords, probe) with existing editedData
+          console.log("Merging returned actions with existing editedData");
           const updatedEditedData = newEditedData.map((action, index) => {
+            console.log("Merging action at index", index, ":", action, "with", output.actions[index]);
             if (output.actions[index]) {
               return { ...action, ...output.actions[index] };
             }
@@ -54,21 +139,87 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
         setShowData(true);
         setIsLastPage(output.isLastPage);
         setShot(output.screenshot);
-    }
-
-    async function handleExecuteAll() {
+      }
+    
+      async function handleExecuteAll() {
         setLoading(true);
+        
+        // If no recording file
+        if (!selectedRecording) {
+          try {
+            for (const action of editedData) {
+            if ("CLICK" in action) {
+                const p = await useProbeAt(action.CLICK.coords, sessionId, insightId);
+                await sendStep({
+                    type: "CLICK",
+                    coords: action.CLICK.coords,
+                    viewport,
+                    timestamp: Date.now(),
+                    waitAfterMs: 1000,
+                    selector: preferSelectorFromProbe(p)  || { strategy: "css", value: "body" }
+                });
+                } else if ("TYPE" in action) {
+                const text = overlay?.draftValue ?? action.TYPE.text;
+                await sendStep({
+                    type: "TYPE",
+                    coords: action.TYPE.coords || { x: 0, y: 0 },
+                    text: text,
+                    label: action.TYPE.label,
+                    isPassword: action.TYPE.isPassword || false,
+                    viewport,
+                    timestamp: Date.now(),
+                    waitAfterMs: 1000,
+                    storeValue: false,
+                    selector: preferSelectorFromProbe(action.TYPE.probe) ?? { strategy: "css", value: "body"}
+                });
+              } else if ("SCROLL" in action) {
+                await sendStep({
+                  type: "SCROLL",
+                  coords: { x: 0, y: 0 },
+                  deltaY: action.SCROLL.deltaY,
+                  viewport,
+                  timestamp: Date.now(),
+                  waitAfterMs: 500
+                });
+              } else if ("WAIT" in action) {
+                await new Promise(resolve => setTimeout(resolve, action.WAIT));
+              } else if ("NAVIGATE" in action) {
+                await sendStep({
+                  type: "NAVIGATE",
+                  url: action.NAVIGATE,
+                  viewport,
+                  timestamp: Date.now(),
+                  waitAfterMs: 2000
+                });
+              }
+              
+              await new Promise(resolve => setTimeout(resolve, 300));
+            }
+            
+            setEditedData([]);
+            setUpdatedData([]);
+            setShowData(false);
+            alert("All steps executed successfully!");
+          } catch (err) {
+            console.error("Error executing steps:", err);
+            alert("Error executing steps: " + err);
+          } finally {
+            setLoading(false);
+          }
+          return;
+        }
+        
         const result = updatedData.reduce<Record<string, string>[]>((acc, action) => {
           if ("TYPE" in action) {
             acc.push({ [action.TYPE.label]: action.TYPE.text });
           }
           return acc;
         }, []);
-    
+      
         let pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${selectedRecording}", executeAll=true, paramValues=${JSON.stringify(result)});`;
         const res = await runPixel(pixel, insightId);
         const { output } = res.pixelReturn[0] as { output: ReplayPixelOutput };
-    
+      
         setLoading(false);
         setEditedData(output.actions);
         setUpdatedData(output.actions);
@@ -77,7 +228,7 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
         setShot(output.screenshot);
       }
 
-      async function handleSkipStep() {
+    async function handleSkipStep() {
         
 
         let pixel = `SkipStep (sessionId = "${sessionId}", fileName = "${selectedRecording}");`;

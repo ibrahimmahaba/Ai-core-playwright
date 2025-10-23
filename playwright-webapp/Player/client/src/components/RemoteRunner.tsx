@@ -184,14 +184,6 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
 
     if (isTextField && p.isTextControl) {
       setOverlay({ kind: "input", probe: p, draftValue: p.value ?? "", draftLabel: p.labelText ?? "" });
-    } else if (p.tag === "a" && p.href && p.href.startsWith("http")) {
-      await sendStep({
-        type: "NAVIGATE",
-        viewport,
-        waitAfterMs: 300,
-        timestamp: Date.now(),
-        url: p.href
-      });
     } else {
       await sendStep({
         type: "CLICK",

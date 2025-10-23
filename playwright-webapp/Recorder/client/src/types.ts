@@ -73,7 +73,6 @@ export interface ScreenshotResponse {
   
   export interface RemoteRunnerProps {
     sessionId: string;
-    metadata: Record<string, string>;
     insightId: string;
   }
   
@@ -133,6 +132,7 @@ export interface ScreenshotResponse {
     setLoading: React.Dispatch<React.SetStateAction<boolean>>;
     steps: Step[] | null;
     setSteps:  React.Dispatch<React.SetStateAction<Step[]>>;
+    activeTab: number;
   }
 
   export interface UseSendStepParams {
@@ -143,6 +143,12 @@ export interface ScreenshotResponse {
     steps?: Step[] | null;
     setSteps?: React.Dispatch<React.SetStateAction<Step[]>>;
     setLoading?: React.Dispatch<React.SetStateAction<boolean>>;
+    tabs?: { id: number; title: string }[];
+    setTabs?: React.Dispatch<React.SetStateAction<{
+      id: number;
+      title: string;
+    }[]>>;
+    setActiveTab?: React.Dispatch<React.SetStateAction<number>>;
   }
 
   export interface HeaderProps {
@@ -159,6 +165,7 @@ export interface ScreenshotResponse {
     mode: string;
     setTitle: React.Dispatch<React.SetStateAction<string>>;
     setDescription: React.Dispatch<React.SetStateAction<string>>;
+    activeTab: number;
   }
 
   export interface VisionPopup {x: number; y: number; query: string; response: string | null;}

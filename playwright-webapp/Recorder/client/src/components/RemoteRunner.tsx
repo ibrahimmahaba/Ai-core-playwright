@@ -1,7 +1,7 @@
 import React, { useRef, useState } from "react";
 import { runPixel } from "@semoss/sdk";
 import { CircularProgress, FormControlLabel, Checkbox } from "@mui/material";
-import { IconButton } from "@mui/material";
+import { IconButton, Tabs, Tab, Box } from "@mui/material";
 import { Check, Close } from "@mui/icons-material";
 import ReactCrop, { type Crop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
@@ -33,6 +33,23 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
  const [visionPopup, setVisionPopup] = useState<{x: number; y: number; query: string; response: string | null; } | null>(null);
  const [currentCropArea, setCurrentCropArea] = useState<CropArea | null>(null);
  const [mode, setMode] = useState<string>("click");
+ const [tabs, setTabs] = useState([
+    { id: 1, title: "tab-1" }
+  ]);
+  const [activeTab, setActiveTab] = useState(1);
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setActiveTab(newValue);
+  };
+
+  const handleCloseTab = (tabId: number) => {
+    const updatedTabs = tabs.filter((tab) => tab.id !== tabId);
+    setTabs(updatedTabs);
+
+    // Adjust active tab if the closed tab was active
+    if (activeTab === tabId && updatedTabs.length > 0) {
+      setActiveTab(updatedTabs[0].id);
+    }
+  };
 
 
   const viewport: Viewport = {
@@ -48,7 +65,10 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     setShot: setShot,
     steps: steps,
     setSteps: setSteps,
-    setLoading: setLoading
+    setLoading: setLoading,
+    tabs: tabs,
+    setTabs: setTabs,
+    setActiveTab: setActiveTab
 });
   // async function sendStep(step: Step) {
   //   if (!sessionId) return;
@@ -84,7 +104,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     if (!sessionId) return ;
     if (!pendingCoords) alert("Invalid Coordinates");
 
-    let pixel = `ProbeElement (sessionId = "${sessionId}" , coords = "${pendingCoords?.x}, ${pendingCoords?.y}");`
+    let pixel = `ProbeElement (sessionId = "${sessionId}" , coords = "${pendingCoords?.x}, ${pendingCoords?.y}", tabId = "tab-${activeTab}");`
     const res = await runPixel(pixel, insightId);
     const { output } = res.pixelReturn[0] as { output: Probe };
     console.log(output)
@@ -339,14 +359,6 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
 
       if (isTextField && p.isTextControl) {
         setOverlay({ kind: "input", probe: p, draftValue: p.value ?? "", draftLabel: p.labelText ?? "" });
-      } else if (p.tag === "a" && p.href && p.href.startsWith("http")) {
-        await sendStep({
-          type: "NAVIGATE",
-          viewport,
-          waitAfterMs: 300,
-          timestamp: Date.now(),
-          url: p.href
-        });
       } else {
         await sendStep({
           type: "CLICK",
@@ -355,7 +367,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
           waitAfterMs: 300,
           timestamp: Date.now(),
           selector: preferSelectorFromProbe(p) || { strategy: "css", value: "body" }
-        });
+        }, activeTab);
       }
   }
   function handleVisionPopup(cropArea: CropArea) { 
@@ -388,6 +400,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       setLoading={setLoading}
       steps={steps}
       setSteps={setSteps}
+      activeTab={activeTab}
       />
 
       {/* Header / and metadata form */}
@@ -404,7 +417,9 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       setTitle={setTitle}
       setDescription={setDescription}
       description={description}
-      mode={mode}/>
+      mode={mode}
+      activeTab={activeTab}
+      />
 
       
       {!shot && loading && (
@@ -414,21 +429,52 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       )}
 
       {shot && (
-        <>          
-          <div className="remote-runner-image-container">
-            {mode === "crop" ? (
-              <ReactCrop
-                crop={crop}
-                onChange={(c: Crop) => setCrop(c)}
-                onComplete={(c: Crop) => {
-                  if (c.width && c.height) {
-                    const cropArea: CropArea = {
-                      startX: c.x,
-                      startY: c.y,
-                      endX: c.x + c.width,
-                      endY: c.y + c.height,
-                    };
-                    handleVisionPopup(cropArea);
+        <>
+          <Tabs
+            value={activeTab} // Bind active tab state
+            onChange={handleTabChange} // Handle tab switching
+            variant="scrollable"
+            scrollButtons="auto"
+          >
+            {tabs.map((tab) => (
+              <Tab
+                key={tab.id}
+                value={tab.id} // Each tab has a unique value
+                label={
+                  <Box display="flex" alignItems="center">
+                    {tab.title}
+                    {tabs.length > 1 && (
+                    <IconButton
+                      size="small"
+                      
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent tab switch on close button click
+                        handleCloseTab(tab.id); // Close the tab
+                      }}
+                    >
+                      <Close fontSize="small" />
+                    </IconButton>
+                    )}
+                  </Box>
+                }
+              />
+            ))}
+          </Tabs>
+
+            <div className="remote-runner-image-container">
+              {mode === "crop" ? (
+                <ReactCrop
+                  crop={crop}
+                  onChange={(c: Crop) => setCrop(c)}
+                  onComplete={(c: Crop) => {
+                    if (c.width && c.height) {
+                      const cropArea: CropArea = {
+                        startX: c.x,
+                        startY: c.y,
+                        endX: c.x + c.width,
+                        endY: c.y + c.height,
+                      };
+                      handleVisionPopup(cropArea);
                     //setMode("click");
                     //setCrop(undefined);
                   }
@@ -482,7 +528,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
                         viewport,
                         waitAfterMs: 300,
                         timestamp: Date.now()
-                      } as Step);
+                      } as Step, activeTab);
                     } else {
                       await sendStep({
                         type: "CLICK",
@@ -490,7 +536,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
                         viewport,
                         waitAfterMs: 300,
                         timestamp: Date.now()
-                      } as Step);
+                      } as Step, activeTab);
                     }
                     setOverlay(null);
                   }}

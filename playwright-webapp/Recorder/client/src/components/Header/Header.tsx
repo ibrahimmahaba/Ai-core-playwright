@@ -8,7 +8,7 @@ import './header.css';
 
 
 function Header(props : HeaderProps) {
-    const {insightId, sessionId, shot, setShot, steps, setSteps, title, setTitle, setLoading, description, setDescription,  mode} = props
+    const {insightId, sessionId, shot, setShot, steps, setSteps, title, setTitle, setLoading, description, setDescription,  mode, activeTab} = props
     const [url, setUrl] = useState("https://example.com");
 
     const { sendStep } = useSendStep({
@@ -67,7 +67,7 @@ function Header(props : HeaderProps) {
               className="header-input"
               placeholder="Enter URL"
               />
-              <button onClick={() => sendStep({ type: "NAVIGATE", url: url, waitAfterMs: 100, viewport, timestamp: Date.now() })}>Open</button>
+              <button onClick={() => sendStep({ type: "NAVIGATE", url: url, waitAfterMs: 100, viewport, timestamp: Date.now() }, activeTab, true)}>Open</button>
               <button onClick={saveSession} disabled={!sessionId}>
               Save
               </button>

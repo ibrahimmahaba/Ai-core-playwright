@@ -13,7 +13,7 @@ import {useSendStep} from"../../hooks/useSendStep"
 import './toolbar.css';
 
 function Toolbar(props: ToolbarProps) {
-    const { sessionId, insightId, shot, setShot, mode, setMode, steps, setSteps, setLoading} = props;
+    const { sessionId, insightId, shot, setShot, mode, setMode, steps, setSteps, setLoading, activeTab} = props;
 
     const viewport: Viewport = {
         width: shot?.width ?? 1280,
@@ -34,7 +34,7 @@ function Toolbar(props: ToolbarProps) {
     async function fetchScreenshot() {
         if (!sessionId) return;
         try {
-            let pixel = `Screenshot ( sessionId = "${sessionId}" )`;
+            let pixel = `Screenshot ( sessionId = "${sessionId}", tabId="tab-${activeTab}" )`;
             const res = await runPixel(pixel, insightId);
             const { output } = res.pixelReturn[0];
             const snap = normalizeShot(output);
@@ -59,7 +59,7 @@ function Toolbar(props: ToolbarProps) {
         if (!sessionId) return;
         const ms = Number(window.prompt("Wait how many ms?", "800")) || 800;
         const step: Step = { type: "WAIT", waitAfterMs: ms, viewport, timestamp: Date.now() };
-        await sendStep(step); 
+        await sendStep(step, activeTab); 
     }
 
     async function scrollUp() {
@@ -71,7 +71,7 @@ function Toolbar(props: ToolbarProps) {
             viewport,
             waitAfterMs: 300,
             timestamp: Date.now(),
-        })
+        }, activeTab)
     }
 
     async function scrollDown() {
@@ -83,7 +83,7 @@ function Toolbar(props: ToolbarProps) {
             viewport,
             waitAfterMs: 300,
             timestamp: Date.now(),
-         });
+         }, activeTab);
     }
 
   return (

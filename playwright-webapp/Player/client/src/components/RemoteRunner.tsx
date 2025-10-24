@@ -1,4 +1,3 @@
-
 import React, { useRef, useState, useEffect } from "react";
 import { runPixel } from "@semoss/sdk";
 import {
@@ -30,7 +29,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
   const [showData, setShowData] = React.useState(false);
   const [editedData, setEditedData] = React.useState<Action[]>([]);
   const [updatedData, setUpdatedData] = React.useState<Action[]>([]);
-  const [live, setLive] = useState(false);
+  const [live, setLive] = useState(false); // Start with live mode OFF - only enable after loading recording
   const [intervalMs] = useState(1000);
   const [selectedRecording, setSelectedRecording] = useState<string | null>(null);
   const [lastPage, setIsLastPage] = useState(false);
@@ -46,16 +45,23 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
 
   useEffect(() => {
     if (!sessionId || !live) return;
+    console.log('[Live Mode] Starting automatic screenshot polling every', intervalMs, 'ms');
     let cancelled = false;
     const tick = async () => {
       if (cancelled) return;
-      try { await fetchScreenshot(); }
+      try {
+        console.log('[Live Mode] Fetching screenshot...');
+        await fetchScreenshot();
+      }
       finally {
         if (!cancelled && live) setTimeout(tick, intervalMs);
       }
     };
     tick();
-    return () => { cancelled = true; };
+    return () => {
+      console.log('[Live Mode] Stopping screenshot polling');
+      cancelled = true;
+    };
   }, [sessionId, live, intervalMs]);
 
   useEffect(() => {
@@ -101,36 +107,57 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
         }
       }
       
-      const probe: Probe = typeAction.probe || {
-        tag: "input",
-        type: typeAction.isPassword ? "password" : "text",
-        inputCategory: "text",
-        role: null,
-        selector: null,
-        placeholder: null,
-        labelText: typeAction.label,
-        value: initialValue,
-        href: null,
-        contentEditable: false,
-        rect: typeAction.coords ? {
-          x: typeAction.coords.x - 100,
-          y: typeAction.coords.y - 15,
-          width: 200,
-          height: 30
-        } : { x: 0, y: 0, width: 200, height: 30 },
-        metrics: null,
-        styles: null,
-        placeholderStyle: null,
-        attrs: null,
-        isTextControl: true
-      };
+      // If we have coordinates, probe the element to get accurate positioning
+      let probe: Probe;
+      if (typeAction.coords && typeAction.coords.x && typeAction.coords.y) {
+        console.log('[Overlay] Probing element at coords:', typeAction.coords);
+        const probeResult = await probeAt(typeAction.coords);
+        if (probeResult) {
+          probe = probeResult;
+          console.log('[Overlay] Probe successful, using live element data');
+        } else {
+          console.warn('[Overlay] Probe failed, using fallback positioning');
+          probe = typeAction.probe || createFallbackProbe(typeAction, initialValue);
+        }
+      } else {
+        console.log('[Overlay] No coords available, using probe data or fallback');
+        probe = typeAction.probe || createFallbackProbe(typeAction, initialValue);
+      }
+
       setOverlay({
         kind: "input",
-        probe: {...probe, rect : {...probe.rect} }, 
+        probe: {...probe, rect : {...probe.rect} },
         draftValue: initialValue,
         draftLabel: typeAction.label
       });
+      console.log('[Overlay] Overlay set successfully');
     }
+  }
+
+  function createFallbackProbe(typeAction: any, initialValue: string): Probe {
+    return {
+      tag: "input",
+      type: typeAction.isPassword ? "password" : "text",
+      inputCategory: "text",
+      role: null,
+      selector: null,
+      placeholder: null,
+      labelText: typeAction.label,
+      value: initialValue,
+      href: null,
+      contentEditable: false,
+      rect: typeAction.coords ? {
+        x: typeAction.coords.x - 100,
+        y: typeAction.coords.y - 15,
+        width: 200,
+        height: 30
+      } : { x: 0, y: 0, width: 200, height: 30 },
+      metrics: null,
+      styles: null,
+      placeholderStyle: null,
+      attrs: null,
+      isTextControl: true
+    };
   }
   
   const { sendStep } = useSendStep({
@@ -215,28 +242,36 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
   async function fetchScreenshot() {
     if (!sessionId) return;
     try {
-      let pixel = `Screenshot ( sessionId = "${sessionId}" )`;
+      const pixel = `Screenshot ( sessionId = "${sessionId}" )`;
       const res = await runPixel(pixel, insightId);
       const { output } = res.pixelReturn[0];
       const snap = normalizeShot(output);
       if (snap) {
+        console.log('[Live Mode] Screenshot updated successfully');
         setShot(snap);
         
-        // If there's an overlay, re-probe to get updated coordinates
-        if (overlay && editedData.length > 0 && "TYPE" in editedData[0]) {
+        // Don't update overlay if we're in the middle of loading or if there's no overlay yet
+        // This prevents the overlay from disappearing during auto-refresh
+        if (overlay && editedData.length > 0 && !loading && showData && "TYPE" in editedData[0]) {
           const typeAction = editedData[0].TYPE;
-          //set overlay to null to force re-probe
-          setOverlay(null);
-          const p = await probeAt({x: typeAction.coords?.x, y: typeAction.coords?.y} as Coords);
-          if (p) {
-            setOverlay({ ...overlay, probe: p });
-          } else {
-            setOverlay(null);
+          if (typeAction.coords && typeAction.coords.x && typeAction.coords.y) {
+            console.log('[Live Mode] Updating overlay position');
+            // Re-probe to get updated coordinates without clearing the overlay first
+            const p = await probeAt({x: typeAction.coords.x, y: typeAction.coords.y} as Coords);
+            if (p) {
+              // Update the overlay with fresh probe data, preserving user input
+              setOverlay({
+                kind: "input",
+                probe: p,
+                draftValue: overlay.draftValue,
+                draftLabel: overlay.draftLabel
+              });
+            }
           }
         }
       }   
     } catch (err) {
-      console.error("fetchScreenshot error:", err);
+      console.error("[Live Mode] fetchScreenshot error:", err);
     }
   }
 
@@ -713,8 +748,9 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       setShowData={setShowData}
       setShot={setShot} 
       setIsLastPage={setIsLastPage}
-      live={live}
-      setLive={setLive}/>
+      setOverlay={setOverlay}
+      setLive={setLive}
+      />
 
 
       {!shot && loading && (

@@ -3,13 +3,11 @@ import {
     ArrowUpward as ArrowUpIcon,
     ArrowDownward as ArrowDownIcon,
     AccessTime as AccessTimeIcon,
-    Sync as SyncIcon,
-    CropFree as CropIcon, 
+    CropFree as CropIcon,
     AutoAwesome as AutoAwesomeIcon,
   } from "@mui/icons-material";
 import { type JSX } from "react";
-import { runPixel } from "@semoss/sdk";
-import type { ToolbarProps, ScreenshotResponse, Step, Viewport } from "../../types";
+import type { ToolbarProps, Step, Viewport } from "../../types";
 import {useSendStep} from"../../hooks/useSendStep"
 import './Toolbar.css';
 
@@ -32,29 +30,6 @@ function Toolbar(props: ToolbarProps) {
         setSteps: setSteps,
         setLoading: setLoading,
       });
-    async function fetchScreenshot() {
-        if (!sessionId) return;
-        try {
-            let pixel = `Screenshot ( sessionId = "${sessionId}" )`;
-            const res = await runPixel(pixel, insightId);
-            const { output } = res.pixelReturn[0];
-            const snap = normalizeShot(output);
-            if (snap) setShot(snap);
-        } catch (err) {
-            console.error("fetchScreenshot error:", err);
-        }
-    }
-
-    function normalizeShot(raw: any | undefined | null): ScreenshotResponse | undefined {
-        if (!raw) return undefined;
-        const base64 =
-          raw.base64Png ?? raw.base64 ?? raw.imageBase64 ?? raw.pngBase64 ?? raw.data ?? "";
-        const width = raw.width ?? raw.w ?? 1280;
-        const height = raw.height ?? raw.h ?? 800;
-        const dpr = raw.deviceScaleFactor ?? raw.dpr ?? 1;
-        if (!base64 || typeof base64 !== "string") return undefined;
-        return { base64Png: base64, width, height, deviceScaleFactor: dpr };
-    }
 
     async function waitAndShot() {
         if (!sessionId) return;
@@ -94,7 +69,6 @@ function Toolbar(props: ToolbarProps) {
           { m: "scroll-up", icon: <ArrowUpIcon />, label: "Scroll Up" },
           { m: "scroll-down", icon: <ArrowDownIcon />, label: "Scroll Down" },
           { m: "delay", icon: <AccessTimeIcon />, label: "Delay" },
-          { m: "fetch-screenshot", icon: <SyncIcon />, label: "Refresh" },
           { m: "crop", icon: <CropIcon />, label: "Add Context" },
           { m: "generate-steps", icon: <AutoAwesomeIcon />, label: "Generate Steps" }
 
@@ -112,8 +86,6 @@ function Toolbar(props: ToolbarProps) {
                   scrollDown();
                 } else if (m == "delay") {
                   await waitAndShot();
-                } else if (m == "fetch-screenshot") {
-                  await fetchScreenshot();
                 } else if (m === "cancel") {
                   setMode("click");
                 } else if (m == "crop") {

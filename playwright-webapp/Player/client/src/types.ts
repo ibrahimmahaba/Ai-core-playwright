@@ -135,7 +135,7 @@ export type CropArea = {
    setShowData: React.Dispatch<React.SetStateAction<boolean>>;
    setShot: React.Dispatch<React.SetStateAction<ScreenshotResponse | undefined>>;
    setIsLastPage: React.Dispatch<React.SetStateAction<boolean>>;
-   live: boolean;
+   setOverlay: React.Dispatch<React.SetStateAction<Overlay | null>>;
    setLive: React.Dispatch<React.SetStateAction<boolean>>;
   }
 
@@ -242,3 +242,4 @@ export type CropArea = {
       hasForm: boolean;
     };
   };
+

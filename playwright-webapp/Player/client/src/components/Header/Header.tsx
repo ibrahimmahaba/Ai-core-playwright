@@ -7,7 +7,7 @@ import {Insight}  from 'https://cdn.jsdelivr.net/npm/@semoss/sdk@1.0.0-beta.29/+
 
 function Header(props : HeaderProps) {
     const {insightId, sessionId, steps, selectedRecording, setSelectedRecording
-            , setLoading, setEditedData, setUpdatedData, setShowData, setIsLastPage, setShot, live, setLive} = props
+            , setLoading, setEditedData, setUpdatedData, setShowData, setIsLastPage, setShot, setOverlay, setLive} = props
     const [allRecordings, setAllRecordings] = useState<string[]>([]);
 
 
@@ -51,8 +51,11 @@ function Header(props : HeaderProps) {
 
     const name = selectedRecording;
 
+    // Pause live mode during loading to prevent interference
+    setLive(false);
     setLoading(true);
-    let pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${name}", executeAll=false);`;
+
+    const pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${name}", executeAll=false);`;
     const res = await runPixel(pixel, insightId);
     const { output } = res.pixelReturn[0] as { output: ReplayPixelOutput };
 
@@ -62,9 +65,12 @@ function Header(props : HeaderProps) {
     setShowData(true);
     setIsLastPage(output.isLastPage);
     setShot(output.screenshot);
-  }
 
-  async function startLiveReplay() {
+    // Clear any existing overlay to allow auto-detection to work
+    setOverlay(null);
+
+    // Re-enable live mode after loading completes
+    console.log('[Load Recording] Enabling live mode');
     setLive(true);
   }
 
@@ -87,10 +93,6 @@ function Header(props : HeaderProps) {
           Load Recording (Edit)
         </button>
 
-        <button onClick={startLiveReplay}>
-          Start Live Replay
-        </button>
-        <button onClick={() => setLive(false)} disabled={!live}>Stop Live</button>
         <span className="header-recording-count">Steps: {steps.length}</span>
       </div>
     </>

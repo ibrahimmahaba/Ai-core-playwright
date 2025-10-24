@@ -11,14 +11,15 @@ import ReactCrop, { type Crop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { rgba } from 'polished';
 import type { Action, Coords, CropArea, Overlay, Probe, ProbeRect, RemoteRunnerProps, ReplayPixelOutput, ScreenshotResponse, Step, Viewport
-  , modelGeneratedSteps, ExtractedElement, ExtractionData } from "../types";
+  , modelGeneratedSteps, ExtractedElement, ExtractionData, ModelOption } from "../types";
 import { useSendStep } from "../hooks/useSendStep";
 import { preferSelectorFromProbe } from "../hooks/usePreferSelector";
 import Toolbar from "./Toolbar/Toolbar";
 import Header from "./Header/Header";
-import StepsBottomSection from "./StepsBottomSection/StepsBottomSection";
 import VisionPopup from "./VisionPopup/VisionPopup";
 import './RemoteRunner.css';
+import StepsBottomSection from "./StepsBottomSection/StepsBottomSection";
+import { useSkipStep } from "../hooks/useSkipStep";
 
 export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps) {
 
@@ -40,8 +41,17 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
   const [crop, setCrop] = useState<Crop>();
   const [mode, setMode] = useState<string>("click");
   const [generationUserPrompt, setGenerationUserPrompt] = useState(" ");
-
-
+  const ENGINE_ID = import.meta.env.VITE_LLM_ENGINE_ID;
+  const [currUserModels, setCurrUserModels] = useState<Record<string, string>>({
+  "Default Dev Model": ENGINE_ID,
+  });
+  const modelOptions: ModelOption[] = Object.entries(currUserModels).map(([name, id]) => ({
+    label: name,
+    value: id,
+  }));
+  const [selectedModel, setSelectedModel] = React.useState<ModelOption | null>(
+    modelOptions[0] ?? null
+  );
 
   useEffect(() => {
     if (!sessionId || !live) return;
@@ -144,6 +154,16 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     steps: steps,
     setSteps: setSteps,
     setLoading: setLoading
+  });
+
+  const { handleSkipStep } = useSkipStep({
+    sessionId,
+    selectedRecording,
+    insightId,
+    setEditedData,
+    setIsLastPage,
+    setOverlay,
+    setLoading,
   });
 
   function imageToPageCoords(e: React.MouseEvent<HTMLImageElement, MouseEvent>): Coords {
@@ -347,7 +367,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       
       console.log("Extracted HTML data:", extractionData);
       
-      let engineId = import.meta.env.VITE_LLM_ENGINE_ID;
+      let engineId = selectedModel?.value;
 
       // Generate steps
       const generatePixel = `GeneratePlaywrightSteps(
@@ -551,6 +571,8 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     if (!s.borderTopStyle && !s.borderTopWidth) {
       st.border = "1px solid rgba(0,0,0,0.15)";
     }
+
+    st.backgroundColor = "#fff";
   
     return st;
   }
@@ -683,6 +705,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       </div>
     );
   }
+  
   return (
     <div className="remote-runner-container">
       {/* toolbar */}
@@ -717,7 +740,11 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       setShot={setShot} 
       setIsLastPage={setIsLastPage}
       live={live}
-      setLive={setLive}/>
+      setLive={setLive}
+      currUserModels={currUserModels}
+      setCurrUserModels={setCurrUserModels}
+      selectedModel={selectedModel}
+      setSelectedModel={setSelectedModel}/>
 
 
       {!shot && loading && (
@@ -807,7 +834,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
                   ol={overlay}
                   shot={shot}
                   imgRef={imgRef}
-                  onCancel={() => setOverlay(null)}
+                  onCancel={handleSkipStep}
                   onSubmit={async () => {
                     await handleNextStep();
                     setOverlay(null);
@@ -827,7 +854,8 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
             mode={mode}
             setMode={setMode} 
             crop={crop}
-            setCrop={setCrop}          
+            setCrop={setCrop} 
+            selectedModel={selectedModel}
           />
           
           </div>

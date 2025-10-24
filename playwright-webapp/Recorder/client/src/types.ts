@@ -159,6 +159,8 @@ export interface ScreenshotResponse {
     mode: string;
     setTitle: React.Dispatch<React.SetStateAction<string>>;
     setDescription: React.Dispatch<React.SetStateAction<string>>;
+    selectedModel: ModelOption | null;
+   setSelectedModel: React.Dispatch<React.SetStateAction<ModelOption | null>>
   }
 
   export interface VisionPopup {x: number; y: number; query: string; response: string | null;}
@@ -173,5 +175,8 @@ export interface ScreenshotResponse {
     mode: string;
     setMode: React.Dispatch<React.SetStateAction<string>>
     crop: Crop | undefined;
-    setCrop: React.Dispatch<React.SetStateAction<Crop| undefined>>
+    setCrop: React.Dispatch<React.SetStateAction<Crop| undefined>>;
+    selectedModel: ModelOption | null;
   }
+
+  export type ModelOption = { label: string; value: string };

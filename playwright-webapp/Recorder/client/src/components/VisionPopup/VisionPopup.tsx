@@ -9,16 +9,16 @@ import './vision-popup.css';
 
 
 export function VisionPopup(props : VisionPopupProps) {
-  const {sessionId, insightId, visionPopup , setVisionPopup, currentCropArea, setCurrentCropArea,  setMode, setCrop} = props
+  const {sessionId, insightId, visionPopup , setVisionPopup, currentCropArea,
+    setCurrentCropArea,  setMode, setCrop, selectedModel} = props
   
   async function handleLLMAnalysis() {
     if (!visionPopup || !visionPopup.query.trim() || !currentCropArea) return;
-    const ENGINE_ID = import.meta.env.VITE_LLM_ENGINE_ID;
     
     try {
       const pixel = `ImageContext(
         sessionId="${sessionId}",
-        engine="${ENGINE_ID}", 
+        engine="${selectedModel?.value}", 
         paramValues=[{
           "startX": ${currentCropArea.startX}, 
           "startY": ${currentCropArea.startY}, 

@@ -1,4 +1,4 @@
-import { Autocomplete, TextField } from "@mui/material"
+import { Autocomplete, Box, TextField, Typography } from "@mui/material"
 import { useEffect, useState } from "react";
 import type { HeaderProps, ReplayPixelOutput } from "../../types";
 import {Insight, runPixel } from "@semoss/sdk";
@@ -6,10 +6,42 @@ import './Header.css';
 
 function Header(props : HeaderProps) {
     const {insightId, sessionId, steps, selectedRecording, setSelectedRecording
-            , setLoading, setEditedData, setUpdatedData, setShowData, setIsLastPage, setShot, live, setLive} = props
+            , setLoading, setEditedData, setUpdatedData, setShowData,
+            setIsLastPage, setShot, live, setLive, currUserModels, setCurrUserModels,
+            selectedModel, setSelectedModel} = props
+
     const [allRecordings, setAllRecordings] = useState<string[]>([]);
+    const modelOptions = Object.entries(currUserModels).map(([name, id]) => ({
+      label: name,
+      value: id,
+    }));
 
+    useEffect(() => {
+      async function getUserModels() {
+        try {
+          const pixel = `MyEngineProject(metaKeys = [], metaFilters=[{}], filterWord=[""], type=[["MODEL"]]);`;
+          const res = await runPixel(pixel, insightId);
+          const output = res.pixelReturn[0].output;
+  
+          if (Array.isArray(output)) {
+            const userModelsMap = output.reduce((acc, item) => {
+              acc[item.database_name] = item.database_id;
+              return acc;
+            }, {});
+  
+            setCurrUserModels((prev) => ({
+              ...prev,
+              ...userModelsMap,
+            }));
+          }
+        } catch (err) {
+          console.error("Fetch User Model err:", err);
+        }
+      }
+      getUserModels();
+    }, [insightId]);
 
+    
     useEffect(() => {
         const fetchRecordings = async () => {
           let pixel = `ListPlaywrightScripts();`
@@ -90,6 +122,26 @@ function Header(props : HeaderProps) {
           Start Live Replay
         </button>
         <button onClick={() => setLive(false)} disabled={!live}>Stop Live</button>
+
+        <Autocomplete
+          options={modelOptions}
+          value={selectedModel}
+          onChange={(_, newValue) => setSelectedModel(newValue)}
+          renderOption={(props, option) => (
+            <Box component="li" {...props}>
+              <div>
+                <Typography variant="body1">{option.label}</Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.7rem" }}>
+                  {option.value}
+                </Typography>
+              </div>
+            </Box>
+          )}
+          renderInput={(params) => (
+            <TextField {...params} label="Select LLM" placeholder="Search models..." />
+          )}
+          sx={{ minWidth: 250 }}
+        />
         <span className="header-recording-count">Steps: {steps.length}</span>
       </div>
     </>

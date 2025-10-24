@@ -6,7 +6,7 @@ import { Check, Close } from "@mui/icons-material";
 import ReactCrop, { type Crop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import Toolbar from "./Toolbar/Toolbar";
-import type { Coords, CropArea, Probe, ProbeRect, RemoteRunnerProps, ScreenshotResponse, Step, Viewport } from "../types";
+import type { Coords, CropArea, ModelOption, Probe, ProbeRect, RemoteRunnerProps, ScreenshotResponse, Step, Viewport } from "../types";
 import Header from "./Header/Header";
 import { useSendStep } from "../hooks/useSendStep";
 import { preferSelectorFromProbe } from "../hooks/usePreferSelector";
@@ -33,6 +33,12 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
  const [visionPopup, setVisionPopup] = useState<{x: number; y: number; query: string; response: string | null; } | null>(null);
  const [currentCropArea, setCurrentCropArea] = useState<CropArea | null>(null);
  const [mode, setMode] = useState<string>("click");
+ const ENGINE_ID = import.meta.env.VITE_LLM_ENGINE_ID;
+ const modelOptions: ModelOption[] = Object.entries({"Default Dev Model": ENGINE_ID}).map(([name, id]) => ({
+  label: name,
+  value: id,
+}));
+ const [selectedModel, setSelectedModel] = React.useState<ModelOption | null>(modelOptions[0]);
 
 
   const viewport: Viewport = {
@@ -320,6 +326,9 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     if (!s.borderTopStyle && !s.borderTopWidth) {
       st.border = "1px solid rgba(0,0,0,0.15)";
     }
+
+    // Force white background for overlay inputs
+    st.backgroundColor = "#fff";
   
     return st;
   }
@@ -404,7 +413,9 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       setTitle={setTitle}
       setDescription={setDescription}
       description={description}
-      mode={mode}/>
+      mode={mode}
+      selectedModel={selectedModel}
+      setSelectedModel={setSelectedModel}/>
 
       
       {!shot && loading && (
@@ -514,7 +525,8 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
             mode={mode}
             setMode={setMode} 
             crop={crop}
-            setCrop={setCrop}          
+            setCrop={setCrop}  
+            selectedModel={selectedModel}        
           />
           </div>
         </>

@@ -4,6 +4,8 @@ import './StepsBottomSection.css';
 import { useSendStep } from "../../hooks/useSendStep";
 import { preferSelectorFromProbe } from "../../hooks/usePreferSelector";
 import { useProbeAt } from "../../hooks/useProbeAt";
+import { useSkipStep } from "../../hooks/useSkipStep";
+
 
 function StepsBottomSection(props : StepsBottomSectionProps) {
     const {
@@ -228,16 +230,15 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
         setShot(output.screenshot);
       }
 
-    async function handleSkipStep() {
-        
-
-        let pixel = `SkipStep (sessionId = "${sessionId}", fileName = "${selectedRecording}");`;
-        const res = await runPixel(pixel, insightId);
-        const { output } = res.pixelReturn[0] as { output: ReplayPixelOutput };
-        setEditedData(output.actions);
-        setIsLastPage(output.isLastPage);
-        setOverlay(null);
-    }
+    const { handleSkipStep } = useSkipStep({
+      sessionId,
+      selectedRecording,
+      insightId,
+      setEditedData,
+      setIsLastPage,
+      setOverlay,
+      setLoading,
+    });
 
     function handleSkipAll() {
         setEditedData([]);
@@ -284,7 +285,7 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
                                                     {index === 0 && (
                                                         <td>
                                                             <button onClick={handleNextStep}>Execute →</button>
-                                                            <button onClick={() => handleSkipStep()}>Skip</button>
+                                                            <button onClick={handleSkipStep}>Skip</button>
                                                         </td>
                                                     )}
                                                 </tr>
@@ -303,7 +304,7 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
                                                     {index === 0 && (
                                                         <td>
                                                             <button onClick={handleNextStep}>Execute →</button>
-                                                            <button onClick={() => handleSkipStep()}>Skip</button>
+                                                            <button onClick={handleSkipStep}>Skip</button>
                                                         </td>
                                                     )}
                                                 </tr>
@@ -317,7 +318,7 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
                                                     {index === 0 && (
                                                         <td>
                                                             <button onClick={handleNextStep}>Execute →</button>
-                                                            <button onClick={() => handleSkipStep()}>Skip</button>
+                                                            <button onClick={handleSkipStep}>Skip</button>
                                                         </td>
                                                     )}
                                                 </tr>
@@ -331,7 +332,7 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
                                                     {index === 0 && (
                                                         <td>
                                                             <button onClick={handleNextStep}>Execute →</button>
-                                                            <button onClick={() => handleSkipStep()}>Skip</button>
+                                                            <button onClick={handleSkipStep}>Skip</button>
                                                         </td>
                                                     )}
                                                 </tr>
@@ -345,7 +346,7 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
                                                     {index === 0 && (
                                                         <td>
                                                             <button onClick={handleNextStep}>Execute →</button>
-                                                            <button onClick={() => handleSkipStep()}>Skip</button>
+                                                            <button onClick={handleSkipStep}>Skip</button>
                                                         </td>
                                                     )}
                                                 </tr>

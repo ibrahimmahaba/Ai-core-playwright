@@ -1,15 +1,48 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSendStep } from '../../hooks/useSendStep';
-import type { HeaderProps, Viewport } from '../../types';
+import type { HeaderProps, ModelOption, Viewport } from '../../types';
 import { runPixel } from "@semoss/sdk";
-import { TextField } from '@mui/material';
+import { Autocomplete, Box, TextField, Typography } from '@mui/material';
 import './header.css';
 
-
-
 function Header(props : HeaderProps) {
-    const {insightId, sessionId, shot, setShot, steps, setSteps, title, setTitle, setLoading, description, setDescription,  mode} = props
+    const {insightId, sessionId, shot, setShot, steps, setSteps, title,
+      setTitle, setLoading, description, setDescription,  mode,
+    selectedModel, setSelectedModel} = props
     const [url, setUrl] = useState("https://example.com");
+    const ENGINE_ID = import.meta.env.VITE_LLM_ENGINE_ID;
+    const [currUserModels, setCurrUserModels] = useState<Record<string, string>>({
+    "Default Dev Model": ENGINE_ID,
+    });
+    const modelOptions: ModelOption[] = Object.entries(currUserModels).map(([name, id]) => ({
+      label: name,
+      value: id,
+    }));
+
+    useEffect(() => {
+      async function getUserModels() {
+        try {
+          const pixel = `MyEngineProject(metaKeys = [], metaFilters=[{}], filterWord=[""], type=[["MODEL"]]);`;
+          const res = await runPixel(pixel, insightId);
+          const output = res.pixelReturn[0].output;
+  
+          if (Array.isArray(output)) {
+            const userModelsMap = output.reduce((acc, item) => {
+              acc[item.database_name] = item.database_id;
+              return acc;
+            }, {});
+  
+            setCurrUserModels((prev) => ({
+              ...prev,
+              ...userModelsMap,
+            }));
+          }
+        } catch (err) {
+          console.error("Fetch User Model err:", err);
+        }
+      }
+      getUserModels();
+    }, [insightId, ENGINE_ID]);
 
     const { sendStep } = useSendStep({
         insightId : insightId,
@@ -71,6 +104,26 @@ function Header(props : HeaderProps) {
               <button onClick={saveSession} disabled={!sessionId}>
               Save
               </button>
+
+              <Autocomplete
+                options={modelOptions}
+                value={selectedModel}
+                onChange={(_, newValue) => setSelectedModel(newValue)}
+                renderOption={(props, option) => (
+                  <Box component="li" {...props}>
+                    <div>
+                      <Typography variant="body1">{option.label}</Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.7rem" }}>
+                        {option.value}
+                      </Typography>
+                    </div>
+                  </Box>
+                )}
+                renderInput={(params) => (
+                  <TextField {...params} label="Select LLM" placeholder="Search models..." />
+                )}
+                sx={{ minWidth: 250 }}
+              />
               <span>Steps: {steps ? steps.length : 0}</span>
               {mode === "crop" && <span className="header-crop-mode">
               Drag to select crop area

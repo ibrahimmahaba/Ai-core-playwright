@@ -137,6 +137,10 @@ export type CropArea = {
    setIsLastPage: React.Dispatch<React.SetStateAction<boolean>>;
    live: boolean;
    setLive: React.Dispatch<React.SetStateAction<boolean>>;
+   currUserModels: Record<string, string>;
+   setCurrUserModels: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+   selectedModel: ModelOption | null;
+   setSelectedModel: React.Dispatch<React.SetStateAction<ModelOption | null>>
   }
 
   export interface Overlay{
@@ -181,6 +185,7 @@ export type CropArea = {
     setMode: React.Dispatch<React.SetStateAction<string>>;
     crop: Crop | undefined;
     setCrop: React.Dispatch<React.SetStateAction<Crop| undefined>>
+    selectedModel: ModelOption | null;
   }
 
 
@@ -242,3 +247,5 @@ export type CropArea = {
       hasForm: boolean;
     };
   };
+
+  export type ModelOption = { label: string; value: string };

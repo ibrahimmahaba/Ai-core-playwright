@@ -130,25 +130,27 @@ export interface ScreenshotResponse {
     setMode: (mode : string) => void;
     loading: boolean;
     setLoading: React.Dispatch<React.SetStateAction<boolean>>;
-    steps: Step[] | null;
-    setSteps:  React.Dispatch<React.SetStateAction<Step[]>>;
-    activeTab: number;
+    currentSteps: Step[];
+    activeTabId: string;
+    tabs: TabData[];
+    setTabs: React.Dispatch<React.SetStateAction<TabData[]>>;
+    setActiveTabId: React.Dispatch<React.SetStateAction<string>>;
   }
-
+  export interface TabData {
+    id: string;  
+    title: string;
+    steps: Step[];
+  }
   export interface UseSendStepParams {
     sessionId: string;
     insightId: string;
     shot?: ScreenshotResponse;
     setShot?: React.Dispatch<React.SetStateAction<ScreenshotResponse | undefined>>;
-    steps?: Step[] | null;
-    setSteps?: React.Dispatch<React.SetStateAction<Step[]>>;
     setLoading?: React.Dispatch<React.SetStateAction<boolean>>;
-    tabs?: { id: number; title: string }[];
-    setTabs?: React.Dispatch<React.SetStateAction<{
-      id: number;
-      title: string;
-    }[]>>;
-    setActiveTab?: React.Dispatch<React.SetStateAction<number>>;
+    tabs?: TabData[];
+    setTabs?: React.Dispatch<React.SetStateAction<TabData[]>>;
+    _activeTabId?: string;
+    setActiveTabId?: React.Dispatch<React.SetStateAction<string>>;
   }
 
   export interface HeaderProps {
@@ -156,8 +158,7 @@ export interface ScreenshotResponse {
     sessionId: string;
     shot: ScreenshotResponse | undefined;
     setShot:  React.Dispatch<React.SetStateAction<ScreenshotResponse | undefined>>;
-    steps: Step[] 
-    setSteps: React.Dispatch<React.SetStateAction<Step[]>>;
+    currentSteps: Step[];
     loading: boolean
     setLoading: React.Dispatch<React.SetStateAction<boolean>>;
     title: string;
@@ -165,7 +166,10 @@ export interface ScreenshotResponse {
     mode: string;
     setTitle: React.Dispatch<React.SetStateAction<string>>;
     setDescription: React.Dispatch<React.SetStateAction<string>>;
-    activeTab: number;
+    activeTabId: string;
+    tabs: TabData[];
+    setTabs: React.Dispatch<React.SetStateAction<TabData[]>>;
+    setActiveTabId: React.Dispatch<React.SetStateAction<string>>;
   }
 
   export interface VisionPopup {x: number; y: number; query: string; response: string | null;}

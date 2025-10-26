@@ -9,7 +9,7 @@ import { Alert, CircularProgress } from '@mui/material';
 function App() {
 
   const { insightId, isInitialized } = useInsight();
-  const [metadata, setMetadata] = useState<Record<string, string>>({});
+  //const [setMetadata] = useState<Record<string, string>>({});
   const [sessionId, setSessionId] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   
@@ -27,7 +27,7 @@ function App() {
         return;
    
       }
-    fetchMetadata();
+    //fetchMetadata();
    
     let pixel = `Session ( )`;
     const res = await runPixel(pixel, insightId);
@@ -43,12 +43,12 @@ function App() {
     init();
 }, [isInitialized] );
 
-async function fetchMetadata() {
-    const res = await runPixel("Metadata ( )", insightId);
-    const { output } = res.pixelReturn[0]
-    setMetadata(output as Record<string, string>);
-    console.log("Metadata:", output);
-  };
+// async function fetchMetadata() {
+//     const res = await runPixel("Metadata ( )", insightId);
+//     const { output } = res.pixelReturn[0]
+//     setMetadata(output as Record<string, string>);
+//     console.log("Metadata:", output);
+//   };
 
   if(error) {
     return (
@@ -67,7 +67,7 @@ async function fetchMetadata() {
 
   return (
       <>
-          <RemoteRunner sessionId={sessionId} insightId={insightId} metadata={metadata} ></RemoteRunner>
+          <RemoteRunner sessionId={sessionId} insightId={insightId} ></RemoteRunner>
       </>
   )
 }

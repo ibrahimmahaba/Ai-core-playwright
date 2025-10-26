@@ -13,8 +13,8 @@ import {useSendStep} from"../../hooks/useSendStep"
 import './toolbar.css';
 
 function Toolbar(props: ToolbarProps) {
-    const { sessionId, insightId, shot, setShot, mode, setMode, steps, setSteps, setLoading, activeTab} = props;
-
+  const { sessionId, insightId, shot, setShot, mode, setMode, setLoading, activeTabId} = props;
+  
     const viewport: Viewport = {
         width: shot?.width ?? 1280,
         height: shot?.height ?? 800,
@@ -23,18 +23,21 @@ function Toolbar(props: ToolbarProps) {
 
 
     const { sendStep } = useSendStep({
-        sessionId,
-        insightId,
-        shot: shot,
-        setShot: setShot,
-        steps: steps,
-        setSteps: setSteps,
-        setLoading: setLoading,
-      });
+      sessionId,
+      insightId,
+      shot: shot,
+      setShot: setShot,
+      setLoading: setLoading,
+      tabs: props.tabs,
+      setTabs: props.setTabs,
+      _activeTabId: activeTabId,
+      setActiveTabId: props.setActiveTabId
+  });
+
     async function fetchScreenshot() {
         if (!sessionId) return;
         try {
-            let pixel = `Screenshot ( sessionId = "${sessionId}", tabId="tab-${activeTab}" )`;
+            let pixel = `Screenshot ( sessionId = "${sessionId}", tabId="${activeTabId}" )`;
             const res = await runPixel(pixel, insightId);
             const { output } = res.pixelReturn[0];
             const snap = normalizeShot(output);
@@ -59,8 +62,8 @@ function Toolbar(props: ToolbarProps) {
         if (!sessionId) return;
         const ms = Number(window.prompt("Wait how many ms?", "800")) || 800;
         const step: Step = { type: "WAIT", waitAfterMs: ms, viewport, timestamp: Date.now() };
-        await sendStep(step, activeTab); 
-    }
+        await sendStep(step, activeTabId);
+      }
 
     async function scrollUp() {
         if (!shot) return;
@@ -71,7 +74,7 @@ function Toolbar(props: ToolbarProps) {
             viewport,
             waitAfterMs: 300,
             timestamp: Date.now(),
-        }, activeTab)
+        }, activeTabId)
     }
 
     async function scrollDown() {
@@ -83,7 +86,7 @@ function Toolbar(props: ToolbarProps) {
             viewport,
             waitAfterMs: 300,
             timestamp: Date.now(),
-         }, activeTab);
+         }, activeTabId);
     }
 
   return (

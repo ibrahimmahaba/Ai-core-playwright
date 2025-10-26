@@ -6,7 +6,7 @@ import { Check, Close } from "@mui/icons-material";
 import ReactCrop, { type Crop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import Toolbar from "./Toolbar/Toolbar";
-import type { Coords, CropArea, Probe, ProbeRect, RemoteRunnerProps, ScreenshotResponse, Step, Viewport } from "../types";
+import type { Coords, CropArea, Probe, ProbeRect, RemoteRunnerProps, ScreenshotResponse, Step, Viewport, TabData } from "../types";
 import Header from "./Header/Header";
 import { useSendStep } from "../hooks/useSendStep";
 import { preferSelectorFromProbe } from "../hooks/usePreferSelector";
@@ -20,7 +20,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [shot, setShot] = useState<ScreenshotResponse>();
-  const [steps, setSteps] = useState<Step[]>([]);
+ // const [steps, setSteps] = useState<Step[]>([]);
   const imgRef = useRef<HTMLImageElement>(null);
   const [overlay, setOverlay] = useState<{
     kind: "input" | "confirm";
@@ -33,21 +33,24 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
  const [visionPopup, setVisionPopup] = useState<{x: number; y: number; query: string; response: string | null; } | null>(null);
  const [currentCropArea, setCurrentCropArea] = useState<CropArea | null>(null);
  const [mode, setMode] = useState<string>("click");
- const [tabs, setTabs] = useState([
-    { id: 1, title: "tab-1" }
+ const [tabs, setTabs] = useState<TabData[]>([
+    { id: "tab-1", title: "tab-1", steps: [] }  
   ]);
-  const [activeTab, setActiveTab] = useState(1);
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    setActiveTab(newValue);
+  const [activeTabId, setActiveTabId] = useState<string>("tab-1");
+
+  const currentTab = tabs.find(t => t.id === activeTabId);
+  const currentSteps = currentTab?.steps || [];
+  
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: string) => {
+    setActiveTabId(newValue);
   };
 
-  const handleCloseTab = (tabId: number) => {
+  const handleCloseTab = (tabId: string) => {
     const updatedTabs = tabs.filter((tab) => tab.id !== tabId);
     setTabs(updatedTabs);
-
-    // Adjust active tab if the closed tab was active
-    if (activeTab === tabId && updatedTabs.length > 0) {
-      setActiveTab(updatedTabs[0].id);
+  
+    if (activeTabId === tabId && updatedTabs.length > 0) {
+      setActiveTabId(updatedTabs[0].id);
     }
   };
 
@@ -63,13 +66,12 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     sessionId : sessionId,
     shot: shot,
     setShot: setShot,
-    steps: steps,
-    setSteps: setSteps,
     setLoading: setLoading,
     tabs: tabs,
     setTabs: setTabs,
-    setActiveTab: setActiveTab
-});
+    _activeTabId: activeTabId,
+    setActiveTabId: setActiveTabId
+  });
   // async function sendStep(step: Step) {
   //   if (!sessionId) return;
 
@@ -104,7 +106,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     if (!sessionId) return ;
     if (!pendingCoords) alert("Invalid Coordinates");
 
-    let pixel = `ProbeElement (sessionId = "${sessionId}" , coords = "${pendingCoords?.x}, ${pendingCoords?.y}", tabId = "tab-${activeTab}");`
+    let pixel = `ProbeElement (sessionId = "${sessionId}" , coords = "${pendingCoords?.x}, ${pendingCoords?.y}", tabId = "${activeTabId}");`
     const res = await runPixel(pixel, insightId);
     const { output } = res.pixelReturn[0] as { output: Probe };
     console.log(output)
@@ -367,7 +369,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
           waitAfterMs: 300,
           timestamp: Date.now(),
           selector: preferSelectorFromProbe(p) || { strategy: "css", value: "body" }
-        }, activeTab);
+        }, activeTabId);
       }
   }
   function handleVisionPopup(cropArea: CropArea) { 
@@ -398,10 +400,12 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       setShot={setShot}
       loading={loading}
       setLoading={setLoading}
-      steps={steps}
-      setSteps={setSteps}
-      activeTab={activeTab}
-      />
+      currentSteps={currentSteps}
+      activeTabId={activeTabId}
+      tabs={tabs}
+      setTabs={setTabs}
+      setActiveTabId={setActiveTabId}
+    />
 
       {/* Header / and metadata form */}
       <Header 
@@ -409,17 +413,19 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       sessionId={sessionId}
       shot={shot}
       setShot={setShot}
-      steps={steps}
-      setSteps={setSteps}
-      loading={loading}
+      currentSteps={currentSteps}
       setLoading={setLoading}
+      loading={loading}
       title={title}
       setTitle={setTitle}
       setDescription={setDescription}
       description={description}
       mode={mode}
-      activeTab={activeTab}
-      />
+      activeTabId={activeTabId}
+      tabs={tabs}
+      setTabs={setTabs}
+      setActiveTabId={setActiveTabId}
+    />
 
       
       {!shot && loading && (
@@ -431,36 +437,34 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       {shot && (
         <>
           <Tabs
-            value={activeTab} // Bind active tab state
-            onChange={handleTabChange} // Handle tab switching
+            value={activeTabId}
+            onChange={handleTabChange}
             variant="scrollable"
             scrollButtons="auto"
           >
             {tabs.map((tab) => (
               <Tab
                 key={tab.id}
-                value={tab.id} // Each tab has a unique value
+                value={tab.id}
                 label={
                   <Box display="flex" alignItems="center">
                     {tab.title}
                     {tabs.length > 1 && (
-                    <IconButton
-                      size="small"
-                      
-                      onClick={(e) => {
-                        e.stopPropagation(); // Prevent tab switch on close button click
-                        handleCloseTab(tab.id); // Close the tab
-                      }}
-                    >
-                      <Close fontSize="small" />
-                    </IconButton>
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCloseTab(tab.id);
+                        }}
+                      >
+                        <Close fontSize="small" />
+                      </IconButton>
                     )}
                   </Box>
                 }
               />
             ))}
           </Tabs>
-
             <div className="remote-runner-image-container">
               {mode === "crop" ? (
                 <ReactCrop
@@ -528,7 +532,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
                         viewport,
                         waitAfterMs: 300,
                         timestamp: Date.now()
-                      } as Step, activeTab);
+                      } as Step, activeTabId);
                     } else {
                       await sendStep({
                         type: "CLICK",
@@ -536,7 +540,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
                         viewport,
                         waitAfterMs: 300,
                         timestamp: Date.now()
-                      } as Step, activeTab);
+                      } as Step, activeTabId);
                     }
                     setOverlay(null);
                   }}

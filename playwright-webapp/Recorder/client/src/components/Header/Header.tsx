@@ -8,17 +8,19 @@ import './header.css';
 
 
 function Header(props : HeaderProps) {
-    const {insightId, sessionId, shot, setShot, steps, setSteps, title, setTitle, setLoading, description, setDescription,  mode, activeTab} = props
-    const [url, setUrl] = useState("https://example.com");
+  const {insightId, sessionId, shot, setShot, currentSteps, title, setTitle, setLoading, description, setDescription, mode, activeTabId} = props;
+      const [url, setUrl] = useState("https://example.com");
 
-    const { sendStep } = useSendStep({
+      const { sendStep } = useSendStep({
         insightId : insightId,
         sessionId : sessionId,
         shot: shot,
         setShot: setShot,
-        steps: steps,
-        setSteps: setSteps,
-        setLoading: setLoading
+        setLoading: setLoading,
+        tabs: props.tabs,
+        setTabs: props.setTabs,
+        _activeTabId: activeTabId,
+        setActiveTabId: props.setActiveTabId
     });
 
     const viewport: Viewport = {
@@ -67,11 +69,11 @@ function Header(props : HeaderProps) {
               className="header-input"
               placeholder="Enter URL"
               />
-              <button onClick={() => sendStep({ type: "NAVIGATE", url: url, waitAfterMs: 100, viewport, timestamp: Date.now() }, activeTab, true)}>Open</button>
+              <button onClick={() => sendStep({ type: "NAVIGATE", url: url, waitAfterMs: 100, viewport, timestamp: Date.now() }, activeTabId, true)}>Open</button>
               <button onClick={saveSession} disabled={!sessionId}>
               Save
               </button>
-              <span>Steps: {steps ? steps.length : 0}</span>
+              <span>Steps: {currentSteps ? currentSteps.length : 0}</span>
               {mode === "crop" && <span className="header-crop-mode">
               Drag to select crop area
               </span>}

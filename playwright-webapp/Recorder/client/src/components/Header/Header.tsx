@@ -112,7 +112,25 @@ function Header(props : HeaderProps) {
               className="header-input"
               placeholder="Enter URL"
               />
-              <button onClick={() => sendStep({ type: "NAVIGATE", url: url, waitAfterMs: 100, viewport, timestamp: Date.now() }, activeTabId, true)}>Open</button>
+              <button
+                onClick={() => {
+                  let formattedUrl = url.trim();
+                  if (!/^https?:\/\//i.test(formattedUrl)) {
+                    formattedUrl = "https://" + formattedUrl;
+                    setUrl(formattedUrl); 
+                  }
+                  sendStep({
+                    type: "NAVIGATE",
+                    url: formattedUrl,
+                    waitAfterMs: 100,
+                    viewport,
+                    timestamp: Date.now()
+                  }, activeTabId,true);
+                }}
+              >
+                Open
+              </button>
+
               <button onClick={saveSession} disabled={!sessionId}>
               Save
               </button>

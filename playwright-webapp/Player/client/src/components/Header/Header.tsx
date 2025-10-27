@@ -61,7 +61,7 @@ function Header(props : HeaderProps) {
       
     // Initialize with first tab
     if (props.setTabs) {
-      props.setTabs([{ id: "tab-1", title: "Tab 1", actions: output.actions || [] }]);
+      props.setTabs([{ id: "tab-1", title: output.tabTitle?? "Tab 1", actions: output.actions || [] }]);
     }
     if (props.setActiveTabId) {
       props.setActiveTabId("tab-1");

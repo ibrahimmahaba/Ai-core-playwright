@@ -7,10 +7,10 @@ import { useProbeAt } from "../../hooks/useProbeAt";
 
 function StepsBottomSection(props : StepsBottomSectionProps) {
     const {
-        showData, setShowData, lastPage, setIsLastPage, editedData,
+        showData, setShowData, setIsLastPage, editedData,
         overlay, setOverlay, sessionId, selectedRecording, 
         setLoading, insightId, setEditedData, updatedData, setUpdatedData, setShot,
-        setHighlight, steps, setSteps, shot
+        setHighlight, steps, setSteps, shot, activeTabId, tabs, setTabs , setActiveTabId
     } = props
 
     const { sendStep } = useSendStep({
@@ -37,7 +37,9 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
         const nextAction = editedData[0];
         console.log("Handling next action:", nextAction);
         console.log("Selected recording:", selectedRecording);
-
+        
+        const actionTabId = (nextAction as any).tabId || activeTabId || "tab-1";
+    
         if (!selectedRecording) {
           console.log("Executing step directly via sendStep");
           setLoading(true);
@@ -89,7 +91,17 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
               });
             }
             
-            // Remove executed step
+            // Remove executed step from current tab
+            if (tabs && setTabs && activeTabId) {
+              setTabs(prevTabs => prevTabs.map(tab => {
+                if (tab.id === activeTabId) {
+                  const newActions = tab.actions.slice(1);
+                  return { ...tab, actions: newActions };
+                }
+                return tab;
+              }));
+            }
+            
             const newEditedData = editedData.slice(1);
             setEditedData(newEditedData);
             setUpdatedData(newEditedData);
@@ -99,51 +111,112 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
           }
           return;
         }
+        
         console.log("Executing step via ReplayStep pixel");
         let pixel;
+        
         if ("TYPE" in nextAction) {
           if (overlay && overlay.draftValue !== undefined) {
             nextAction.TYPE.text = overlay.draftValue;
           }
           const { label, text } = nextAction.TYPE;
           let paramValues = { [label]: text };
-          pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${selectedRecording}", paramValues=[${JSON.stringify(paramValues)}], executeAll=false);`;
+          pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${selectedRecording}", tabId="${actionTabId}", paramValues=[${JSON.stringify(paramValues)}], executeAll=false);`;
           setOverlay(null);
         } else {
-          pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${selectedRecording}", executeAll=false);`;
+          pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${selectedRecording}", tabId="${actionTabId}", executeAll=false);`;
         }
         
         setLoading(true);
         const res = await runPixel(pixel, insightId);
         const { output } = res.pixelReturn[0] as { output: ReplayPixelOutput };
-      
-        const newEditedData = editedData.slice(1);
-        console.log("Received output from ReplayStep pixel:", output);
-        if (!newEditedData || newEditedData.length === 0) {
-          console.log("Setting editedData to returned actions from pixel");
-          setEditedData(output.actions);
-          setUpdatedData(output.actions);
-        } else {
-          console.log("Merging returned actions with existing editedData");
-          const updatedEditedData = newEditedData.map((action, index) => {
-            console.log("Merging action at index", index, ":", action, "with", output.actions[index]);
-            if (output.actions[index]) {
-              return { ...action, ...output.actions[index] };
+    
+        console.log("StepsBottomSection - ReplayStep output:", output);
+    
+        // Check if this action opened a new tab
+        const isNewTab = output.isNewTab;
+        const newTabId = output.newTabId;
+        const tabTitle = output.tabTitle;
+        const originalTabId = output.originalTabId || actionTabId;
+        const originalTabActions = output.originalTabActions || [];
+        
+        if (isNewTab && newTabId && tabs && setTabs && setActiveTabId) {
+          console.log("StepsBottomSection, New tab detected:", newTabId, tabTitle);
+          console.log("Original tab:", originalTabId, "has", originalTabActions.length, "remaining actions");
+          
+          // Check if tab already exists
+          const tabExists = tabs.find(t => t.id === newTabId);
+          
+          setTabs(prevTabs => {
+            // Update both the original tab and the new tab
+            let updatedTabs = prevTabs.map(tab => {
+              if (tab.id === newTabId) {
+                // Update existing new tab
+                return {
+                  id: newTabId,
+                  title: tabTitle || newTabId,
+                  actions: output.actions || []
+                };
+              } else if (tab.id === originalTabId) {
+                return {
+                  ...tab,
+                  actions: originalTabActions
+                };
+              }
+              return tab;
+            });
+            
+            // Add new tab if it doesn't exist
+            if (!tabExists) {
+              updatedTabs.push({
+                id: newTabId,
+                title: tabTitle || newTabId,
+                actions: output.actions || []
+              });
             }
-            return action;
+            
+            console.log("StepsBottomSection, Updated tabs array:", updatedTabs);
+            return updatedTabs;
           });
-          setEditedData(updatedEditedData);
+          
+          // Switch to the new tab
+          setActiveTabId(newTabId);
+          console.log("StepsBottomSection, Switched to tab:", newTabId);
+          
+          // Update displayed actions for the new tab
+          setEditedData(output.actions || []);
+          setUpdatedData(output.actions || []);
+        } else {
+          if (tabs && setTabs && activeTabId) {
+            setTabs(prevTabs => prevTabs.map(tab => {
+              if (tab.id === actionTabId) {
+                return { ...tab, actions: tab.actions.slice(1) };
+              }
+              return tab;
+            }));
+          }
+          
+          // Update display
+          const newEditedData = editedData.slice(1);
+          setEditedData(newEditedData);
+          
+          if (output.actions && output.actions.length > 0) {
+            setUpdatedData(output.actions);
+          } else {
+            setUpdatedData(newEditedData);
+          }
         }
         setLoading(false);
-        setUpdatedData(output.actions);
         setShowData(true);
         setIsLastPage(output.isLastPage);
         setShot(output.screenshot);
+        setOverlay(null);
       }
     
       async function handleExecuteAll() {
         setLoading(true);
-        
+        const currentTabId = activeTabId || "tab-1";  
+
         // If no recording file
         if (!selectedRecording) {
           try {
@@ -196,6 +269,15 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
               await new Promise(resolve => setTimeout(resolve, 300));
             }
             
+            if (tabs && setTabs && activeTabId) {
+              setTabs(prevTabs => prevTabs.map(tab => {
+                if (tab.id === activeTabId) {
+                  return { ...tab, actions: [] };
+                }
+                return tab;
+              }));
+            }
+
             setEditedData([]);
             setUpdatedData([]);
             setShowData(false);
@@ -209,17 +291,26 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
           return;
         }
         
-        const result = updatedData.reduce<Record<string, string>[]>((acc, action) => {
+        updatedData.reduce<Record<string, string>[]>((acc, action) => {
           if ("TYPE" in action) {
             acc.push({ [action.TYPE.label]: action.TYPE.text });
           }
           return acc;
         }, []);
       
-        let pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${selectedRecording}", executeAll=true, paramValues=${JSON.stringify(result)});`;
+        let pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${selectedRecording}", tabId="${currentTabId}", executeAll=true);`;
         const res = await runPixel(pixel, insightId);
         const { output } = res.pixelReturn[0] as { output: ReplayPixelOutput };
-      
+
+        if (tabs && setTabs && activeTabId) {
+          setTabs(prevTabs => prevTabs.map(tab => {
+            if (tab.id === activeTabId) {
+              return { ...tab, actions: [] };
+            }
+            return tab;
+          }));
+        }
+        console.log("Execute All output:", output);
         setLoading(false);
         setEditedData(output.actions);
         setUpdatedData(output.actions);
@@ -229,9 +320,9 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
       }
 
     async function handleSkipStep() {
-        
+        const currentTabId = activeTabId || "tab-1";  
 
-        let pixel = `SkipStep (sessionId = "${sessionId}", fileName = "${selectedRecording}");`;
+        let pixel = `SkipStep (sessionId = "${sessionId}", fileName = "${selectedRecording}", tabId = "${currentTabId}");`;
         const res = await runPixel(pixel, insightId);
         const { output } = res.pixelReturn[0] as { output: ReplayPixelOutput };
         setEditedData(output.actions);
@@ -248,7 +339,7 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
 
     return (
         <>
-            {showData && !lastPage && (
+            {showData && (
                 <div className="steps-container">
                     <div className="steps-header">
                         <h4>Edit Replay Variables</h4>
@@ -267,7 +358,7 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
                             </thead>
                             <tbody>
                                 {editedData.map((action, index) => {
-                                    const type = Object.keys(action)[0] as keyof Action;
+                                    const type = Object.keys(action).find(key => key !== 'tabId') as keyof Action;
                                     const details = action[type] as any;
                                     const detailCoords = details?.coords
                                         ? { x: details.coords.x, y: details.coords.y }

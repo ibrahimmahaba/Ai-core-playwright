@@ -88,6 +88,11 @@ export type CropArea = {
     isLastPage: boolean;
     actions: Action[];
     screenshot?: ScreenshotResponse;
+    isNewTab?: boolean;      
+    newTabId?: string; 
+    tabTitle?: string; 
+    originalTabId?: string;
+    originalTabActions?: Action[];
   };
   
   export type modelGeneratedSteps = {
@@ -120,6 +125,7 @@ export type CropArea = {
     setSteps: React.Dispatch<React.SetStateAction<Step[]>>;
     generationUserPrompt: string;
     setGenerationUserPrompt: React.Dispatch<React.SetStateAction<string>>;
+    tabId: string;
   }
 
 
@@ -137,6 +143,10 @@ export type CropArea = {
    setIsLastPage: React.Dispatch<React.SetStateAction<boolean>>;
    live: boolean;
    setLive: React.Dispatch<React.SetStateAction<boolean>>;
+   tabs?: TabData[];
+   setTabs?: React.Dispatch<React.SetStateAction<TabData[]>>;
+   activeTabId?: string;
+   setActiveTabId?: React.Dispatch<React.SetStateAction<string>>;
   }
 
   export interface Overlay{
@@ -166,6 +176,10 @@ export type CropArea = {
     steps: Step[] ;
     setSteps: React.Dispatch<React.SetStateAction<Step[]>>;
     shot: ScreenshotResponse | undefined;
+    activeTabId?: string;  
+    tabs?: TabData[];     
+    setTabs?: React.Dispatch<React.SetStateAction<TabData[]>>; 
+    setActiveTabId?: React.Dispatch<React.SetStateAction<string>>;
   }
 
   export interface VisionPopup {x: number; y: number; query: string; response: string | null;}
@@ -242,3 +256,8 @@ export type CropArea = {
       hasForm: boolean;
     };
   };
+  export interface TabData {
+    id: string;
+    title: string;
+    actions: Action[];
+  }

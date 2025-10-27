@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect, useMemo } from "react"; // added useMemo
 import { runPixel } from "@semoss/sdk";
 import { CircularProgress, FormControlLabel, Checkbox } from "@mui/material";
 import { IconButton } from "@mui/material";
@@ -25,14 +25,15 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
   const [overlay, setOverlay] = useState<{
     kind: "input" | "confirm";
     probe: Probe;
-    // fields for the inline editor
     draftValue?: string;
     draftLabel?: string | null;
+    draftStoreValue?: boolean; // added to avoid any cast
   } | null>(null);
   const [crop, setCrop] = useState<Crop>();
  const [visionPopup, setVisionPopup] = useState<{x: number; y: number; query: string; response: string | null; } | null>(null);
  const [currentCropArea, setCurrentCropArea] = useState<CropArea | null>(null);
  const [mode, setMode] = useState<string>("click");
+ const prevShotBase64Ref = useRef<string>("");
 
 
   const viewport: Viewport = {
@@ -40,6 +41,42 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     height: shot?.height ?? 800,
     deviceScaleFactor: shot?.deviceScaleFactor ?? 1,
   };
+
+  // normalize screenshot utility
+  function normalizeShot(raw: unknown): ScreenshotResponse | undefined {
+    if (!raw || typeof raw !== 'object') return undefined;
+    const r = raw as Record<string, unknown>;
+    const base64 = (r['base64Png'] || r['base64'] || r['imageBase64'] || r['pngBase64'] || r['data'] || "") as string;
+    const width = (r['width'] || r['w'] || 1280) as number;
+    const height = (r['height'] || r['h'] || 800) as number;
+    const dpr = (r['deviceScaleFactor'] || r['dpr'] || 1) as number;
+    if (!base64 || typeof base64 !== "string") return undefined;
+    return { base64Png: base64, width, height, deviceScaleFactor: dpr };
+  }
+
+  // live polling for latest screenshot every second
+  useEffect(() => {
+    if (!sessionId) return; // wait until session established
+    let active = true;
+    const poll = async () => {
+      try {
+        const pixel = `Screenshot ( sessionId = "${sessionId}" )`;
+        const res = await runPixel(pixel, insightId);
+        const { output } = res.pixelReturn[0];
+        const snap = normalizeShot(output);
+        if (active && snap && snap.base64Png !== prevShotBase64Ref.current) {
+          prevShotBase64Ref.current = snap.base64Png;
+          setShot(snap);
+        }
+      } catch (e) {
+        console.error("Live replay screenshot error", e);
+      }
+    };
+    // initial fetch
+    poll();
+    const id = setInterval(poll, 1000); // 1s interval
+    return () => { active = false; clearInterval(id); };
+  }, [sessionId, insightId]);
 
   const { sendStep } = useSendStep({
     insightId : insightId,
@@ -82,14 +119,12 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
   }
   async function probeAt(pendingCoords: Coords | null) {
     if (!sessionId) return ;
-    if (!pendingCoords) alert("Invalid Coordinates");
+    if (!pendingCoords) { alert("Invalid Coordinates"); return; }
 
-    let pixel = `ProbeElement (sessionId = "${sessionId}" , coords = "${pendingCoords?.x}, ${pendingCoords?.y}");`
+    const pixel = `ProbeElement (sessionId = "${sessionId}" , coords = "${pendingCoords.x}, ${pendingCoords.y}");`;
     const res = await runPixel(pixel, insightId);
     const { output } = res.pixelReturn[0] as { output: Probe };
-    console.log(output)
     return output;
-
   }
 
   function Overlay({
@@ -103,11 +138,12 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     shot: ScreenshotResponse;
     onCancel: () => void;
     onSubmit: (value?: string, label?: string | null) => void;
-    imgRef: React.RefObject<HTMLImageElement | null>; // 👈 fix here
+    imgRef: React.RefObject<HTMLImageElement | null>;
   }) {
     const imgEl = imgRef.current;
+    // Placeholder styling hook must run unconditionally
+    const placeholderClass = useMemo(() => `ph-${Math.random().toString(36).slice(2)}`, []);
     if (!imgEl) return null;
-  
     const { probe } = ol;
     const box = pageRectToImageCss(probe.rect, imgEl, shot);
   
@@ -126,25 +162,10 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
   
     // Build inner control style from computed CSS
     const controlStyle = buildInputStyleFromProbe(probe);
-  
-    // Placeholder styling via dynamic class
-    const placeholderClass = React.useMemo(
-      () => `ph-${Math.random().toString(36).slice(2)}`,
-      []
-    );
+    // Placeholder CSS
     const ph = probe.placeholderStyle || {};
-    const placeholderCss = `
-      .${placeholderClass}::placeholder {
-        ${ph.color ? `color: ${ph.color} !important;` : ""}
-        ${ph.opacity ? `opacity: ${ph.opacity} !important;` : ""}
-        ${ph.fontStyle ? `font-style: ${ph.fontStyle} !important;` : ""}
-        ${ph.fontWeight ? `font-weight: ${ph.fontWeight} !important;` : ""}
-        ${ph.fontSize ? `font-size: ${ph.fontSize} !important;` : ""}
-        ${ph.fontFamily ? `font-family: ${ph.fontFamily} !important;` : ""}
-        ${ph.letterSpacing ? `letter-spacing: ${ph.letterSpacing} !important;` : ""}
-      }
-    `;
-  
+    const placeholderCss = `\n      .${placeholderClass}::placeholder {\n        ${ph.color ? `color: ${ph.color} !important;` : ""}\n        ${ph.opacity ? `opacity: ${ph.opacity} !important;` : ""}\n        ${ph.fontStyle ? `font-style: ${ph.fontStyle} !important;` : ""}\n        ${ph.fontWeight ? `font-weight: ${ph.fontWeight} !important;` : ""}\n        ${ph.fontSize ? `font-size: ${ph.fontSize} !important;` : ""}\n        ${ph.fontFamily ? `font-family: ${ph.fontFamily} !important;` : ""}\n        ${ph.letterSpacing ? `letter-spacing: ${ph.letterSpacing} !important;` : ""}\n      }\n    `;
+
     if (ol.kind === "input") {
       // Decide input vs textarea
       const isTextarea = probe.tag === "textarea";
@@ -153,12 +174,14 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
         className: placeholderClass,
         placeholder: probe.placeholder ?? "",
         defaultValue: ol.draftValue ?? probe.value ?? "",
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         onKeyDown: (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
           if (e.key === "Enter" && !isTextarea) {
             onSubmit((e.target as HTMLInputElement | HTMLTextAreaElement).value, ol.draftLabel ?? null);
           }
           if (e.key === "Escape") onCancel();
         },
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
           ol.draftValue = e.target.value;
         },
@@ -190,7 +213,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
                   <Checkbox
                     defaultChecked
                     onChange={(e) => {
-                      (ol as any).draftStoreValue = e.target.checked;
+                      setOverlay(prev => prev ? { ...prev, draftStoreValue: e.target.checked } : prev);
                     }}
                   />
                 }
@@ -252,37 +275,30 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
   }
 
   function buildInputStyleFromProbe(p: Probe): React.CSSProperties {
+    /* eslint-disable @typescript-eslint/no-explicit-any */
     const s = p.styles || {};
-    // Keep values as strings (e.g., "12px", "rgb(...)")
     const st: React.CSSProperties = {
-      // box model
       boxSizing: (s.boxSizing as any) || "border-box",
       paddingTop: s.paddingTop, paddingRight: s.paddingRight,
       paddingBottom: s.paddingBottom, paddingLeft: s.paddingLeft,
-  
       borderTopWidth: s.borderTopWidth, borderRightWidth: s.borderRightWidth,
       borderBottomWidth: s.borderBottomWidth, borderLeftWidth: s.borderLeftWidth,
       borderTopStyle: s.borderTopStyle as any, borderRightStyle: s.borderRightStyle as any,
       borderBottomStyle: s.borderBottomStyle as any, borderLeftStyle: s.borderLeftStyle as any,
       borderTopColor: s.borderTopColor, borderRightColor: s.borderRightColor,
       borderBottomColor: s.borderBottomColor, borderLeftColor: s.borderLeftColor,
-  
       borderTopLeftRadius: s.borderTopLeftRadius, borderTopRightRadius: s.borderTopRightRadius,
       borderBottomRightRadius: s.borderBottomRightRadius, borderBottomLeftRadius: s.borderBottomLeftRadius,
-  
-      // visual
       color: s.color,
       backgroundColor: s.backgroundColor,
-      backgroundImage: s.backgroundImage,      // often 'none'
-      backgroundClip: s.backgroundClip as any, // e.g., 'padding-box'
+      backgroundImage: s.backgroundImage,
+      backgroundClip: s.backgroundClip as any,
       outlineWidth: s.outlineWidth,
       outlineStyle: s.outlineStyle as any,
       outlineColor: s.outlineColor,
       outlineOffset: s.outlineOffset,
       boxShadow: s.boxShadow,
       textShadow: s.textShadow,
-  
-      // typography
       fontFamily: s.fontFamily,
       fontSize: s.fontSize,
       fontWeight: s.fontWeight as any,
@@ -296,31 +312,21 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       textDecorationLine: s.textDecorationLine as any,
       textDecorationStyle: s.textDecorationStyle as any,
       textDecorationColor: s.textDecorationColor,
-  
-      // caret & overflow
-      // (caretColor works on inputs/textareas)
       caretColor: s.caretColor as any,
       overflow: s.overflow as any,
       overflowX: s.overflowX as any,
       overflowY: s.overflowY as any,
-  
-      // ensure it fills the overlay box
       width: "100%",
       height: "100%",
     };
-  
-    // Safety defaults for tiny targets
     if (!st.paddingTop) st.paddingTop = "6px";
     if (!st.paddingBottom) st.paddingBottom = "6px";
     if (!st.paddingLeft) st.paddingLeft = "8px";
     if (!st.paddingRight) st.paddingRight = "8px";
-  
-    // If the element has zero border style/width, ensure something predictable
-    // (Otherwise browsers may treat undefined as medium)
     if (!s.borderTopStyle && !s.borderTopWidth) {
-      st.border = "1px solid rgba(0,0,0,0.15)";
+      (st as any).border = "1px solid rgba(0,0,0,0.15)";
     }
-  
+    /* eslint-enable @typescript-eslint/no-explicit-any */
     return st;
   }
 
@@ -456,7 +462,6 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
 
             {overlay && shot && (
               <>
-                {console.log(Overlay)}
                 <Overlay
                   ol={overlay}
                   shot={shot}
@@ -464,7 +469,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
                   onCancel={() => setOverlay(null)}
                   onSubmit={async (value, label) => {
                     const { probe } = overlay!;
-                    const draftStoreValue = (overlay as any).draftStoreValue ?? true;
+                    const draftStoreValue = overlay!.draftStoreValue ?? true;
                     const coords = {
                       x: Math.round(probe.rect.x + probe.rect.width / 2),
                       y: Math.round(probe.rect.y + probe.rect.height / 2)
@@ -474,11 +479,11 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
                       await sendStep({
                         type: "TYPE",
                         coords,
-                        text: value ?? "" ,
+                        text: value ?? "",
                         label: label ?? null,
                         pressEnter: false,
                         isPassword: probe.type === "password",
-                        storeValue: probe.type == "password" || probe.type == "email" ? false : draftStoreValue,   
+                        storeValue: probe.type === "password" || probe.type === "email" ? false : draftStoreValue,
                         viewport,
                         waitAfterMs: 300,
                         timestamp: Date.now()
@@ -504,17 +509,17 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
               </div>
             )}
 
-          <VisionPopup 
-            sessionId={sessionId} 
+          <VisionPopup
+            sessionId={sessionId}
             insightId={insightId}
-            visionPopup={visionPopup} 
+            visionPopup={visionPopup}
             setVisionPopup={setVisionPopup}
             currentCropArea={currentCropArea}
             setCurrentCropArea={setCurrentCropArea}
             mode={mode}
-            setMode={setMode} 
+            setMode={setMode}
             crop={crop}
-            setCrop={setCrop}          
+            setCrop={setCrop}
           />
           </div>
         </>

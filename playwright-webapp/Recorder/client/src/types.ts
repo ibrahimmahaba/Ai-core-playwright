@@ -133,6 +133,7 @@ export interface ScreenshotResponse {
     setLoading: React.Dispatch<React.SetStateAction<boolean>>;
     steps: Step[] | null;
     setSteps:  React.Dispatch<React.SetStateAction<Step[]>>;
+    selectedModel: ModelOption | null;
   }
 
   export interface UseSendStepParams {

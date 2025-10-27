@@ -41,10 +41,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
   const [crop, setCrop] = useState<Crop>();
   const [mode, setMode] = useState<string>("click");
   const [generationUserPrompt, setGenerationUserPrompt] = useState(" ");
-  const ENGINE_ID = import.meta.env.VITE_LLM_ENGINE_ID;
-  const [currUserModels, setCurrUserModels] = useState<Record<string, string>>({
-  "Default Dev Model": ENGINE_ID,
-  });
+  const [currUserModels, setCurrUserModels] = useState<Record<string, string>>({});
   const modelOptions: ModelOption[] = Object.entries(currUserModels).map(([name, id]) => ({
     label: name,
     value: id,
@@ -723,6 +720,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
         setSteps={setSteps}
         generationUserPrompt={generationUserPrompt}
         setGenerationUserPrompt={setGenerationUserPrompt}
+        selectedModel={selectedModel}
       />
 
       {/* header */}

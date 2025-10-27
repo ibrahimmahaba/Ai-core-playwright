@@ -14,7 +14,8 @@ import {useSendStep} from"../../hooks/useSendStep"
 import './Toolbar.css';
 
 function Toolbar(props: ToolbarProps) {
-  const { sessionId, insightId, shot, setShot, mode, setMode, steps, setSteps, setLoading, generationUserPrompt, setGenerationUserPrompt } = props;
+  const { sessionId, insightId, shot, setShot, mode, setMode, steps, setSteps, setLoading,
+    generationUserPrompt, setGenerationUserPrompt, selectedModel} = props;
 
     const viewport: Viewport = {
         width: shot?.width ?? 1280,
@@ -101,11 +102,24 @@ function Toolbar(props: ToolbarProps) {
 
         ] as { m: string; icon: JSX.Element; label: string }[]).map(({ m, icon, label }) => {
           const active = mode === m;
+          const isModelRequired = m === "crop" || m === "generate-steps";
+          const disabled = isModelRequired && !selectedModel;
+
+          const hoverMessage =
+            disabled && m === "crop"
+              ? "Add context: Please add a model to your model catalog to activate"
+              : disabled && m === "generate-steps"
+              ? "Generate steps: Please add a model to your model catalog to activate"
+              : label;
 
           return (
             <button
               key={m}
+              disabled={disabled}
+              title={hoverMessage}
+              aria-pressed={active}
               onClick={async () => {
+                if (disabled) return;
                 if (m === "scroll-up") {
                   scrollUp();
                 } else if (m === "scroll-down") {
@@ -130,9 +144,9 @@ function Toolbar(props: ToolbarProps) {
                   setMode(m);
                 }
               }}
-              title={label}
-              aria-pressed={active}
-              className={`toolbar-button ${active ? 'toolbar-button-active' : ''}`}
+              className={`toolbar-button ${active ? "toolbar-button-active" : ""} ${
+                disabled ? "toolbar-button-disabled" : ""
+              }`}
               onMouseEnter={(e) => {
                 (e.currentTarget as HTMLButtonElement).style.borderRadius = "12px";
               }}

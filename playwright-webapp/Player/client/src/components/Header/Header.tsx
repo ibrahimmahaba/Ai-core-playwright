@@ -41,6 +41,13 @@ function Header(props : HeaderProps) {
       getUserModels();
     }, [insightId]);
 
+    useEffect(() => {
+      if (modelOptions.length > 0) {
+        setSelectedModel(modelOptions[0]);
+      } else {
+        setSelectedModel(null);
+      }
+    }, [modelOptions]);
     
     useEffect(() => {
         const fetchRecordings = async () => {

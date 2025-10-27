@@ -397,6 +397,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       setLoading={setLoading}
       steps={steps}
       setSteps={setSteps}
+      selectedModel={selectedModel}
       />
 
       {/* Header / and metadata form */}

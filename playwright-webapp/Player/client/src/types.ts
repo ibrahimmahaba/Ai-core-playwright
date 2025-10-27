@@ -120,6 +120,7 @@ export type CropArea = {
     setSteps: React.Dispatch<React.SetStateAction<Step[]>>;
     generationUserPrompt: string;
     setGenerationUserPrompt: React.Dispatch<React.SetStateAction<string>>;
+    selectedModel: ModelOption | null;
   }
 
 

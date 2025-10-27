@@ -9,11 +9,9 @@ function Header(props : HeaderProps) {
     const {insightId, sessionId, shot, setShot, steps, setSteps, title,
       setTitle, setLoading, description, setDescription,  mode,
     selectedModel, setSelectedModel} = props
+
     const [url, setUrl] = useState("https://example.com");
-    const ENGINE_ID = import.meta.env.VITE_LLM_ENGINE_ID;
-    const [currUserModels, setCurrUserModels] = useState<Record<string, string>>({
-    "Default Dev Model": ENGINE_ID,
-    });
+    const [currUserModels, setCurrUserModels] = useState<Record<string, string>>({});
     const modelOptions: ModelOption[] = Object.entries(currUserModels).map(([name, id]) => ({
       label: name,
       value: id,
@@ -42,7 +40,15 @@ function Header(props : HeaderProps) {
         }
       }
       getUserModels();
-    }, [insightId, ENGINE_ID]);
+    }, [insightId]);
+
+    useEffect(() => {
+      if (modelOptions.length > 0) {
+        setSelectedModel(modelOptions[0]);
+      } else {
+        setSelectedModel(null);
+      }
+    }, [modelOptions]);
 
     const { sendStep } = useSendStep({
         insightId : insightId,

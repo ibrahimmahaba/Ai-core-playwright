@@ -7,14 +7,13 @@ import {
     CropFree as CropIcon, 
   } from "@mui/icons-material";
 import { type JSX } from "react";
-import { runPixel } from "@semoss/sdk";
-import type { ToolbarProps, ScreenshotResponse, Step, Viewport } from "../../types";
+import type { ToolbarProps, Step, Viewport } from "../../types";
 import {useSendStep} from"../../hooks/useSendStep"
 import './toolbar.css';
-
+import { fetchScreenshot } from '../../hooks/useFetchScreenshot'; 
 function Toolbar(props: ToolbarProps) {
-    const { sessionId, insightId, shot, setShot, mode, setMode, steps, setSteps, setLoading, selectedModel} = props;
-
+  const { sessionId, insightId, shot, setShot, mode, setMode, setLoading, activeTabId, selectedModel} = props;
+  
     const viewport: Viewport = {
         width: shot?.width ?? 1280,
         height: shot?.height ?? 800,
@@ -23,44 +22,23 @@ function Toolbar(props: ToolbarProps) {
 
 
     const { sendStep } = useSendStep({
-        sessionId,
-        insightId,
-        shot: shot,
-        setShot: setShot,
-        steps: steps,
-        setSteps: setSteps,
-        setLoading: setLoading,
-      });
-    async function fetchScreenshot() {
-        if (!sessionId) return;
-        try {
-            let pixel = `Screenshot ( sessionId = "${sessionId}" )`;
-            const res = await runPixel(pixel, insightId);
-            const { output } = res.pixelReturn[0];
-            const snap = normalizeShot(output);
-            if (snap) setShot(snap);
-        } catch (err) {
-            console.error("fetchScreenshot error:", err);
-        }
-    }
-
-    function normalizeShot(raw: any | undefined | null): ScreenshotResponse | undefined {
-        if (!raw) return undefined;
-        const base64 =
-          raw.base64Png ?? raw.base64 ?? raw.imageBase64 ?? raw.pngBase64 ?? raw.data ?? "";
-        const width = raw.width ?? raw.w ?? 1280;
-        const height = raw.height ?? raw.h ?? 800;
-        const dpr = raw.deviceScaleFactor ?? raw.dpr ?? 1;
-        if (!base64 || typeof base64 !== "string") return undefined;
-        return { base64Png: base64, width, height, deviceScaleFactor: dpr };
-    }
+      sessionId,
+      insightId,
+      shot: shot,
+      setShot: setShot,
+      setLoading: setLoading,
+      tabs: props.tabs,
+      setTabs: props.setTabs,
+      _activeTabId: activeTabId,
+      setActiveTabId: props.setActiveTabId
+  });
 
     async function waitAndShot() {
         if (!sessionId) return;
         const ms = Number(window.prompt("Wait how many ms?", "800")) || 800;
         const step: Step = { type: "WAIT", waitAfterMs: ms, viewport, timestamp: Date.now() };
-        await sendStep(step); 
-    }
+        await sendStep(step, activeTabId);
+      }
 
     async function scrollUp() {
         if (!shot) return;
@@ -71,7 +49,7 @@ function Toolbar(props: ToolbarProps) {
             viewport,
             waitAfterMs: 300,
             timestamp: Date.now(),
-        })
+        }, activeTabId)
     }
 
     async function scrollDown() {
@@ -83,7 +61,7 @@ function Toolbar(props: ToolbarProps) {
             viewport,
             waitAfterMs: 300,
             timestamp: Date.now(),
-         });
+         }, activeTabId);
     }
 
   return (
@@ -114,7 +92,7 @@ function Toolbar(props: ToolbarProps) {
                 } else if (m == "delay") {
                   await waitAndShot();
                 } else if (m == "fetch-screenshot") {
-                  await fetchScreenshot();
+                  await fetchScreenshot(sessionId, insightId, activeTabId, setShot);
                 } else if (m === "cancel") {
                   setMode("click");
                 } else if (m == "crop") {

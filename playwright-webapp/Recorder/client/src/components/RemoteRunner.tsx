@@ -1,15 +1,16 @@
 import React, { useRef, useState } from "react";
 import { runPixel } from "@semoss/sdk";
 import { CircularProgress, FormControlLabel, Checkbox } from "@mui/material";
-import { IconButton } from "@mui/material";
+import { IconButton, Tabs, Tab, Box } from "@mui/material";
 import { Check, Close } from "@mui/icons-material";
 import ReactCrop, { type Crop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import Toolbar from "./Toolbar/Toolbar";
-import type { Coords, CropArea, ModelOption, Probe, ProbeRect, RemoteRunnerProps, ScreenshotResponse, Step, Viewport } from "../types";
+import type { Coords, CropArea, ModelOption, Probe, ProbeRect, RemoteRunnerProps, ScreenshotResponse, Step, Viewport, TabData } from "../types";
 import Header from "./Header/Header";
 import { useSendStep } from "../hooks/useSendStep";
 import { preferSelectorFromProbe } from "../hooks/usePreferSelector";
+import { fetchScreenshot } from "../hooks/useFetchScreenshot";
 import VisionPopup from "./VisionPopup/VisionPopup";
 import './remote-runner.css';
 
@@ -20,7 +21,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [shot, setShot] = useState<ScreenshotResponse>();
-  const [steps, setSteps] = useState<Step[]>([]);
+ // const [steps, setSteps] = useState<Step[]>([]);
   const imgRef = useRef<HTMLImageElement>(null);
   const [overlay, setOverlay] = useState<{
     kind: "input" | "confirm";
@@ -39,6 +40,34 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
   value: id,
 }));
  const [selectedModel, setSelectedModel] = React.useState<ModelOption | null>(modelOptions[0]);
+ const [tabs, setTabs] = useState<TabData[]>([
+    { id: "tab-1", title: "tab-1", steps: [] }  
+  ]);
+  const [activeTabId, setActiveTabId] = useState<string>("tab-1");
+
+  const currentTab = tabs.find(t => t.id === activeTabId);
+  const currentSteps = currentTab?.steps || [];
+  
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: string) => {
+    setActiveTabId(newValue);
+
+    setTimeout(() => {
+      fetchScreenshot(sessionId, insightId, newValue, setShot);
+    }, 100);
+  };
+
+  const handleCloseTab = (tabId: string) => {
+    const updatedTabs = tabs.filter((tab) => tab.id !== tabId);
+    setTabs(updatedTabs);
+  
+    if (activeTabId === tabId && updatedTabs.length > 0) {
+      setActiveTabId(updatedTabs[0].id);
+      setTimeout(() => {
+        fetchScreenshot(sessionId, insightId, updatedTabs[0].id, setShot);
+      }, 100);
+    }
+  
+  };
 
 
   const viewport: Viewport = {
@@ -52,29 +81,13 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     sessionId : sessionId,
     shot: shot,
     setShot: setShot,
-    steps: steps,
-    setSteps: setSteps,
-    setLoading: setLoading
-});
-  // async function sendStep(step: Step) {
-  //   if (!sessionId) return;
+    setLoading: setLoading,
+    tabs: tabs,
+    setTabs: setTabs,
+    _activeTabId: activeTabId,
+    setActiveTabId: setActiveTabId
+  });
 
-  //   let shouldStore = step.type == "TYPE" && step.storeValue;
-
-  //   setLoading(true);
-  //   try {
-  //     let pixel = `Step ( sessionId = "${sessionId}", shouldStore = ${shouldStore}, paramValues = [ ${JSON.stringify(step)} ] )`;
-  //     const res = await runPixel(pixel, insightId);
-
-  //     const { output } = res.pixelReturn[0];
-
-  //     const data: ScreenshotResponse = output as ScreenshotResponse;
-  //     setShot(data);
-  //     setSteps(prev => [...prev, step]);
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // }
   function imageToPageCoords(e: React.MouseEvent<HTMLImageElement, MouseEvent>): Coords {
     const img = imgRef.current!;
     const rect = img.getBoundingClientRect();
@@ -90,7 +103,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     if (!sessionId) return ;
     if (!pendingCoords) alert("Invalid Coordinates");
 
-    let pixel = `ProbeElement (sessionId = "${sessionId}" , coords = "${pendingCoords?.x}, ${pendingCoords?.y}");`
+    let pixel = `ProbeElement (sessionId = "${sessionId}" , coords = "${pendingCoords?.x}, ${pendingCoords?.y}", tabId = "${activeTabId}");`
     const res = await runPixel(pixel, insightId);
     const { output } = res.pixelReturn[0] as { output: Probe };
     console.log(output)
@@ -348,14 +361,6 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
 
       if (isTextField && p.isTextControl) {
         setOverlay({ kind: "input", probe: p, draftValue: p.value ?? "", draftLabel: p.labelText ?? "" });
-      } else if (p.tag === "a" && p.href && p.href.startsWith("http")) {
-        await sendStep({
-          type: "NAVIGATE",
-          viewport,
-          waitAfterMs: 300,
-          timestamp: Date.now(),
-          url: p.href
-        });
       } else {
         await sendStep({
           type: "CLICK",
@@ -364,7 +369,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
           waitAfterMs: 300,
           timestamp: Date.now(),
           selector: preferSelectorFromProbe(p) || { strategy: "css", value: "body" }
-        });
+        }, activeTabId);
       }
   }
   function handleVisionPopup(cropArea: CropArea) { 
@@ -395,10 +400,13 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       setShot={setShot}
       loading={loading}
       setLoading={setLoading}
-      steps={steps}
-      setSteps={setSteps}
       selectedModel={selectedModel}
-      />
+      currentSteps={currentSteps}
+      activeTabId={activeTabId}
+      tabs={tabs}
+      setTabs={setTabs}
+      setActiveTabId={setActiveTabId}
+    />
 
       {/* Header / and metadata form */}
       <Header 
@@ -406,17 +414,21 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       sessionId={sessionId}
       shot={shot}
       setShot={setShot}
-      steps={steps}
-      setSteps={setSteps}
-      loading={loading}
+      currentSteps={currentSteps}
       setLoading={setLoading}
+      loading={loading}
       title={title}
       setTitle={setTitle}
       setDescription={setDescription}
       description={description}
       mode={mode}
       selectedModel={selectedModel}
-      setSelectedModel={setSelectedModel}/>
+      setSelectedModel={setSelectedModel}
+      activeTabId={activeTabId}
+      tabs={tabs}
+      setTabs={setTabs}
+      setActiveTabId={setActiveTabId}
+      />
 
       
       {!shot && loading && (
@@ -426,21 +438,50 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       )}
 
       {shot && (
-        <>          
-          <div className="remote-runner-image-container">
-            {mode === "crop" ? (
-              <ReactCrop
-                crop={crop}
-                onChange={(c: Crop) => setCrop(c)}
-                onComplete={(c: Crop) => {
-                  if (c.width && c.height) {
-                    const cropArea: CropArea = {
-                      startX: c.x,
-                      startY: c.y,
-                      endX: c.x + c.width,
-                      endY: c.y + c.height,
-                    };
-                    handleVisionPopup(cropArea);
+        <>
+          <Tabs
+            value={activeTabId}
+            onChange={handleTabChange}
+            variant="scrollable"
+            scrollButtons="auto"
+          >
+            {tabs.map((tab) => (
+              <Tab
+                key={tab.id}
+                value={tab.id}
+                label={
+                  <Box display="flex" alignItems="center">
+                    {tab.title}
+                    {tabs.length > 1 && (
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCloseTab(tab.id);
+                        }}
+                      >
+                        <Close fontSize="small" />
+                      </IconButton>
+                    )}
+                  </Box>
+                }
+              />
+            ))}
+          </Tabs>
+            <div className="remote-runner-image-container">
+              {mode === "crop" ? (
+                <ReactCrop
+                  crop={crop}
+                  onChange={(c: Crop) => setCrop(c)}
+                  onComplete={(c: Crop) => {
+                    if (c.width && c.height) {
+                      const cropArea: CropArea = {
+                        startX: c.x,
+                        startY: c.y,
+                        endX: c.x + c.width,
+                        endY: c.y + c.height,
+                      };
+                      handleVisionPopup(cropArea);
                     //setMode("click");
                     //setCrop(undefined);
                   }
@@ -494,7 +535,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
                         viewport,
                         waitAfterMs: 300,
                         timestamp: Date.now()
-                      } as Step);
+                      } as Step, activeTabId);
                     } else {
                       await sendStep({
                         type: "CLICK",
@@ -502,7 +543,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
                         viewport,
                         waitAfterMs: 300,
                         timestamp: Date.now()
-                      } as Step);
+                      } as Step, activeTabId);
                     }
                     setOverlay(null);
                   }}
@@ -527,7 +568,8 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
             setMode={setMode} 
             crop={crop}
             setCrop={setCrop}  
-            selectedModel={selectedModel}        
+            selectedModel={selectedModel}
+            tabId={activeTabId}        
           />
           </div>
         </>

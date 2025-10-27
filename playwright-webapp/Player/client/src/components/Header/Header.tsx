@@ -90,16 +90,33 @@ function Header(props : HeaderProps) {
     const name = selectedRecording;
 
     setLoading(true);
+    
+    try {
     let pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${name}", executeAll=false);`;
     const res = await runPixel(pixel, insightId);
     const { output } = res.pixelReturn[0] as { output: ReplayPixelOutput };
 
     setLoading(false);
+      
+    // Initialize with first tab
+    if (props.setTabs) {
+      props.setTabs([{ id: output.originalTabId?? "tab-1", title: output.tabTitle?? "Tab 1", actions: output.actions || [] }]);
+    }
+    if (props.setActiveTabId) {
+      props.setActiveTabId(output.originalTabId?? "tab-1");
+    }
+      
     setEditedData(output.actions);
     setUpdatedData(output.actions);
     setShowData(true);
     setIsLastPage(output.isLastPage);
     setShot(output.screenshot);
+    } catch (err) {
+      console.error("Error loading recording:", err);
+      alert("Error loading recording: " + err);
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function startLiveReplay() {

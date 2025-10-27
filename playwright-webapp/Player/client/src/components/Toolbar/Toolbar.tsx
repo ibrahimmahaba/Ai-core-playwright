@@ -15,7 +15,7 @@ import './Toolbar.css';
 
 function Toolbar(props: ToolbarProps) {
   const { sessionId, insightId, shot, setShot, mode, setMode, steps, setSteps, setLoading,
-    generationUserPrompt, setGenerationUserPrompt, selectedModel} = props;
+    generationUserPrompt, setGenerationUserPrompt, selectedModel, tabId} = props;
 
     const viewport: Viewport = {
         width: shot?.width ?? 1280,
@@ -36,7 +36,7 @@ function Toolbar(props: ToolbarProps) {
     async function fetchScreenshot() {
         if (!sessionId) return;
         try {
-            let pixel = `Screenshot ( sessionId = "${sessionId}" )`;
+            let pixel = `Screenshot ( sessionId = "${sessionId}", tabId = "${tabId}" )`;
             const res = await runPixel(pixel, insightId);
             const { output } = res.pixelReturn[0];
             const snap = normalizeShot(output);

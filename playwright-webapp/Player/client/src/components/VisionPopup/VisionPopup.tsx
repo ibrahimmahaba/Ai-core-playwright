@@ -11,13 +11,14 @@ import './VisionPopup.css';
 
 export function VisionPopup(props : VisionPopupProps) {
     const {sessionId, insightId, visionPopup , setVisionPopup,
-    currentCropArea, setCurrentCropArea,  setMode, setCrop, selectedModel} = props
+    currentCropArea, setCurrentCropArea,  setMode, setCrop, selectedModel, tabId} = props
   
   async function handleLLMAnalysis() {
     if (!visionPopup || !visionPopup.query.trim() || !currentCropArea) return;    
     try {
       const pixel = `ImageContext(
         sessionId="${sessionId}",
+        tabId="${tabId}",
         engine="${selectedModel?.value}", 
         paramValues=[{
           "startX": ${currentCropArea.startX}, 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSendStep } from '../../hooks/useSendStep';
 import type { HeaderProps, ModelOption, Viewport } from '../../types';
 import { runPixel } from "@semoss/sdk";
@@ -6,16 +6,19 @@ import { Autocomplete, Box, TextField, Typography } from '@mui/material';
 import './header.css';
 
 function Header(props : HeaderProps) {
-    const {insightId, sessionId, shot, setShot, steps, setSteps, title,
+    const {insightId, sessionId, shot, setShot, title,
       setTitle, setLoading, description, setDescription,  mode,
-    selectedModel, setSelectedModel} = props
+    selectedModel, setSelectedModel, activeTabId} = props
 
     const [url, setUrl] = useState("https://example.com");
     const [currUserModels, setCurrUserModels] = useState<Record<string, string>>({});
-    const modelOptions: ModelOption[] = Object.entries(currUserModels).map(([name, id]) => ({
-      label: name,
-      value: id,
-    }));
+    const modelOptions: ModelOption[] = useMemo(() => 
+      Object.entries(currUserModels).map(([name, id]) => ({
+        label: name,
+        value: id,
+      })), 
+      [currUserModels]
+    );
 
     useEffect(() => {
       async function getUserModels() {
@@ -48,16 +51,19 @@ function Header(props : HeaderProps) {
       } else {
         setSelectedModel(null);
       }
-    }, [modelOptions]);
+      console.log("Model options updated:", modelOptions);
+    }, [modelOptions, setSelectedModel]);
 
-    const { sendStep } = useSendStep({
+      const { sendStep } = useSendStep({
         insightId : insightId,
         sessionId : sessionId,
         shot: shot,
         setShot: setShot,
-        steps: steps,
-        setSteps: setSteps,
-        setLoading: setLoading
+        setLoading: setLoading,
+        tabs: props.tabs,
+        setTabs: props.setTabs,
+        _activeTabId: activeTabId,
+        setActiveTabId: props.setActiveTabId
     });
 
     const viewport: Viewport = {
@@ -106,7 +112,7 @@ function Header(props : HeaderProps) {
               className="header-input"
               placeholder="Enter URL"
               />
-              <button onClick={() => sendStep({ type: "NAVIGATE", url: url, waitAfterMs: 100, viewport, timestamp: Date.now() })}>Open</button>
+              <button onClick={() => sendStep({ type: "NAVIGATE", url: url, waitAfterMs: 100, viewport, timestamp: Date.now() }, activeTabId, true)}>Open</button>
               <button onClick={saveSession} disabled={!sessionId}>
               Save
               </button>
@@ -130,7 +136,6 @@ function Header(props : HeaderProps) {
                 )}
                 sx={{ minWidth: 250 }}
               />
-              <span>Steps: {steps ? steps.length : 0}</span>
               {mode === "crop" && <span className="header-crop-mode">
               Drag to select crop area
               </span>}

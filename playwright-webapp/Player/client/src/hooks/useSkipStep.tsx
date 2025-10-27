@@ -15,6 +15,7 @@ setIsLastPage: (val: boolean) => void;
 setOverlay: (val: any) => void;
 setLoading: (val: boolean) => void;
 setError?: (val: string | null) => void;
+activeTabId: string;
 }
 
 export function useSkipStep({
@@ -26,13 +27,15 @@ setIsLastPage,
 setOverlay,
 setLoading,
 setError,
+activeTabId,
 }: UseSkipStepProps) {
 async function handleSkipStep() {
     try {
     setLoading(true);
     setError?.(null);
+    const currentTabId = activeTabId || "tab-1";  
 
-    const pixel = `SkipStep (sessionId = "${sessionId}", fileName = "${selectedRecording}");`;
+    let pixel = `SkipStep (sessionId = "${sessionId}", fileName = "${selectedRecording}", tabId = "${currentTabId}");`;
     const res = await runPixel(pixel, insightId);
     const { output } = res.pixelReturn[0] as { output: ReplayPixelOutput };
 

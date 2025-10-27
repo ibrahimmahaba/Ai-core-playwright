@@ -264,7 +264,21 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
   
     if (activeTabId === tabId && updatedTabs.length > 0) {
       setActiveTabId(updatedTabs[0].id);
-    }
+      const selectedTab = tabs.find(t => t.id === updatedTabs[0].id);
+      if (selectedTab) {
+        console.log("Loading actions for tab:", updatedTabs[0].id, selectedTab.actions);
+        setEditedData(selectedTab.actions);
+        setUpdatedData(selectedTab.actions);
+      } else {
+        console.warn("Tab not found:", updatedTabs[0].id);
+        setEditedData([]);
+        setUpdatedData([]);
+      }
+      
+      setTimeout(() => {
+        fetchScreenshot(updatedTabs[0].id);
+      }, 100);
+      }
   };
 
   async function handleNextStep() {

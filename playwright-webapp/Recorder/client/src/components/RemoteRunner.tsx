@@ -56,7 +56,11 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
   
     if (activeTabId === tabId && updatedTabs.length > 0) {
       setActiveTabId(updatedTabs[0].id);
+      setTimeout(() => {
+        fetchScreenshot(sessionId, insightId, updatedTabs[0].id, setShot);
+      }, 100);
     }
+  
   };
 
 

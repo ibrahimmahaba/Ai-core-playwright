@@ -61,10 +61,10 @@ function Header(props : HeaderProps) {
       
     // Initialize with first tab
     if (props.setTabs) {
-      props.setTabs([{ id: "tab-1", title: output.tabTitle?? "Tab 1", actions: output.actions || [] }]);
+      props.setTabs([{ id: output.originalTabId?? "tab-1", title: output.tabTitle?? "Tab 1", actions: output.actions || [] }]);
     }
     if (props.setActiveTabId) {
-      props.setActiveTabId("tab-1");
+      props.setActiveTabId(output.originalTabId?? "tab-1");
     }
       
     setEditedData(output.actions);

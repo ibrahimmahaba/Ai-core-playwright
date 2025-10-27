@@ -10,6 +10,7 @@ import type { Coords, CropArea, Probe, ProbeRect, RemoteRunnerProps, ScreenshotR
 import Header from "./Header/Header";
 import { useSendStep } from "../hooks/useSendStep";
 import { preferSelectorFromProbe } from "../hooks/usePreferSelector";
+import { fetchScreenshot } from "../hooks/useFetchScreenshot";
 import VisionPopup from "./VisionPopup/VisionPopup";
 import './remote-runner.css';
 
@@ -43,6 +44,10 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
   
   const handleTabChange = (_event: React.SyntheticEvent, newValue: string) => {
     setActiveTabId(newValue);
+
+    setTimeout(() => {
+      fetchScreenshot(sessionId, insightId, newValue, setShot);
+    }, 100);
   };
 
   const handleCloseTab = (tabId: string) => {

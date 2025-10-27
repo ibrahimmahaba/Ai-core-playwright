@@ -9,7 +9,6 @@ export function useSendStep({
   setLoading: externalSetLoading,
   tabs,
   setTabs: externalSetTabs,
-  _activeTabId,
   setActiveTabId: externalSetActiveTabId,
 }: UseSendStepParams) {
   const [, internalSetShot] = useState<ScreenshotResponse | undefined>(undefined);

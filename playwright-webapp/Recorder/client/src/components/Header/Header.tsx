@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSendStep } from '../../hooks/useSendStep';
 import type { HeaderProps, ModelOption, Viewport } from '../../types';
 import { runPixel } from "@semoss/sdk";
@@ -12,10 +12,13 @@ function Header(props : HeaderProps) {
 
     const [url, setUrl] = useState("https://example.com");
     const [currUserModels, setCurrUserModels] = useState<Record<string, string>>({});
-    const modelOptions: ModelOption[] = Object.entries(currUserModels).map(([name, id]) => ({
-      label: name,
-      value: id,
-    }));
+    const modelOptions: ModelOption[] = useMemo(() => 
+      Object.entries(currUserModels).map(([name, id]) => ({
+        label: name,
+        value: id,
+      })), 
+      [currUserModels]
+    );
 
     useEffect(() => {
       async function getUserModels() {
@@ -106,7 +109,25 @@ function Header(props : HeaderProps) {
               className="header-input"
               placeholder="Enter URL"
               />
-              <button onClick={() => sendStep({ type: "NAVIGATE", url: url, waitAfterMs: 100, viewport, timestamp: Date.now() })}>Open</button>
+              <button
+                onClick={() => {
+                  let formattedUrl = url.trim();
+                  if (!/^https?:\/\//i.test(formattedUrl)) {
+                    formattedUrl = "https://" + formattedUrl;
+                    setUrl(formattedUrl); 
+                  }
+                  sendStep({
+                    type: "NAVIGATE",
+                    url: formattedUrl,
+                    waitAfterMs: 100,
+                    viewport,
+                    timestamp: Date.now(),
+                  });
+                }}
+              >
+                Open
+              </button>
+
               <button onClick={saveSession} disabled={!sessionId}>
               Save
               </button>

@@ -1,20 +1,23 @@
 import { Autocomplete, Box, TextField, Typography } from "@mui/material"
-import { useEffect, useState } from "react";
-import type { HeaderProps, ReplayPixelOutput } from "../../types";
+import { useEffect, useMemo ,useState } from "react";
+import type { HeaderProps, ModelOption, ReplayPixelOutput } from "../../types";
 import {Insight, runPixel } from "@semoss/sdk";
 import './Header.css';
 
 function Header(props : HeaderProps) {
-    const {insightId, sessionId, steps, selectedRecording, setSelectedRecording
+    const {insightId, sessionId, selectedRecording, setSelectedRecording
             , setLoading, setEditedData, setUpdatedData, setShowData,
             setIsLastPage, setShot, live, setLive, currUserModels, setCurrUserModels,
             selectedModel, setSelectedModel} = props
 
     const [allRecordings, setAllRecordings] = useState<string[]>([]);
-    const modelOptions = Object.entries(currUserModels).map(([name, id]) => ({
-      label: name,
-      value: id,
-    }));
+    const modelOptions: ModelOption[] = useMemo(() => 
+      Object.entries(currUserModels).map(([name, id]) => ({
+        label: name,
+        value: id,
+      })), 
+      [currUserModels]
+    );
 
     useEffect(() => {
       async function getUserModels() {

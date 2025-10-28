@@ -61,7 +61,7 @@ function Toolbar(props: ToolbarProps) {
         if (!sessionId) return;
         const ms = Number(window.prompt("Wait how many ms?", "800")) || 800;
         const step: Step = { type: "WAIT", waitAfterMs: ms, viewport, timestamp: Date.now() };
-        await sendStep(step); 
+        await sendStep(step, tabId); 
     }
 
     async function scrollUp() {
@@ -73,7 +73,7 @@ function Toolbar(props: ToolbarProps) {
             viewport,
             waitAfterMs: 300,
             timestamp: Date.now(),
-        })
+        }, tabId);
     }
 
     async function scrollDown() {
@@ -85,7 +85,7 @@ function Toolbar(props: ToolbarProps) {
             viewport,
             waitAfterMs: 300,
             timestamp: Date.now(),
-         });
+         }, tabId);
     }
 
   return (

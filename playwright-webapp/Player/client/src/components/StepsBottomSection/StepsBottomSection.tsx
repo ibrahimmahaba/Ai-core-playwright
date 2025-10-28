@@ -49,7 +49,7 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
           try {
             // Convert Action to Step and execute
             if ("CLICK" in nextAction) {
-              const p = await useProbeAt(nextAction.CLICK.coords, sessionId, insightId);
+              const p = await useProbeAt(nextAction.CLICK.coords, sessionId, insightId, activeTabId);
               await sendStep({
                 type: "CLICK",
                 coords: nextAction.CLICK.coords,
@@ -57,7 +57,7 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
                 timestamp: Date.now(),
                 waitAfterMs: 1000,
                 selector: preferSelectorFromProbe(p)  || { strategy: "css", value: "body" }
-              });
+              }, activeTabId);
             } else if ("TYPE" in nextAction) {
               const text = overlay?.draftValue ?? nextAction.TYPE.text;
               await sendStep({
@@ -71,7 +71,7 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
                 waitAfterMs: 1000,
                 storeValue: false,
                 selector: preferSelectorFromProbe(nextAction.TYPE.probe) ?? { strategy: "css", value: "body"}
-              });
+              }, activeTabId);
             } else if ("SCROLL" in nextAction) {
               await sendStep({
                 type: "SCROLL",
@@ -80,7 +80,7 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
                 viewport,
                 timestamp: Date.now(),
                 waitAfterMs: 500
-              });
+              }, activeTabId || "tab-1");
             } else if ("WAIT" in nextAction) {
               await new Promise(resolve => setTimeout(resolve, nextAction.WAIT));
             } else if ("NAVIGATE" in nextAction) {
@@ -90,7 +90,7 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
                 viewport,
                 timestamp: Date.now(),
                 waitAfterMs: 2000
-              });
+              }, activeTabId);
             }
             
             // Remove executed step from current tab
@@ -224,7 +224,7 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
           try {
             for (const action of editedData) {
             if ("CLICK" in action) {
-                const p = await useProbeAt(action.CLICK.coords, sessionId, insightId);
+                const p = await useProbeAt(action.CLICK.coords, sessionId, insightId, activeTabId);
                 await sendStep({
                     type: "CLICK",
                     coords: action.CLICK.coords,
@@ -232,7 +232,7 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
                     timestamp: Date.now(),
                     waitAfterMs: 1000,
                     selector: preferSelectorFromProbe(p)  || { strategy: "css", value: "body" }
-                });
+                }, activeTabId);
                 } else if ("TYPE" in action) {
                 const text = overlay?.draftValue ?? action.TYPE.text;
                 await sendStep({
@@ -246,7 +246,7 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
                     waitAfterMs: 1000,
                     storeValue: false,
                     selector: preferSelectorFromProbe(action.TYPE.probe) ?? { strategy: "css", value: "body"}
-                });
+                }, activeTabId);
               } else if ("SCROLL" in action) {
                 await sendStep({
                   type: "SCROLL",
@@ -255,7 +255,7 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
                   viewport,
                   timestamp: Date.now(),
                   waitAfterMs: 500
-                });
+                }, activeTabId);
               } else if ("WAIT" in action) {
                 await new Promise(resolve => setTimeout(resolve, action.WAIT));
               } else if ("NAVIGATE" in action) {
@@ -265,7 +265,7 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
                   viewport,
                   timestamp: Date.now(),
                   waitAfterMs: 2000
-                });
+                }, activeTabId);
               }
               
               await new Promise(resolve => setTimeout(resolve, 300));

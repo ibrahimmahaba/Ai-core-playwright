@@ -20,6 +20,7 @@ import VisionPopup from "./VisionPopup/VisionPopup";
 import './RemoteRunner.css';
 import StepsBottomSection from "./StepsBottomSection/StepsBottomSection";
 import { useSkipStep } from "../hooks/useSkipStep";
+import { useProbeAt } from "../hooks/useProbeAt";
 import { Tabs, Tab, Box } from "@mui/material";
 
 export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps) {
@@ -127,7 +128,11 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     setShot: setShot,
     steps: steps,
     setSteps: setSteps,
-    setLoading: setLoading
+    setLoading: setLoading,
+    tabs: tabs,
+    setTabs: setTabs,
+    _activeTabId: activeTabId,
+    setActiveTabId: setActiveTabId
   });
 
   const { handleSkipStep } = useSkipStep({
@@ -140,6 +145,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     setLoading,
     activeTabId
   });
+ 
 
   function imageToPageCoords(e: React.MouseEvent<HTMLImageElement, MouseEvent>): Coords {
     const img = imgRef.current!;
@@ -153,23 +159,11 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     return { x: Math.round(x), y: Math.round(y) };
   }
 
-  async function probeAt(pendingCoords: Coords | null) {
-    if (!sessionId) return;
-    if (!pendingCoords) alert("Invalid Coordinates");
-
-    let pixel = `ProbeElement (sessionId = "${sessionId}" , coords = "${pendingCoords?.x}, ${pendingCoords?.y}");`
-    const res = await runPixel(pixel, insightId);
-    const { output } = res.pixelReturn[0] as { output: Probe };
-    console.log(output)
-    return output;
-
-  }
-
 
   async function handleClick(e: React.MouseEvent<HTMLImageElement, MouseEvent>) {
     if (!shot) return;
     const coords = imageToPageCoords(e);
-    const p = await probeAt(coords);
+    const p = await useProbeAt(coords, sessionId, insightId, activeTabId);
     if (!p) return;
 
     const isTextField =
@@ -187,7 +181,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
         waitAfterMs: 300,
         timestamp: Date.now(),
         selector: preferSelectorFromProbe(p) || { strategy: "css", value: "body" }
-      });
+      }, activeTabId);
     }
   }
 
@@ -216,7 +210,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
         if (overlay && editedData.length > 0 && "TYPE" in editedData[0]) {
           const typeAction = editedData[0].TYPE;
           setOverlay(null);
-          const p = await probeAt({x: typeAction.coords?.x, y: typeAction.coords?.y} as Coords);
+          const p = await useProbeAt({x: typeAction.coords?.x, y: typeAction.coords?.y} as Coords, sessionId, insightId, activeTabId);
           if (p) {
             setOverlay({ ...overlay, probe: p });
           } else {
@@ -288,7 +282,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       
       try {
         if ("CLICK" in nextAction) {
-          const p = await probeAt(nextAction.CLICK.coords);
+          const p = await useProbeAt(nextAction.CLICK.coords, sessionId, insightId, actionTabId);
           await sendStep({
             type: "CLICK",
             coords: nextAction.CLICK.coords,
@@ -296,7 +290,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
             timestamp: Date.now(),
             waitAfterMs: 1000,
             selector: preferSelectorFromProbe(p) || { strategy: "css", value: "body" }
-          });
+          }, actionTabId);
         } else if ("TYPE" in nextAction) {
           const text = overlay?.draftValue ?? nextAction.TYPE.text;
           await sendStep({
@@ -310,7 +304,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
             waitAfterMs: 1000,
             storeValue: false,
             selector: { strategy: "css", value: "body" }
-          });
+          }, actionTabId);
         }
         
         setTabs(prevTabs => prevTabs.map(tab => {
@@ -572,7 +566,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       //for each action, add probe data by calling pixel
       for (let action of parsedActions) {
         if ("TYPE" in action && action.TYPE.coords) {
-          const probe = await probeAt(action.TYPE.coords);
+          const probe = await useProbeAt(action.TYPE.coords, sessionId, insightId, activeTabId);
           if (probe) {
             action.TYPE.probe = probe;
           }

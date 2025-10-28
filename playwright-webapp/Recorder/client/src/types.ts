@@ -73,7 +73,6 @@ export interface ScreenshotResponse {
   
   export interface RemoteRunnerProps {
     sessionId: string;
-    metadata: Record<string, string>;
     insightId: string;
   }
   
@@ -137,10 +136,7 @@ export interface ScreenshotResponse {
   }
 
   export interface UseSendStepParams {
-    sessionId: string;
     insightId: string;
-    shot?: ScreenshotResponse;
-    setShot?: React.Dispatch<React.SetStateAction<ScreenshotResponse | undefined>>;
     steps?: Step[] | null;
     setSteps?: React.Dispatch<React.SetStateAction<Step[]>>;
     setLoading?: React.Dispatch<React.SetStateAction<boolean>>;
@@ -149,8 +145,6 @@ export interface ScreenshotResponse {
   export interface HeaderProps {
     insightId: string
     sessionId: string;
-    shot: ScreenshotResponse | undefined;
-    setShot:  React.Dispatch<React.SetStateAction<ScreenshotResponse | undefined>>;
     steps: Step[] 
     setSteps: React.Dispatch<React.SetStateAction<Step[]>>;
     loading: boolean
@@ -180,4 +174,4 @@ export interface ScreenshotResponse {
     selectedModel: ModelOption | null;
   }
 
-  export type ModelOption = { label: string; value: string };
+  export type ModelOption = { label: string; value: string } ;

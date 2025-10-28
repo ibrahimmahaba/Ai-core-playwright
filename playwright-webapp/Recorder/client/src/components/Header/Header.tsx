@@ -2,16 +2,25 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSendStep } from '../../hooks/useSendStep';
 import type { HeaderProps, ModelOption, Viewport } from '../../types';
 import { runPixel } from "@semoss/sdk";
-import { Autocomplete, Box, TextField, Typography } from '@mui/material';
+import { Autocomplete, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, TextField, Typography } from '@mui/material';
 import './header.css';
+import { useSessionStore } from '../../store/useSessionStore';
 
 function Header(props : HeaderProps) {
-    const {insightId, sessionId, shot, setShot, steps, setSteps, title,
+  const { sessionId, insightId, shot, setShot, initSession, isInitialized} = useSessionStore();
+    const {steps, setSteps, title,
       setTitle, setLoading, description, setDescription,  mode,
     selectedModel, setSelectedModel} = props
 
+    const [showSessionPrompt, setShowSessionPrompt] = useState(false);
+    const [showSaveWarning, setShowSaveWarning] = useState(false);
     const [url, setUrl] = useState("https://example.com");
     const [currUserModels, setCurrUserModels] = useState<Record<string, string>>({});
+    const viewport: Viewport = {
+      width: shot?.width ?? 1280,
+      height: shot?.height ?? 800,
+      deviceScaleFactor: shot?.deviceScaleFactor ?? 1,
+    };
     const modelOptions: ModelOption[] = useMemo(() => 
       Object.entries(currUserModels).map(([name, id]) => ({
         label: name,
@@ -55,27 +64,81 @@ function Header(props : HeaderProps) {
 
     const { sendStep } = useSendStep({
         insightId : insightId,
-        sessionId : sessionId,
-        shot: shot,
-        setShot: setShot,
         steps: steps,
         setSteps: setSteps,
         setLoading: setLoading
     });
-
-    const viewport: Viewport = {
-        width: shot?.width ?? 1280,
-        height: shot?.height ?? 800,
-        deviceScaleFactor: shot?.deviceScaleFactor ?? 1,
+    const handleOpenClick = async () => {
+      if (shot) {
+        setShowSessionPrompt(true);
+        return;
+      }
+      await proceedToNavigate();
     };
+  
+    const proceedToNavigate = async () => {
+      let formattedUrl = url.trim();
+      if (!/^https?:\/\//i.test(formattedUrl)) {
+        formattedUrl = "https://" + formattedUrl;
+        setUrl(formattedUrl);
+      }
+      await sendStep({
+        type: "NAVIGATE",
+        url: formattedUrl,
+        waitAfterMs: 100,
+        viewport,
+        timestamp: Date.now(),
+      });
+    };
+  
+    const handleContinueExisting = async () => {
+      setShowSessionPrompt(false);
+      await proceedToNavigate(); 
+    };
+  
+  const handleStartNewRecording = async () => {
+    setShowSessionPrompt(false);
+    if (steps && steps.length > 0) {
+      setShowSaveWarning(true);
+    } else {
+      await proceedWithNewSession();
+    }
+  };
+
+  const handleSaveAndStartNew = async () => {
+    if (!title.trim()) {
+      alert("Please enter a title before saving the session.");
+      return;
+    }
+
+    setShowSaveWarning(false);
+    const saved = await saveSession();
+    if (saved) {
+      await proceedWithNewSession();
+    }
+  };
+
+  const handleDontSaveAndStartNew = async () => {
+    setShowSaveWarning(false);
+    await proceedWithNewSession();
+  };
+
+  const proceedWithNewSession = async () => {
+    setShot(undefined); 
+    setSteps([]); 
+    setTitle(""); 
+    setDescription(""); 
+    await initSession(insightId, isInitialized); 
+    await proceedToNavigate(); 
+  };
 
 
-    async function saveSession() {
-        if (!sessionId) return;
-      
+    async function saveSession(): Promise<boolean> {
+        if (!sessionId) return false;
+
         if (!title.trim()) {
           alert("Please enter a title before saving the session.");
-          return;
+          return false;
         }
       
         const today = new Date().toISOString().split("T")[0];
@@ -92,14 +155,15 @@ function Header(props : HeaderProps) {
           const res = await runPixel(pixel, insightId);
           console.log("SaveAll success:", res.pixelReturn[0].output);
           alert("Session saved successfully!");
+          return true;
         } catch (err) {
           console.error("Error saving session:", err);
           alert("Failed to save session");
+          return false;
         }
       }
   return (
     <>
-        
         <div className="header-container">
           <h2>Playwright Recorder App</h2>
           <div className="header-input-group">
@@ -110,20 +174,7 @@ function Header(props : HeaderProps) {
               placeholder="Enter URL"
               />
               <button
-                onClick={() => {
-                  let formattedUrl = url.trim();
-                  if (!/^https?:\/\//i.test(formattedUrl)) {
-                    formattedUrl = "https://" + formattedUrl;
-                    setUrl(formattedUrl); 
-                  }
-                  sendStep({
-                    type: "NAVIGATE",
-                    url: formattedUrl,
-                    waitAfterMs: 100,
-                    viewport,
-                    timestamp: Date.now(),
-                  });
-                }}
+                onClick={handleOpenClick}
               >
                 Open
               </button>
@@ -182,6 +233,36 @@ function Header(props : HeaderProps) {
             </div>
           )}
         </div>
+        <Dialog open={showSessionPrompt} onClose={() => setShowSessionPrompt(false)}>
+          <DialogTitle>Continue or Start New Recording?</DialogTitle>
+          <DialogContent>
+            You already have an existing recording. Would you like to continue with it or start a new one?
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleContinueExisting}>Continue Existing</Button>
+            <Button onClick={handleStartNewRecording} color="primary" variant="contained">
+              Start New
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog open={showSaveWarning} onClose={() => setShowSaveWarning(false)}>
+          <DialogTitle>Save Current Recording?</DialogTitle>
+          <DialogContent>
+            You have {steps.length} step{steps.length !== 1 ? 's' : ''} in your current recording. Would you like to save it before starting a new recording?
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleDontSaveAndStartNew} color="error">
+              Don't Save
+            </Button>
+            <Button onClick={() => setShowSaveWarning(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveAndStartNew} color="primary" variant="contained">
+              Save & Start New
+            </Button>
+          </DialogActions>
+        </Dialog>
     </>
   )
 }

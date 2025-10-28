@@ -6,26 +6,25 @@ import { Check, Close } from "@mui/icons-material";
 import ReactCrop, { type Crop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import Toolbar from "./Toolbar/Toolbar";
-import type { Coords, CropArea, ModelOption, Probe, ProbeRect, RemoteRunnerProps, ScreenshotResponse, Step, Viewport } from "../types";
+import type { Coords, CropArea, ModelOption, Probe, ProbeRect, ScreenshotResponse, Step, Viewport } from "../types";
 import Header from "./Header/Header";
 import { useSendStep } from "../hooks/useSendStep";
 import { preferSelectorFromProbe } from "../hooks/usePreferSelector";
 import VisionPopup from "./VisionPopup/VisionPopup";
 import './remote-runner.css';
+import { useSessionStore } from "../store/useSessionStore";
 
 
-export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps)  {
-
+export default function RemoteRunner()  {
+  const { sessionId, insightId, shot, setShot } = useSessionStore();
   const [loading, setLoading] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [shot, setShot] = useState<ScreenshotResponse>();
   const [steps, setSteps] = useState<Step[]>([]);
   const imgRef = useRef<HTMLImageElement>(null);
   const [overlay, setOverlay] = useState<{
     kind: "input" | "confirm";
     probe: Probe;
-    // fields for the inline editor
     draftValue?: string;
     draftLabel?: string | null;
   } | null>(null);
@@ -49,32 +48,11 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
 
   const { sendStep } = useSendStep({
     insightId : insightId,
-    sessionId : sessionId,
-    shot: shot,
-    setShot: setShot,
     steps: steps,
     setSteps: setSteps,
     setLoading: setLoading
 });
-  // async function sendStep(step: Step) {
-  //   if (!sessionId) return;
 
-  //   let shouldStore = step.type == "TYPE" && step.storeValue;
-
-  //   setLoading(true);
-  //   try {
-  //     let pixel = `Step ( sessionId = "${sessionId}", shouldStore = ${shouldStore}, paramValues = [ ${JSON.stringify(step)} ] )`;
-  //     const res = await runPixel(pixel, insightId);
-
-  //     const { output } = res.pixelReturn[0];
-
-  //     const data: ScreenshotResponse = output as ScreenshotResponse;
-  //     setShot(data);
-  //     setSteps(prev => [...prev, step]);
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // }
   function imageToPageCoords(e: React.MouseEvent<HTMLImageElement, MouseEvent>): Coords {
     const img = imgRef.current!;
     const rect = img.getBoundingClientRect();
@@ -404,8 +382,6 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       <Header 
       insightId={insightId}
       sessionId={sessionId}
-      shot={shot}
-      setShot={setShot}
       steps={steps}
       setSteps={setSteps}
       loading={loading}
@@ -468,7 +444,6 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
 
             {overlay && shot && (
               <>
-                {console.log(Overlay)}
                 <Overlay
                   ol={overlay}
                   shot={shot}

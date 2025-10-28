@@ -166,7 +166,6 @@ function Header(props : HeaderProps) {
           )}
           sx={{ minWidth: 250 }}
         />
-        <span className="header-recording-count">Steps: {steps.length}</span>
       </div>
     </>
   )

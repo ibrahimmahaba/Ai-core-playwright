@@ -4,15 +4,17 @@ import {
     ArrowDownward as ArrowDownIcon,
     AccessTime as AccessTimeIcon,
     Sync as SyncIcon,
-    CropFree as CropIcon, 
+    CropFree as CropIcon,
+    List as ListIcon,
   } from "@mui/icons-material";
-import { type JSX } from "react";
+import { type JSX, useState } from "react";
 import type { ToolbarProps, Step, Viewport } from "../../types";
 import {useSendStep} from"../../hooks/useSendStep"
 import './toolbar.css';
 import { fetchScreenshot } from '../../hooks/useFetchScreenshot'; 
 function Toolbar(props: ToolbarProps) {
-  const { sessionId, insightId, shot, setShot, mode, setMode, setLoading, activeTabId, selectedModel} = props;
+  const { sessionId, insightId, shot, setShot, mode, setMode, setLoading, activeTabId, selectedModel, tabs} = props;
+  const [showInputsMenu, setShowInputsMenu] = useState(false);
   
     const viewport: Viewport = {
         width: shot?.width ?? 1280,
@@ -64,7 +66,25 @@ function Toolbar(props: ToolbarProps) {
          }, activeTabId);
     }
 
+    // Get all input steps from all tabs
+    const getAllInputs = () => {
+      const inputs: Array<{ label: string | null; value: string; tabTitle: string }> = [];
+      tabs.forEach(tab => {
+        tab.steps.forEach(step => {
+          if (step.type === 'TYPE' && step.label) {
+            inputs.push({
+              label: step.label,
+              value: step.text,
+              tabTitle: tab.title
+            });
+          }
+        });
+      });
+      return inputs;
+    };
+
   return (
+    <>
     <div className="toolbar-container">
         {([
           { m: "click", icon: <MouseIcon />, label: "Click" },
@@ -72,7 +92,8 @@ function Toolbar(props: ToolbarProps) {
           { m: "scroll-down", icon: <ArrowDownIcon />, label: "Scroll Down" },
           { m: "delay", icon: <AccessTimeIcon />, label: "Delay" },
           { m: "fetch-screenshot", icon: <SyncIcon />, label: "Refresh" },
-          { m: "crop", icon: <CropIcon />, label: "Add Context" }
+          { m: "crop", icon: <CropIcon />, label: "Add Context" },
+          { m: "show-inputs", icon: <ListIcon />, label: "Show Inputs" }
 
         ] as { m: string; icon: JSX.Element; label: string }[]).map(({ m, icon, label }) => {
           const active = mode === m;
@@ -97,6 +118,8 @@ function Toolbar(props: ToolbarProps) {
                   setMode("click");
                 } else if (m == "crop") {
                   setMode("crop");
+                } else if (m === "show-inputs") {
+                  setShowInputsMenu(!showInputsMenu);
                 } else {
                   setMode(m);
                 }
@@ -113,6 +136,35 @@ function Toolbar(props: ToolbarProps) {
           );
         })}
       </div>
+
+      {/* Inputs Menu */}
+      {showInputsMenu && (
+        <div className="inputs-menu">
+          <div className="inputs-menu-header">
+            <h3>Stored Inputs</h3>
+            <button 
+              className="inputs-menu-close"
+              onClick={() => setShowInputsMenu(false)}
+            >
+              ✕
+            </button>
+          </div>
+          <div className="inputs-menu-content">
+            {getAllInputs().length === 0 ? (
+              <p className="inputs-menu-empty">No inputs recorded yet</p>
+            ) : (
+              getAllInputs().map((input, index) => (
+                <div key={index} className="input-item">
+                  <div className="input-item-label">{input.label || 'Unlabeled'}</div>
+                  <div className="input-item-value">{input.value}</div>
+                  <div className="input-item-tab">Tab: {input.tabTitle}</div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 

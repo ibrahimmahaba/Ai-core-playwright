@@ -80,7 +80,6 @@ export type CropArea = {
   
   export type RemoteRunnerProps = {
     sessionId: string;
-    metadata: Record<string, string>;
     insightId: string;
   };
   

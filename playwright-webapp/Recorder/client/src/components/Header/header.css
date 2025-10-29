@@ -1,17 +1,17 @@
 .header-container {
   padding: 24px 32px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-bottom: none;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  background: #ffffff;
+  border-bottom: 1px solid #e0e0e0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .header-container h2 {
   margin: 0 0 20px 0;
-  color: #ffffff;
+  color: #000000;
   font-size: 28px;
   font-weight: 700;
   letter-spacing: -0.5px;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  text-shadow: none;
 }
 
 .header-input-group {
@@ -19,10 +19,10 @@
   gap: 12px;
   align-items: center;
   flex-wrap: wrap;
-  background: rgba(255, 255, 255, 0.15);
+  background: #f8f9fa;
   padding: 16px;
   border-radius: 12px;
-  backdrop-filter: blur(10px);
+  border: 1px solid #e0e0e0;
   margin-bottom: 0;
 }
 
@@ -30,19 +30,19 @@
   flex: 1;
   min-width: 250px;
   padding: 12px 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  border: 2px solid #e0e0e0;
   border-radius: 8px;
   font-size: 14px;
-  background: rgba(255, 255, 255, 0.95);
+  background: #ffffff;
   color: #333;
   transition: all 0.3s ease;
 }
 
 .header-input:focus {
   outline: none;
-  border-color: #ffffff;
+  border-color: #667eea;
   background: #ffffff;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
 }
 
 .header-input::placeholder {
@@ -51,8 +51,8 @@
 
 .header-input-group button {
   padding: 12px 24px;
-  background: #ffffff;
-  color: #667eea;
+  background: #000000;
+  color: #ffffff;
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -65,9 +65,9 @@
 }
 
 .header-input-group button:hover {
-  background: #f8f9fa;
+  background: #333333;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .header-input-group button:active {
@@ -75,8 +75,8 @@
 }
 
 .header-input-group button:disabled {
-  background: rgba(255, 255, 255, 0.5);
-  color: rgba(102, 126, 234, 0.5);
+  background: #cccccc;
+  color: #666666;
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
@@ -84,18 +84,20 @@
 
 .header-steps-count {
   margin-left: auto;
-  color: #ffffff;
+  color: #333333;
   font-weight: 600;
-  background: rgba(255, 255, 255, 0.2);
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
   padding: 8px 16px;
   border-radius: 8px;
 }
 
 .header-crop-mode {
-  color: #ffffff;
+  color: #333333;
   font-weight: 600;
   font-size: 14px;
-  background: rgba(255, 255, 255, 0.2);
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
   padding: 8px 16px;
   border-radius: 8px;
   display: inline-flex;
@@ -112,10 +114,10 @@
   margin-top: 20px;
   display: flex;
   gap: 16px;
-  background: rgba(255, 255, 255, 0.15);
+  background: #f8f9fa;
   padding: 16px;
   border-radius: 12px;
-  backdrop-filter: blur(10px);
+  border: 1px solid #e0e0e0;
   width: 75vw;
   box-sizing: border-box;
 }
@@ -129,13 +131,8 @@
 /* Material-UI TextField customization */
 .header-title-field .MuiTextField-root,
 .header-description-field .MuiTextField-root {
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 8px;
-}
-
-.header-title-field .MuiTextField-root:hover,
-.header-description-field .MuiTextField-root:hover {
   background: #ffffff;
+  border-radius: 8px;
 }
 
 .header-title-field .MuiInputLabel-root,
@@ -151,18 +148,18 @@
 
 .header-title-field .MuiOutlinedInput-notchedOutline,
 .header-description-field .MuiOutlinedInput-notchedOutline {
-  border-color: rgba(255, 255, 255, 0.3);
+  border-color: #e0e0e0;
   border-width: 2px;
 }
 
 .header-title-field .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline,
 .header-description-field .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
-  border-color: rgba(255, 255, 255, 0.5);
+  border-color: #cccccc;
 }
 
 .header-title-field .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline,
 .header-description-field .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
-  border-color: #ffffff;
+  border-color: #667eea;
 }
 
 /* Autocomplete styling */
@@ -171,7 +168,7 @@
 }
 
 .header-input-group .MuiTextField-root {
-  background: rgba(255, 255, 255, 0.95);
+  background: #ffffff;
   border-radius: 8px;
 }
 
@@ -180,16 +177,16 @@
 }
 
 .header-input-group .MuiOutlinedInput-notchedOutline {
-  border-color: rgba(255, 255, 255, 0.3);
+  border-color: #e0e0e0;
   border-width: 2px;
 }
 
 .header-input-group .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
-  border-color: rgba(255, 255, 255, 0.5);
+  border-color: #cccccc;
 }
 
 .header-input-group .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
-  border-color: #ffffff;
+  border-color: #667eea;
 }
 
 .header-input-group .MuiInputLabel-root {

@@ -164,21 +164,21 @@
 
 /* Autocomplete styling */
 .header-input-group .MuiAutocomplete-root {
-  min-width: 250px;
+  min-width: 200px;
 }
 
 .header-input-group .MuiTextField-root {
   background: #ffffff;
-  border-radius: 8px;
+  border-radius: 4px;
 }
 
 .header-input-group .MuiOutlinedInput-root {
-  border-radius: 8px;
+  border-radius: 4px;
 }
 
 .header-input-group .MuiOutlinedInput-notchedOutline {
   border-color: #e0e0e0;
-  border-width: 2px;
+  border-width: 1px;
 }
 
 .header-input-group .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
@@ -191,5 +191,38 @@
 
 .header-input-group .MuiInputLabel-root {
   color: rgba(0, 0, 0, 0.7);
-  font-weight: 500;
+  font-weight: 400;
+}
+
+/* Reset autocomplete clear button to normal Material-UI style */
+.header-input-group .MuiAutocomplete-root .MuiAutocomplete-clearIndicator {
+  background: transparent !important;
+  color: rgba(0, 0, 0, 0.54) !important;
+  border: none !important;
+  border-radius: 50% !important;
+  padding: 4px !important;
+  transform: none !important;
+  box-shadow: none !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  font-weight: normal !important;
+}
+
+.header-input-group .MuiAutocomplete-root .MuiAutocomplete-clearIndicator:hover {
+  background: rgba(0, 0, 0, 0.04) !important;
+  transform: none !important;
+}
+
+/* Make dropdown options smaller */
+.header-input-group .MuiAutocomplete-root .MuiOutlinedInput-root {
+  padding: 6px 9px !important;
+}
+
+.header-input-group .MuiAutocomplete-root .MuiInputLabel-root {
+  font-size: 14px;
+}
+
+.header-input-group .MuiAutocomplete-root .MuiOutlinedInput-input {
+  padding: 7px 4px !important;
+  font-size: 14px;
 }

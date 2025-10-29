@@ -322,11 +322,21 @@
   font-weight: 500;
 }
 
+.store-value-indicator.clickable {
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.store-value-indicator.clickable:hover {
+  opacity: 0.8;
+}
+
 .store-value-checked {
   color: #28a745;
   background: #d4edda;
   padding: 2px 6px;
   border-radius: 4px;
+  display: inline-block;
 }
 
 .store-value-unchecked {
@@ -334,6 +344,7 @@
   background: #e9ecef;
   padding: 2px 6px;
   border-radius: 4px;
+  display: inline-block;
 }
 
 .input-value-container {

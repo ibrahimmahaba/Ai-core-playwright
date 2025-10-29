@@ -185,11 +185,21 @@
   font-weight: 500;
 }
 
+.expanded-store-value-indicator.clickable {
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.expanded-store-value-indicator.clickable:hover {
+  opacity: 0.8;
+}
+
 .expanded-store-value-checked {
   color: #28a745;
   background: #d4edda;
   padding: 3px 8px;
   border-radius: 4px;
+  display: inline-block;
 }
 
 .expanded-store-value-unchecked {
@@ -197,6 +207,7 @@
   background: #e9ecef;
   padding: 3px 8px;
   border-radius: 4px;
+  display: inline-block;
 }
 
 .expanded-value-container {

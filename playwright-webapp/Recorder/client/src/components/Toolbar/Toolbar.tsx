@@ -102,7 +102,8 @@ function Toolbar(props: ToolbarProps) {
             stepIndex,
             label: (step as any).label!,
             value: (step as any).text,
-            storeValue: (step as any).storeValue !== false
+            storeValue: (step as any).storeValue,
+            hasStoreValue: (step as any).storeValue !== undefined
           }))
       }));
     };
@@ -143,6 +144,27 @@ function Toolbar(props: ToolbarProps) {
     const handleCancelEdit = () => {
       setEditingInput(null);
       setHasUnsavedChanges(false);
+    };
+
+    const toggleStoreValue = (tabId: string, stepIndex: number, currentValue: boolean) => {
+      const updatedTabs = tabs.map(tab => {
+        if (tab.id === tabId) {
+          return {
+            ...tab,
+            steps: tab.steps.map((step, idx) => {
+              if (idx === stepIndex && step.type === 'TYPE') {
+                return {
+                  ...step,
+                  storeValue: !currentValue
+                };
+              }
+              return step;
+            })
+          };
+        }
+        return tab;
+      });
+      setTabs(updatedTabs);
     };
 
     const togglePasswordVisibility = (key: string) => {
@@ -321,13 +343,19 @@ function Toolbar(props: ToolbarProps) {
                                   >
                                     {input.label}
                                   </div>
-                                  <div className="store-value-indicator" title={input.storeValue ? "Value is stored" : "Value not stored"}>
-                                    {input.storeValue ? (
-                                      <span className="store-value-checked">✓ Stored</span>
-                                    ) : (
-                                      <span className="store-value-unchecked">Not stored</span>
-                                    )}
-                                  </div>
+                                  {input.hasStoreValue && (
+                                    <div 
+                                      className="store-value-indicator clickable" 
+                                      onClick={() => toggleStoreValue(selectedTabId, input.stepIndex, input.storeValue)}
+                                      title={input.storeValue ? "Click to mark as not stored" : "Click to mark as stored"}
+                                    >
+                                      {input.storeValue ? (
+                                        <span className="store-value-checked">✓ Stored</span>
+                                      ) : (
+                                        <span className="store-value-unchecked">✗ Not stored</span>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                                 <div className="input-value-container">
                                   <div 

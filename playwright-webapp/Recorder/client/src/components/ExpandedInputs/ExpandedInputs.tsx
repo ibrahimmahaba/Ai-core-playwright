@@ -34,7 +34,8 @@ function ExpandedInputs({ tabs, setTabs, onClose }: ExpandedInputsProps) {
           stepIndex,
           label: step.label!,
           value: (step as any).text,
-          storeValue: (step as any).storeValue !== false,
+          storeValue: (step as any).storeValue,
+          hasStoreValue: (step as any).storeValue !== undefined,
         })),
     }));
   };
@@ -80,6 +81,27 @@ function ExpandedInputs({ tabs, setTabs, onClose }: ExpandedInputsProps) {
   const handleCancelEdit = () => {
     setEditingInput(null);
     setHasUnsavedChanges(false);
+  };
+
+  const toggleStoreValue = (tabId: string, stepIndex: number, currentValue: boolean) => {
+    const updatedTabs = tabs.map(tab => {
+      if (tab.id === tabId) {
+        return {
+          ...tab,
+          steps: tab.steps.map((step, idx) => {
+            if (idx === stepIndex && step.type === 'TYPE') {
+              return {
+                ...step,
+                storeValue: !currentValue
+              };
+            }
+            return step;
+          })
+        };
+      }
+      return tab;
+    });
+    setTabs(updatedTabs);
   };
 
   const togglePasswordVisibility = (key: string) => {
@@ -198,13 +220,19 @@ function ExpandedInputs({ tabs, setTabs, onClose }: ExpandedInputsProps) {
                                     >
                                       {input.label}
                                     </div>
-                                    <div className="expanded-store-value-indicator" title={input.storeValue ? "Value is stored" : "Value not stored"}>
-                                      {input.storeValue ? (
-                                        <span className="expanded-store-value-checked">✓ Stored</span>
-                                      ) : (
-                                        <span className="expanded-store-value-unchecked">Not stored</span>
-                                      )}
-                                    </div>
+                                    {input.hasStoreValue && (
+                                      <div 
+                                        className="expanded-store-value-indicator clickable" 
+                                        onClick={() => toggleStoreValue(selectedTabId, input.stepIndex, input.storeValue)}
+                                        title={input.storeValue ? "Click to mark as not stored" : "Click to mark as stored"}
+                                      >
+                                        {input.storeValue ? (
+                                          <span className="expanded-store-value-checked">✓ Stored</span>
+                                        ) : (
+                                          <span className="expanded-store-value-unchecked">✗ Not stored</span>
+                                        )}
+                                      </div>
+                                    )}
                                   </div>
                                   <div className="expanded-value-container">
                                     <div

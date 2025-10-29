@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { TabData } from "../../types";
+import { Visibility as VisibilityIcon, VisibilityOff as VisibilityOffIcon } from "@mui/icons-material";
 import "./ExpandedInputs.css";
 
 interface ExpandedInputsProps {
@@ -19,6 +20,7 @@ function ExpandedInputs({ tabs, setTabs, onClose }: ExpandedInputsProps) {
   const [editedLabel, setEditedLabel] = useState<string>("");
   const [editedValue, setEditedValue] = useState<string>("");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
 
   // Get inputs grouped by tab
   const getInputsByTab = () => {
@@ -77,6 +79,26 @@ function ExpandedInputs({ tabs, setTabs, onClose }: ExpandedInputsProps) {
   const handleCancelEdit = () => {
     setEditingInput(null);
     setHasUnsavedChanges(false);
+  };
+
+  const togglePasswordVisibility = (key: string) => {
+    setVisiblePasswords(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(key)) {
+        newSet.delete(key);
+      } else {
+        newSet.add(key);
+      }
+      return newSet;
+    });
+  };
+
+  const isPasswordField = (label: string) => {
+    return label.toLowerCase().includes('password');
+  };
+
+  const maskPassword = (value: string) => {
+    return '•'.repeat(value.length);
   };
 
   return (
@@ -174,19 +196,35 @@ function ExpandedInputs({ tabs, setTabs, onClose }: ExpandedInputsProps) {
                                   >
                                     {input.label}
                                   </div>
-                                  <div
-                                    className="expanded-input-value editable"
-                                    onClick={() =>
-                                      handleEditInput(
-                                        selectedTabId,
-                                        input.stepIndex,
-                                        input.label,
-                                        input.value
-                                      )
-                                    }
-                                    title="Click to edit"
-                                  >
-                                    {input.value}
+                                  <div className="expanded-value-container">
+                                    <div
+                                      className="expanded-input-value editable"
+                                      onClick={() =>
+                                        handleEditInput(
+                                          selectedTabId,
+                                          input.stepIndex,
+                                          input.label,
+                                          input.value
+                                        )
+                                      }
+                                      title="Click to edit"
+                                    >
+                                      {isPasswordField(input.label) && !visiblePasswords.has(`${selectedTabId}-${input.stepIndex}`)
+                                        ? maskPassword(input.value)
+                                        : input.value}
+                                    </div>
+                                    {isPasswordField(input.label) && (
+                                      <button
+                                        className="expanded-password-toggle"
+                                        onClick={() => togglePasswordVisibility(`${selectedTabId}-${input.stepIndex}`)}
+                                        title={visiblePasswords.has(`${selectedTabId}-${input.stepIndex}`) ? "Hide password" : "Show password"}
+                                      >
+                                        {visiblePasswords.has(`${selectedTabId}-${input.stepIndex}`) 
+                                          ? <VisibilityOffIcon fontSize="small" />
+                                          : <VisibilityIcon fontSize="small" />
+                                        }
+                                      </button>
+                                    )}
                                   </div>
                                 </>
                               )}

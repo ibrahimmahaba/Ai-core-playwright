@@ -311,6 +311,13 @@
   background: #e8e8e8;
 }
 
+.input-value-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .input-item-value {
   color: #555;
   font-size: 12px;
@@ -319,6 +326,7 @@
   border-radius: 4px;
   border: 1px solid #e0e0e0;
   word-break: break-word;
+  flex: 1;
 }
 
 .input-item-value.editable {
@@ -329,6 +337,25 @@
 .input-item-value.editable:hover {
   background: #f8f9fa;
   border-color: #007bff;
+}
+
+.password-toggle {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #666;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.password-toggle:hover {
+  background: #e8e8e8;
+  color: #333;
 }
 
 /* Edit Mode Inputs */

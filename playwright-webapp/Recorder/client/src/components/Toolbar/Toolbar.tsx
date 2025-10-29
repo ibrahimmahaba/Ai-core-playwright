@@ -7,6 +7,8 @@ import {
     CropFree as CropIcon,
     List as ListIcon,
     OpenInFull as ExpandIcon,
+    Visibility as VisibilityIcon,
+    VisibilityOff as VisibilityOffIcon,
   } from "@mui/icons-material";
 import { type JSX, useState } from "react";
 import type { ToolbarProps, Step, Viewport } from "../../types";
@@ -23,6 +25,7 @@ function Toolbar(props: ToolbarProps) {
   const [editedLabel, setEditedLabel] = useState<string>("");
   const [editedValue, setEditedValue] = useState<string>("");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
   
     const viewport: Viewport = {
         width: shot?.width ?? 1280,
@@ -139,6 +142,26 @@ function Toolbar(props: ToolbarProps) {
     const handleCancelEdit = () => {
       setEditingInput(null);
       setHasUnsavedChanges(false);
+    };
+
+    const togglePasswordVisibility = (key: string) => {
+      setVisiblePasswords(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(key)) {
+          newSet.delete(key);
+        } else {
+          newSet.add(key);
+        }
+        return newSet;
+      });
+    };
+
+    const isPasswordField = (label: string) => {
+      return label.toLowerCase().includes('password');
+    };
+
+    const maskPassword = (value: string) => {
+      return '•'.repeat(value.length);
     };
 
   return (
@@ -296,12 +319,28 @@ function Toolbar(props: ToolbarProps) {
                                 >
                                   {input.label}
                                 </div>
-                                <div 
-                                  className="input-item-value editable"
-                                  onClick={() => handleEditInput(selectedTabId, input.stepIndex, input.label, input.value)}
-                                  title="Click to edit"
-                                >
-                                  {input.value}
+                                <div className="input-value-container">
+                                  <div 
+                                    className="input-item-value editable"
+                                    onClick={() => handleEditInput(selectedTabId, input.stepIndex, input.label, input.value)}
+                                    title="Click to edit"
+                                  >
+                                    {isPasswordField(input.label) && !visiblePasswords.has(`${selectedTabId}-${input.stepIndex}`)
+                                      ? maskPassword(input.value)
+                                      : input.value}
+                                  </div>
+                                  {isPasswordField(input.label) && (
+                                    <button
+                                      className="password-toggle"
+                                      onClick={() => togglePasswordVisibility(`${selectedTabId}-${input.stepIndex}`)}
+                                      title={visiblePasswords.has(`${selectedTabId}-${input.stepIndex}`) ? "Hide password" : "Show password"}
+                                    >
+                                      {visiblePasswords.has(`${selectedTabId}-${input.stepIndex}`) 
+                                        ? <VisibilityOffIcon fontSize="small" />
+                                        : <VisibilityIcon fontSize="small" />
+                                      }
+                                    </button>
+                                  )}
                                 </div>
                               </>
                             )}

@@ -20,7 +20,7 @@
   align-items: center;
   flex-wrap: wrap;
   background: #f8f9fa;
-  padding: 16px;
+  padding: 10px;
   border-radius: 12px;
   border: 1px solid #e0e0e0;
   margin-bottom: 0;
@@ -29,7 +29,7 @@
 .header-input {
   flex: 1;
   min-width: 250px;
-  padding: 12px 16px;
+  padding: 8px 8px;
   border: 2px solid #e0e0e0;
   border-radius: 8px;
   font-size: 14px;
@@ -115,10 +115,10 @@
   display: flex;
   gap: 16px;
   background: #f8f9fa;
-  padding: 16px;
-  border-radius: 12px;
+  padding: 8px;
+  border-radius: 12px;  
   border: 1px solid #e0e0e0;
-  width: 75vw;
+  width: 73vw;
   box-sizing: border-box;
 }
 

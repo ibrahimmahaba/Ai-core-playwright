@@ -84,7 +84,7 @@ function Toolbar(props: ToolbarProps) {
             label: step.label!,
             value: (step as any).text
           }))
-      })).filter(tab => tab.inputs.length > 0);
+      }));
     };
 
     const handleEditInput = (tabId: string, stepIndex: number, label: string, value: string) => {
@@ -239,9 +239,13 @@ function Toolbar(props: ToolbarProps) {
                 {/* Tab Content */}
                 {selectedTabId && getInputsByTab().find(tab => tab.tabId === selectedTabId) && (
                   <div className="inputs-tab-content">
-                    {getInputsByTab()
-                      .find(tab => tab.tabId === selectedTabId)!
-                      .inputs.map((input, index) => {
+                    {(() => {
+                      const selectedTab = getInputsByTab().find(tab => tab.tabId === selectedTabId);
+                      if (!selectedTab || selectedTab.inputs.length === 0) {
+                        return <p className="inputs-menu-empty">No inputs in this tab</p>;
+                      }
+                      
+                      return selectedTab.inputs.map((input, index) => {
                         const isEditing = editingInput?.tabId === selectedTabId && editingInput?.stepIndex === input.stepIndex;
                         
                         return (
@@ -288,7 +292,8 @@ function Toolbar(props: ToolbarProps) {
                             )}
                           </div>
                         );
-                      })}
+                      });
+                    })()}
                   </div>
                 )}
               </>

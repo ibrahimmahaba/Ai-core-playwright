@@ -6,15 +6,18 @@ import {
     Sync as SyncIcon,
     CropFree as CropIcon,
     List as ListIcon,
+    OpenInFull as ExpandIcon,
   } from "@mui/icons-material";
 import { type JSX, useState } from "react";
 import type { ToolbarProps, Step, Viewport } from "../../types";
 import {useSendStep} from"../../hooks/useSendStep"
 import './toolbar.css';
-import { fetchScreenshot } from '../../hooks/useFetchScreenshot'; 
+import { fetchScreenshot } from '../../hooks/useFetchScreenshot';
+import ExpandedInputs from '../ExpandedInputs/ExpandedInputs'; 
 function Toolbar(props: ToolbarProps) {
   const { sessionId, insightId, shot, setShot, mode, setMode, setLoading, activeTabId, selectedModel, tabs, setTabs} = props;
   const [showInputsMenu, setShowInputsMenu] = useState(false);
+  const [showExpandedView, setShowExpandedView] = useState(false);
   const [selectedTabId, setSelectedTabId] = useState<string | null>(null);
   const [editingInput, setEditingInput] = useState<{tabId: string; stepIndex: number} | null>(null);
   const [editedLabel, setEditedLabel] = useState<string>("");
@@ -91,10 +94,10 @@ function Toolbar(props: ToolbarProps) {
         tabTitle: tab.title,
         inputs: tab.steps
           .map((step, stepIndex) => ({ step, stepIndex }))
-          .filter(({ step }) => step.type === 'TYPE' && step.label)
+          .filter(({ step }) => step.type === 'TYPE' && (step as any).label)
           .map(({ step, stepIndex }) => ({
             stepIndex,
-            label: step.label!,
+            label: (step as any).label!,
             value: (step as any).text
           }))
       }));
@@ -196,7 +199,9 @@ function Toolbar(props: ToolbarProps) {
             >
               {icon}
               {m === "show-inputs" && getTotalInputsCount() > 0 && (
-                <span className="toolbar-button-badge">{getTotalInputsCount()}</span>
+                <span className="toolbar-button-badge">
+                  {getTotalInputsCount() > 9 ? '9+' : getTotalInputsCount()}
+                </span>
               )}
             </button>
           );
@@ -208,12 +213,24 @@ function Toolbar(props: ToolbarProps) {
         <div className="inputs-menu">
           <div className="inputs-menu-header">
             <h3>Stored Inputs</h3>
-            <button 
-              className="inputs-menu-close"
-              onClick={() => setShowInputsMenu(false)}
-            >
-              ✕
-            </button>
+            <div className="inputs-menu-header-actions">
+              <button 
+                className="inputs-menu-expand"
+                onClick={() => {
+                  setShowExpandedView(true);
+                  setShowInputsMenu(false);
+                }}
+                title="Expand view"
+              >
+                <ExpandIcon fontSize="small" />
+              </button>
+              <button 
+                className="inputs-menu-close"
+                onClick={() => setShowInputsMenu(false)}
+              >
+                ✕
+              </button>
+            </div>
           </div>
           <div className="inputs-menu-content">
             {getInputsByTab().length === 0 ? (
@@ -316,6 +333,15 @@ function Toolbar(props: ToolbarProps) {
             </div>
           )}
         </div>
+      )}
+
+      {/* Expanded Inputs View */}
+      {showExpandedView && (
+        <ExpandedInputs
+          tabs={tabs}
+          setTabs={setTabs}
+          onClose={() => setShowExpandedView(false)}
+        />
       )}
     </>
   )

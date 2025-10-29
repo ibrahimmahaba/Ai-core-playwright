@@ -104,6 +104,32 @@
   color: #333;
 }
 
+.inputs-menu-header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.inputs-menu-expand {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #666;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.inputs-menu-expand:hover {
+  background: #e0e0e0;
+  color: #333;
+}
+
 .inputs-menu-close {
   background: transparent;
   border: none;

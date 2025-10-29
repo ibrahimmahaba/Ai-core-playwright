@@ -109,6 +109,10 @@ export type CropArea = {
     steps?: Step[] | null;
     setSteps?: React.Dispatch<React.SetStateAction<Step[]>>;
     setLoading?: React.Dispatch<React.SetStateAction<boolean>>;
+    tabs?: TabData[];
+    setTabs?: React.Dispatch<React.SetStateAction<TabData[]>>;
+    _activeTabId?: string;
+    setActiveTabId?: React.Dispatch<React.SetStateAction<string>>;
   }
 
   export interface ToolbarProps {
@@ -180,7 +184,7 @@ export type CropArea = {
     steps: Step[] ;
     setSteps: React.Dispatch<React.SetStateAction<Step[]>>;
     shot: ScreenshotResponse | undefined;
-    activeTabId?: string;  
+    activeTabId: string;  
     tabs?: TabData[];     
     setTabs?: React.Dispatch<React.SetStateAction<TabData[]>>; 
     setActiveTabId?: React.Dispatch<React.SetStateAction<string>>;

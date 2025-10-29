@@ -71,6 +71,19 @@ function Toolbar(props: ToolbarProps) {
          }, activeTabId);
     }
 
+    // Get total count of all inputs across all tabs
+    const getTotalInputsCount = () => {
+      let count = 0;
+      tabs.forEach(tab => {
+        tab.steps.forEach(step => {
+          if (step.type === 'TYPE' && step.label) {
+            count++;
+          }
+        });
+      });
+      return count;
+    };
+
     // Get inputs grouped by tab
     const getInputsByTab = () => {
       return tabs.map(tab => ({
@@ -182,6 +195,9 @@ function Toolbar(props: ToolbarProps) {
               }`}
             >
               {icon}
+              {m === "show-inputs" && getTotalInputsCount() > 0 && (
+                <span className="toolbar-button-badge">{getTotalInputsCount()}</span>
+              )}
             </button>
           );
         })}
@@ -217,24 +233,6 @@ function Toolbar(props: ToolbarProps) {
                     </button>
                   ))}
                 </div>
-
-                {/* Save Actions */}
-                {hasUnsavedChanges && (
-                  <div className="save-actions">
-                    <button 
-                      className="save-button"
-                      onClick={handleSaveChanges}
-                    >
-                      Save
-                    </button>
-                    <button 
-                      className="cancel-button"
-                      onClick={handleCancelEdit}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                )}
 
                 {/* Tab Content */}
                 {selectedTabId && getInputsByTab().find(tab => tab.tabId === selectedTabId) && (
@@ -299,6 +297,24 @@ function Toolbar(props: ToolbarProps) {
               </>
             )}
           </div>
+
+          {/* Save Actions - Fixed at bottom */}
+          {hasUnsavedChanges && (
+            <div className="save-actions">
+              <button 
+                className="save-button"
+                onClick={handleSaveChanges}
+              >
+                Save
+              </button>
+              <button 
+                className="cancel-button"
+                onClick={handleCancelEdit}
+              >
+                Cancel
+              </button>
+            </div>
+          )}
         </div>
       )}
     </>

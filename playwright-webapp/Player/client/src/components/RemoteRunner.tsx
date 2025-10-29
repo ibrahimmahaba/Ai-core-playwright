@@ -11,7 +11,7 @@ import ReactCrop, { type Crop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { rgba } from 'polished';
 import type { Action, Coords, CropArea, Overlay, Probe, ProbeRect, RemoteRunnerProps, ReplayPixelOutput, ScreenshotResponse, Step, Viewport
-  , modelGeneratedSteps, ExtractedElement, ExtractionData, ModelOption } from "../types";
+  , modelGeneratedSteps, ExtractedElement, ExtractionData, ModelOption, TabData } from "../types";
 import { useSendStep } from "../hooks/useSendStep";
 import { preferSelectorFromProbe } from "../hooks/usePreferSelector";
 import Toolbar from "./Toolbar/Toolbar";
@@ -20,6 +20,7 @@ import VisionPopup from "./VisionPopup/VisionPopup";
 import './RemoteRunner.css';
 import StepsBottomSection from "./StepsBottomSection/StepsBottomSection";
 import { useSkipStep } from "../hooks/useSkipStep";
+import { Tabs, Tab, Box } from "@mui/material";
 
 export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps) {
 
@@ -50,6 +51,11 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     modelOptions[0] ?? null
   );
 
+  const [tabs, setTabs] = useState<TabData[]>([
+    { id: "tab-1", title: "New Tab", actions: [] }
+  ]);
+  const [activeTabId, setActiveTabId] = useState<string>("tab-1");
+  
   useEffect(() => {
     if (!sessionId || !live) return;
     let cancelled = false;
@@ -63,35 +69,6 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     tick();
     return () => { cancelled = true; };
   }, [sessionId, live, intervalMs]);
-
-  //   const fetchRecordings = async () => {
-  //     let pixel = `ListPlaywrightScripts();`
-  //     console.log(insightId);
-  //     const res = await runPixel(pixel, insightId);
-  //     const { output } = res.pixelReturn[0];
-
-  //     if (Array.isArray(output))
-  //     {      
-  //       setAllRecordings(output as string[]);
-  //     } else {
-  //       console.error("Invalid response structure for recordings:", output);
-  //       setAllRecordings([]);
-  //     }
-
-            
-  //     const insight = new Insight();
-
-  //     const initRes: any = await insight.initialize();
-
-  //     const tool = await initRes?.tool;
-
-  //     const maybeSymbol = tool?.parameters?.sessionId;
-
-  //     setSelectedRecording(maybeSymbol);
-      
-  //   };
-  //   fetchRecordings();
-  // }, []);
 
   useEffect(() => {
     // Auto-show input overlay for TYPE steps
@@ -161,6 +138,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     setIsLastPage,
     setOverlay,
     setLoading,
+    activeTabId
   });
 
   function imageToPageCoords(e: React.MouseEvent<HTMLImageElement, MouseEvent>): Coords {
@@ -201,14 +179,6 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
 
     if (isTextField && p.isTextControl) {
       setOverlay({ kind: "input", probe: p, draftValue: p.value ?? "", draftLabel: p.labelText ?? "" });
-    } else if (p.tag === "a" && p.href && p.href.startsWith("http")) {
-      await sendStep({
-        type: "NAVIGATE",
-        viewport,
-        waitAfterMs: 300,
-        timestamp: Date.now(),
-        url: p.href
-      });
     } else {
       await sendStep({
         type: "CLICK",
@@ -232,20 +202,19 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     return { base64Png: base64, width, height, deviceScaleFactor: dpr };
   }
     
-  async function fetchScreenshot() {
+  async function fetchScreenshot(tabIdParam?: string) {
     if (!sessionId) return;
+    const targetTabId = tabIdParam || activeTabId || "tab-1";
     try {
-      let pixel = `Screenshot ( sessionId = "${sessionId}" )`;
+      let pixel = `Screenshot ( sessionId = "${sessionId}", tabId="${targetTabId}" )`;
       const res = await runPixel(pixel, insightId);
       const { output } = res.pixelReturn[0];
       const snap = normalizeShot(output);
       if (snap) {
         setShot(snap);
         
-        // If there's an overlay, re-probe to get updated coordinates
         if (overlay && editedData.length > 0 && "TYPE" in editedData[0]) {
           const typeAction = editedData[0].TYPE;
-          //set overlay to null to force re-probe
           setOverlay(null);
           const p = await probeAt({x: typeAction.coords?.x, y: typeAction.coords?.y} as Coords);
           if (p) {
@@ -260,47 +229,201 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     }
   }
 
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: string) => {
+    console.log("Tab changed to:", newValue);
+    setActiveTabId(newValue);
+    
+    // Load the selected tab's actions
+    const selectedTab = tabs.find(t => t.id === newValue);
+    if (selectedTab) {
+      console.log("Loading actions for tab:", newValue, selectedTab.actions);
+      setEditedData(selectedTab.actions);
+      setUpdatedData(selectedTab.actions);
+    } else {
+      console.warn("Tab not found:", newValue);
+      setEditedData([]);
+      setUpdatedData([]);
+    }
+    
+    setTimeout(() => {
+      fetchScreenshot(newValue);
+    }, 100);
+  };
+  
+  const handleCloseTab = (tabId: string) => {
+    const updatedTabs = tabs.filter((tab) => tab.id !== tabId);
+    setTabs(updatedTabs);
+  
+    if (activeTabId === tabId && updatedTabs.length > 0) {
+      setActiveTabId(updatedTabs[0].id);
+      const selectedTab = tabs.find(t => t.id === updatedTabs[0].id);
+      if (selectedTab) {
+        console.log("Loading actions for tab:", updatedTabs[0].id, selectedTab.actions);
+        setEditedData(selectedTab.actions);
+        setUpdatedData(selectedTab.actions);
+      } else {
+        console.warn("Tab not found:", updatedTabs[0].id);
+        setEditedData([]);
+        setUpdatedData([]);
+      }
+      
+      setTimeout(() => {
+        fetchScreenshot(updatedTabs[0].id);
+      }, 100);
+      }
+  };
+
   async function handleNextStep() {
     const nextAction = editedData[0];
+    
+    if (!nextAction) {
+      console.log("No action to execute");
+      return;
+    }
+        
+    const actionTabId = (nextAction as any).tabId || activeTabId || "tab-1";
+    
+    if (!selectedRecording) {
+      setLoading(true);
+      
+      try {
+        if ("CLICK" in nextAction) {
+          const p = await probeAt(nextAction.CLICK.coords);
+          await sendStep({
+            type: "CLICK",
+            coords: nextAction.CLICK.coords,
+            viewport,
+            timestamp: Date.now(),
+            waitAfterMs: 1000,
+            selector: preferSelectorFromProbe(p) || { strategy: "css", value: "body" }
+          });
+        } else if ("TYPE" in nextAction) {
+          const text = overlay?.draftValue ?? nextAction.TYPE.text;
+          await sendStep({
+            type: "TYPE",
+            coords: nextAction.TYPE.coords || { x: 0, y: 0 },
+            text: text,
+            label: nextAction.TYPE.label,
+            isPassword: nextAction.TYPE.isPassword || false,
+            viewport,
+            timestamp: Date.now(),
+            waitAfterMs: 1000,
+            storeValue: false,
+            selector: { strategy: "css", value: "body" }
+          });
+        }
+        
+        setTabs(prevTabs => prevTabs.map(tab => {
+          if (tab.id === actionTabId) {
+            const newActions = tab.actions.slice(1);
+            return { ...tab, actions: newActions };
+          }
+          return tab;
+        }));
+        
+        const newEditedData = editedData.slice(1);
+        setEditedData(newEditedData);
+        setUpdatedData(newEditedData);
+        setOverlay(null);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     let pixel;
+    
     if ("TYPE" in nextAction) {
-      // Use the draftValue and draftLabel from overlay if available
       if (overlay && overlay.draftValue !== undefined) {
         nextAction.TYPE.text = overlay.draftValue;
       }
       const { label, text } = nextAction.TYPE;
       let paramValues = { [label]: text };
-      pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${selectedRecording}", paramValues=[${JSON.stringify(paramValues)}], executeAll=false);`;
+      pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${selectedRecording}", tabId="${actionTabId}", paramValues=[${JSON.stringify(paramValues)}], executeAll=false);`;
       setOverlay(null);
     } else {
-      pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${selectedRecording}", executeAll=false);`;
+      pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${selectedRecording}", tabId="${actionTabId}", executeAll=false);`;
     }
+    
     setLoading(true);
     const res = await runPixel(pixel, insightId);
     const { output } = res.pixelReturn[0] as { output: ReplayPixelOutput };
-
-    // Update editedData with the new data that includes coords and probe
-    const newEditedData = editedData.slice(1);
-    if (!newEditedData || newEditedData.length === 0) {
-      setEditedData(output.actions);
-      setUpdatedData(output.actions);
-
+  
+    console.log("ReplayStep output:", output);
+  
+    // Check if this action opened a new tab
+    const isNewTab = output.isNewTab;
+    const newTabId = output.newTabId;
+    const tabTitle = output.tabTitle;
+    
+    if (isNewTab && newTabId) {
+      console.log("New tab detected:", newTabId, tabTitle);
+      
+      // Check if tab already exists
+      const tabExists = tabs.find(t => t.id === newTabId);
+      
+      if (!tabExists) {
+        setTabs(prevTabs => {
+          const updatedPrevTabs = prevTabs.map(tab => {
+            if (tab.id === actionTabId) {
+              return { ...tab, actions: tab.actions.slice(1) };
+            }
+            return tab;
+          });
+          
+          const newTabs = [...updatedPrevTabs, {
+            id: newTabId,
+            title: tabTitle || newTabId,
+            actions: output.actions || []
+          }];
+          console.log("Updated tabs array:", newTabs);
+          return newTabs;
+        });
+      } else {
+        setTabs(prevTabs => prevTabs.map(tab => {
+          if (tab.id === actionTabId) {
+            return { ...tab, actions: tab.actions.slice(1) };
+          } else if (tab.id === newTabId) {
+            // Update the new tab
+            return { ...tab, title: tabTitle || newTabId, actions: output.actions || [] };
+          }
+          return tab;
+        }));
+      }
+      
+      // Switch to the new tab
+      setActiveTabId(newTabId);
+      console.log("Switched to tab:", newTabId);
+      
+      // Update displayed actions for the NEW tab
+      setEditedData(output.actions || []);
+      setUpdatedData(output.actions || []);
     } else {
-      // Merge the server response data (coords, probe) with existing editedData
-      const updatedEditedData = newEditedData.map((action, index) => {
-        if (output.actions[index]) {
-          return { ...action, ...output.actions[index] };
+      setTabs(prevTabs => prevTabs.map(tab => {
+        if (tab.id === actionTabId) {
+          return { ...tab, actions: tab.actions.slice(1) };
         }
-        return action;
-      });
-      setEditedData(updatedEditedData);
+        return tab;
+      }));
+      
+      // Update display
+      const newEditedData = editedData.slice(1);
+      setEditedData(newEditedData);
+      
+      if (output.actions && output.actions.length > 0) {
+        setUpdatedData(output.actions);
+      } else {
+        setUpdatedData(newEditedData);
+      }
     }
+    
     setLoading(false);
-    setUpdatedData(output.actions);
     setShowData(true);
     setIsLastPage(output.isLastPage);
     setShot(output.screenshot);
+    setOverlay(null);
   }
+
 
 
   function handleVisionPopup(cropArea: CropArea) {
@@ -721,6 +844,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
         generationUserPrompt={generationUserPrompt}
         setGenerationUserPrompt={setGenerationUserPrompt}
         selectedModel={selectedModel}
+        tabId={activeTabId}
       />
 
       {/* header */}
@@ -742,7 +866,12 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       currUserModels={currUserModels}
       setCurrUserModels={setCurrUserModels}
       selectedModel={selectedModel}
-      setSelectedModel={setSelectedModel}/>
+      setSelectedModel={setSelectedModel}
+      tabs={tabs}
+      setTabs={setTabs}
+      activeTabId={activeTabId}
+      setActiveTabId={setActiveTabId}
+      />
 
 
       {!shot && loading && (
@@ -763,6 +892,39 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
         </div>
       )}
 
+      {shot && (
+        <div style={{ borderBottom: 1, borderColor: 'divider', marginBottom: '12px' }}>
+          <Tabs
+            value={activeTabId}
+            onChange={handleTabChange}
+            variant="scrollable"
+            scrollButtons="auto"
+          >
+            {tabs.map((tab) => (
+              <Tab
+                key={tab.id}
+                value={tab.id}
+                label={
+                  <Box display="flex" alignItems="center">
+                    {tab.title}
+                    {tabs.length > 1 && (
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCloseTab(tab.id);
+                        }}
+                      >
+                        <Close fontSize="small" />
+                      </IconButton>
+                    )}
+                  </Box>
+                }
+              />
+            ))}
+          </Tabs>
+        </div>
+      )}
       {shot && (
         <>
           <div className="screenshot-container">
@@ -854,6 +1016,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
             crop={crop}
             setCrop={setCrop} 
             selectedModel={selectedModel}
+            tabId={activeTabId}
           />
           
           </div>
@@ -882,7 +1045,11 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       steps = {steps}
       setSteps = {setSteps}
       shot={shot}
-      />
+      activeTabId={activeTabId}  
+      tabs={tabs}  
+      setTabs={setTabs} 
+      setActiveTabId={setActiveTabId}
+    />
 
     </div>
   );

@@ -10,7 +10,7 @@ function Header(props : HeaderProps) {
   const { sessionId, insightId, shot, setShot, initSession, isInitialized} = useSessionStore();
     const {steps, setSteps, title,
       setTitle, setLoading, description, setDescription,  mode,
-    selectedModel, setSelectedModel} = props
+    selectedModel, setSelectedModel, activeTabId} = props
 
     const [showSessionPrompt, setShowSessionPrompt] = useState(false);
     const [showSaveWarning, setShowSaveWarning] = useState(false);
@@ -60,13 +60,16 @@ function Header(props : HeaderProps) {
       } else {
         setSelectedModel(null);
       }
-    }, [modelOptions]);
+      console.log("Model options updated:", modelOptions);
+    }, [modelOptions, setSelectedModel]);
 
-    const { sendStep } = useSendStep({
+      const { sendStep } = useSendStep({
         insightId : insightId,
-        steps: steps,
-        setSteps: setSteps,
-        setLoading: setLoading
+        setLoading: setLoading,
+        tabs: props.tabs,
+        setTabs: props.setTabs,
+        _activeTabId: activeTabId,
+        setActiveTabId: props.setActiveTabId
     });
     const handleOpenClick = async () => {
       if (shot) {
@@ -202,7 +205,6 @@ function Header(props : HeaderProps) {
                 )}
                 sx={{ minWidth: 250 }}
               />
-              <span>Steps: {steps ? steps.length : 0}</span>
               {mode === "crop" && <span className="header-crop-mode">
               Drag to select crop area
               </span>}

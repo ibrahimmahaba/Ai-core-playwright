@@ -80,7 +80,6 @@ export type CropArea = {
   
   export type RemoteRunnerProps = {
     sessionId: string;
-    metadata: Record<string, string>;
     insightId: string;
   };
   
@@ -88,6 +87,11 @@ export type CropArea = {
     isLastPage: boolean;
     actions: Action[];
     screenshot?: ScreenshotResponse;
+    isNewTab?: boolean;      
+    newTabId?: string; 
+    tabTitle?: string; 
+    originalTabId?: string;
+    originalTabActions?: Action[];
   };
   
   export type modelGeneratedSteps = {
@@ -121,6 +125,7 @@ export type CropArea = {
     generationUserPrompt: string;
     setGenerationUserPrompt: React.Dispatch<React.SetStateAction<string>>;
     selectedModel: ModelOption | null;
+    tabId: string;
   }
 
 
@@ -142,6 +147,10 @@ export type CropArea = {
    setCurrUserModels: React.Dispatch<React.SetStateAction<Record<string, string>>>;
    selectedModel: ModelOption | null;
    setSelectedModel: React.Dispatch<React.SetStateAction<ModelOption | null>>
+   tabs?: TabData[];
+   setTabs?: React.Dispatch<React.SetStateAction<TabData[]>>;
+   activeTabId?: string;
+   setActiveTabId?: React.Dispatch<React.SetStateAction<string>>;
   }
 
   export interface Overlay{
@@ -171,6 +180,10 @@ export type CropArea = {
     steps: Step[] ;
     setSteps: React.Dispatch<React.SetStateAction<Step[]>>;
     shot: ScreenshotResponse | undefined;
+    activeTabId?: string;  
+    tabs?: TabData[];     
+    setTabs?: React.Dispatch<React.SetStateAction<TabData[]>>; 
+    setActiveTabId?: React.Dispatch<React.SetStateAction<string>>;
   }
 
   export interface VisionPopup {x: number; y: number; query: string; response: string | null;}
@@ -187,6 +200,7 @@ export type CropArea = {
     crop: Crop | undefined;
     setCrop: React.Dispatch<React.SetStateAction<Crop| undefined>>
     selectedModel: ModelOption | null;
+    tabId: string;
   }
 
 
@@ -250,3 +264,8 @@ export type CropArea = {
   };
 
   export type ModelOption = { label: string; value: string };
+  export interface TabData {
+    id: string;
+    title: string;
+    actions: Action[];
+  }

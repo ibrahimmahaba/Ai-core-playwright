@@ -130,16 +130,27 @@ export interface ScreenshotResponse {
     setMode: (mode : string) => void;
     loading: boolean;
     setLoading: React.Dispatch<React.SetStateAction<boolean>>;
-    steps: Step[] | null;
-    setSteps:  React.Dispatch<React.SetStateAction<Step[]>>;
     selectedModel: ModelOption | null;
+    currentSteps: Step[];
+    activeTabId: string;
+    tabs: TabData[];
+    setTabs: React.Dispatch<React.SetStateAction<TabData[]>>;
+    setActiveTabId: React.Dispatch<React.SetStateAction<string>>;
   }
-
+  export interface TabData {
+    id: string;  
+    title: string;
+    steps: Step[];
+  }
   export interface UseSendStepParams {
     insightId: string;
     steps?: Step[] | null;
     setSteps?: React.Dispatch<React.SetStateAction<Step[]>>;
     setLoading?: React.Dispatch<React.SetStateAction<boolean>>;
+    tabs?: TabData[];
+    setTabs?: React.Dispatch<React.SetStateAction<TabData[]>>;
+    _activeTabId?: string;
+    setActiveTabId?: React.Dispatch<React.SetStateAction<string>>;
   }
 
   export interface HeaderProps {
@@ -155,7 +166,11 @@ export interface ScreenshotResponse {
     setTitle: React.Dispatch<React.SetStateAction<string>>;
     setDescription: React.Dispatch<React.SetStateAction<string>>;
     selectedModel: ModelOption | null;
-   setSelectedModel: React.Dispatch<React.SetStateAction<ModelOption | null>>
+    setSelectedModel: React.Dispatch<React.SetStateAction<ModelOption | null>>;
+    activeTabId: string;
+    tabs: TabData[];
+    setTabs: React.Dispatch<React.SetStateAction<TabData[]>>;
+    setActiveTabId: React.Dispatch<React.SetStateAction<string>>;
   }
 
   export interface VisionPopup {x: number; y: number; query: string; response: string | null;}
@@ -172,6 +187,7 @@ export interface ScreenshotResponse {
     crop: Crop | undefined;
     setCrop: React.Dispatch<React.SetStateAction<Crop| undefined>>;
     selectedModel: ModelOption | null;
+    tabId: string;
   }
 
   export type ModelOption = { label: string; value: string } ;

@@ -1,40 +1,198 @@
+.header-container {
+  padding: 24px 32px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-bottom: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
 .header-container h2 {
-  margin-bottom: 16px;
+  margin: 0 0 20px 0;
+  color: #ffffff;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .header-input-group {
   display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 12px;
+  align-items: center;
   flex-wrap: wrap;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 16px;
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  margin-bottom: 0;
 }
 
 .header-input {
-  width: 420px;
+  flex: 1;
+  min-width: 250px;
+  padding: 12px 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  font-size: 14px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #333;
+  transition: all 0.3s ease;
+}
+
+.header-input:focus {
+  outline: none;
+  border-color: #ffffff;
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.header-input::placeholder {
+  color: #999;
+}
+
+.header-input-group button {
+  padding: 12px 24px;
+  background: #ffffff;
+  color: #667eea;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.header-input-group button:hover {
+  background: #f8f9fa;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.header-input-group button:active {
+  transform: translateY(0);
+}
+
+.header-input-group button:disabled {
+  background: rgba(255, 255, 255, 0.5);
+  color: rgba(102, 126, 234, 0.5);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .header-steps-count {
   margin-left: auto;
-}
-
-.header-crop-mode {
-  color: #ff0000;
-  font-weight: bold;
-}
-
-.header-shot-container {
-  width: 75vw;
-  background: #f5f6fa;
-  padding: 16px;
-  box-sizing: border-box;
-  margin-bottom: 12px;
+  color: #ffffff;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 8px 16px;
   border-radius: 8px;
 }
 
-.header-title-field {
-  margin-bottom: 12px;
+.header-crop-mode {
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 14px;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 8px 16px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
+.header-crop-mode::before {
+  content: "✂️";
+  font-size: 16px;
+}
+
+.header-shot-container {
+  margin-top: 20px;
+  display: flex;
+  gap: 16px;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 16px;
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  width: 75vw;
+  box-sizing: border-box;
+}
+
+.header-title-field,
 .header-description-field {
-  margin-bottom: 12px;
+  flex: 1;
+  margin-bottom: 0;
+}
+
+/* Material-UI TextField customization */
+.header-title-field .MuiTextField-root,
+.header-description-field .MuiTextField-root {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 8px;
+}
+
+.header-title-field .MuiTextField-root:hover,
+.header-description-field .MuiTextField-root:hover {
+  background: #ffffff;
+}
+
+.header-title-field .MuiInputLabel-root,
+.header-description-field .MuiInputLabel-root {
+  color: rgba(0, 0, 0, 0.7);
+  font-weight: 500;
+}
+
+.header-title-field .MuiOutlinedInput-root,
+.header-description-field .MuiOutlinedInput-root {
+  border-radius: 8px;
+}
+
+.header-title-field .MuiOutlinedInput-notchedOutline,
+.header-description-field .MuiOutlinedInput-notchedOutline {
+  border-color: rgba(255, 255, 255, 0.3);
+  border-width: 2px;
+}
+
+.header-title-field .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline,
+.header-description-field .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.header-title-field .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline,
+.header-description-field .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: #ffffff;
+}
+
+/* Autocomplete styling */
+.header-input-group .MuiAutocomplete-root {
+  min-width: 250px;
+}
+
+.header-input-group .MuiTextField-root {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 8px;
+}
+
+.header-input-group .MuiOutlinedInput-root {
+  border-radius: 8px;
+}
+
+.header-input-group .MuiOutlinedInput-notchedOutline {
+  border-color: rgba(255, 255, 255, 0.3);
+  border-width: 2px;
+}
+
+.header-input-group .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.header-input-group .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: #ffffff;
+}
+
+.header-input-group .MuiInputLabel-root {
+  color: rgba(0, 0, 0, 0.7);
+  font-weight: 500;
 }

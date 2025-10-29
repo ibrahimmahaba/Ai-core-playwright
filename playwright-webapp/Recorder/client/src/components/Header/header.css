@@ -116,16 +116,21 @@
   display: flex;
   gap: 16px;
   background: #f8f9fa;
-  padding: 8px;
+  flex-direction: row;
+  padding: 16px;
   border-radius: 12px;  
   border: 1px solid #e0e0e0;
-  width: 73vw;
+  width: 100%;
   box-sizing: border-box;
+  align-items: flex-start;
 }
 
-.header-title-field,
+.header-title-field {
+  flex: 0 0 30%;
+  margin-bottom: 0;
+}
 .header-description-field {
-  flex: 1;
+  flex: 0 0 68%;
   margin-bottom: 0;
 }
 

@@ -13,8 +13,13 @@ import {useSendStep} from"../../hooks/useSendStep"
 import './toolbar.css';
 import { fetchScreenshot } from '../../hooks/useFetchScreenshot'; 
 function Toolbar(props: ToolbarProps) {
-  const { sessionId, insightId, shot, setShot, mode, setMode, setLoading, activeTabId, selectedModel, tabs} = props;
+  const { sessionId, insightId, shot, setShot, mode, setMode, setLoading, activeTabId, selectedModel, tabs, setTabs} = props;
   const [showInputsMenu, setShowInputsMenu] = useState(false);
+  const [expandedTabId, setExpandedTabId] = useState<string | null>(null);
+  const [editingInput, setEditingInput] = useState<{tabId: string; stepIndex: number} | null>(null);
+  const [editedLabel, setEditedLabel] = useState<string>("");
+  const [editedValue, setEditedValue] = useState<string>("");
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
     const viewport: Viewport = {
         width: shot?.width ?? 1280,
@@ -66,21 +71,58 @@ function Toolbar(props: ToolbarProps) {
          }, activeTabId);
     }
 
-    // Get all input steps from all tabs
-    const getAllInputs = () => {
-      const inputs: Array<{ label: string | null; value: string; tabTitle: string }> = [];
-      tabs.forEach(tab => {
-        tab.steps.forEach(step => {
-          if (step.type === 'TYPE' && step.label) {
-            inputs.push({
-              label: step.label,
-              value: step.text,
-              tabTitle: tab.title
-            });
-          }
-        });
+    // Get inputs grouped by tab
+    const getInputsByTab = () => {
+      return tabs.map(tab => ({
+        tabId: tab.id,
+        tabTitle: tab.title,
+        inputs: tab.steps
+          .map((step, stepIndex) => ({ step, stepIndex }))
+          .filter(({ step }) => step.type === 'TYPE' && step.label)
+          .map(({ step, stepIndex }) => ({
+            stepIndex,
+            label: step.label!,
+            value: (step as any).text
+          }))
+      })).filter(tab => tab.inputs.length > 0);
+    };
+
+    const handleEditInput = (tabId: string, stepIndex: number, label: string, value: string) => {
+      setEditingInput({ tabId, stepIndex });
+      setEditedLabel(label);
+      setEditedValue(value);
+    };
+
+    const handleSaveChanges = () => {
+      if (!editingInput) return;
+
+      const updatedTabs = tabs.map(tab => {
+        if (tab.id === editingInput.tabId) {
+          return {
+            ...tab,
+            steps: tab.steps.map((step, idx) => {
+              if (idx === editingInput.stepIndex && step.type === 'TYPE') {
+                return {
+                  ...step,
+                  label: editedLabel,
+                  text: editedValue
+                };
+              }
+              return step;
+            })
+          };
+        }
+        return tab;
       });
-      return inputs;
+
+      setTabs(updatedTabs);
+      setEditingInput(null);
+      setHasUnsavedChanges(false);
+    };
+
+    const handleCancelEdit = () => {
+      setEditingInput(null);
+      setHasUnsavedChanges(false);
     };
 
   return (
@@ -150,14 +192,89 @@ function Toolbar(props: ToolbarProps) {
             </button>
           </div>
           <div className="inputs-menu-content">
-            {getAllInputs().length === 0 ? (
+            {hasUnsavedChanges && (
+              <div className="save-actions">
+                <button 
+                  className="save-button"
+                  onClick={handleSaveChanges}
+                >
+                  💾 Save Changes
+                </button>
+                <button 
+                  className="cancel-button"
+                  onClick={handleCancelEdit}
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+            {getInputsByTab().length === 0 ? (
               <p className="inputs-menu-empty">No inputs recorded yet</p>
             ) : (
-              getAllInputs().map((input, index) => (
-                <div key={index} className="input-item">
-                  <div className="input-item-label">{input.label || 'Unlabeled'}</div>
-                  <div className="input-item-value">{input.value}</div>
-                  <div className="input-item-tab">Tab: {input.tabTitle}</div>
+              getInputsByTab().map((tab) => (
+                <div key={tab.tabId} className="tab-group">
+                  <div 
+                    className="tab-group-header"
+                    onClick={() => setExpandedTabId(expandedTabId === tab.tabId ? null : tab.tabId)}
+                  >
+                    <span className="tab-group-title">{tab.tabTitle}</span>
+                    <span className="tab-group-count">({tab.inputs.length})</span>
+                    <span className="tab-group-arrow">
+                      {expandedTabId === tab.tabId ? '▼' : '▶'}
+                    </span>
+                  </div>
+                  {expandedTabId === tab.tabId && (
+                    <div className="tab-group-content">
+                      {tab.inputs.map((input, index) => {
+                        const isEditing = editingInput?.tabId === tab.tabId && editingInput?.stepIndex === input.stepIndex;
+                        
+                        return (
+                          <div key={index} className="input-item">
+                            {isEditing ? (
+                              <>
+                                <input
+                                  className="input-item-edit"
+                                  value={editedLabel}
+                                  onChange={(e) => {
+                                    setEditedLabel(e.target.value);
+                                    setHasUnsavedChanges(true);
+                                  }}
+                                  placeholder="Label"
+                                />
+                                <textarea
+                                  className="input-item-edit-value"
+                                  value={editedValue}
+                                  onChange={(e) => {
+                                    setEditedValue(e.target.value);
+                                    setHasUnsavedChanges(true);
+                                  }}
+                                  placeholder="Value"
+                                  rows={2}
+                                />
+                              </>
+                            ) : (
+                              <>
+                                <div 
+                                  className="input-item-label editable"
+                                  onClick={() => handleEditInput(tab.tabId, input.stepIndex, input.label, input.value)}
+                                  title="Click to edit"
+                                >
+                                  {input.label}
+                                </div>
+                                <div 
+                                  className="input-item-value editable"
+                                  onClick={() => handleEditInput(tab.tabId, input.stepIndex, input.label, input.value)}
+                                  title="Click to edit"
+                                >
+                                  {input.value}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               ))
             )}

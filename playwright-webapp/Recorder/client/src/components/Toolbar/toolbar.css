@@ -110,6 +110,49 @@
   padding: 12px;
 }
 
+/* Save Actions */
+.save-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 12px;
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 8px;
+}
+
+.save-button {
+  flex: 1;
+  padding: 8px 12px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  font-size: 13px;
+}
+
+.save-button:hover {
+  background: #218838;
+}
+
+.cancel-button {
+  padding: 8px 12px;
+  background: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  font-size: 13px;
+}
+
+.cancel-button:hover {
+  background: #5a6268;
+}
+
 .inputs-menu-empty {
   text-align: center;
   color: #999;
@@ -117,13 +160,64 @@
   font-size: 14px;
 }
 
-.input-item {
-  padding: 12px;
+/* Tab Groups */
+.tab-group {
   margin-bottom: 8px;
-  background: #f8f9fa;
   border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e0e0e0;
+}
+
+.tab-group-header {
+  display: flex;
+  align-items: center;
+  padding: 12px 14px;
+  background: #f0f0f0;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  user-select: none;
+}
+
+.tab-group-header:hover {
+  background: #e8e8e8;
+}
+
+.tab-group-title {
+  flex: 1;
+  font-weight: 600;
+  color: #333;
+  font-size: 14px;
+}
+
+.tab-group-count {
+  font-size: 12px;
+  color: #666;
+  margin-right: 8px;
+}
+
+.tab-group-arrow {
+  font-size: 10px;
+  color: #666;
+  transition: transform 0.2s ease;
+}
+
+.tab-group-content {
+  padding: 8px;
+  background: #fff;
+}
+
+/* Input Items */
+.input-item {
+  padding: 10px;
+  margin-bottom: 6px;
+  background: #f8f9fa;
+  border-radius: 6px;
   border: 1px solid #e0e0e0;
   transition: all 0.2s ease;
+}
+
+.input-item:last-child {
+  margin-bottom: 0;
 }
 
 .input-item:hover {
@@ -134,8 +228,19 @@
 .input-item-label {
   font-weight: 600;
   color: #333;
-  font-size: 13px;
+  font-size: 12px;
   margin-bottom: 6px;
+}
+
+.input-item-label.editable {
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.input-item-label.editable:hover {
+  background: #e8e8e8;
 }
 
 .input-item-value {
@@ -145,12 +250,50 @@
   background: #fff;
   border-radius: 4px;
   border: 1px solid #e0e0e0;
-  margin-bottom: 6px;
   word-break: break-word;
 }
 
-.input-item-tab {
-  font-size: 11px;
-  color: #888;
-  font-style: italic;
+.input-item-value.editable {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.input-item-value.editable:hover {
+  background: #f8f9fa;
+  border-color: #007bff;
+}
+
+/* Edit Mode Inputs */
+.input-item-edit {
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 6px;
+  border: 2px solid #007bff;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #333;
+  box-sizing: border-box;
+}
+
+.input-item-edit:focus {
+  outline: none;
+  border-color: #0056b3;
+}
+
+.input-item-edit-value {
+  width: 100%;
+  padding: 8px;
+  border: 2px solid #007bff;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #555;
+  resize: vertical;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.input-item-edit-value:focus {
+  outline: none;
+  border-color: #0056b3;
 }

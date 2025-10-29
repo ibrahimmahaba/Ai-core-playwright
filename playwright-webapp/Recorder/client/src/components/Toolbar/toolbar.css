@@ -116,15 +116,15 @@
   gap: 4px;
   padding: 8px 8px 0 8px;
   background: #fff;
-  border-bottom: 2px solid #e0e0e0;
-  margin-bottom: 12px;
+  border-bottom: 1px solid #e0e0e0;
+  margin-bottom: 8px;
 }
 
 .inputs-tab-button {
-  padding: 8px 16px;
+  padding: 10px 16px;
   background: transparent;
   border: none;
-  border-bottom: 3px solid transparent;
+  border-bottom: 2px solid transparent;
   cursor: pointer;
   font-size: 13px;
   font-weight: 500;
@@ -134,6 +134,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  margin-bottom: -1px;
 }
 
 .inputs-tab-button:hover {
@@ -143,7 +144,7 @@
 
 .inputs-tab-button.active {
   color: #007bff;
-  border-bottom-color: #007bff;
+  border-bottom: 2px solid #007bff;
 }
 
 .inputs-tab-badge {

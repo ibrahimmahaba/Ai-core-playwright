@@ -15,7 +15,7 @@ import { fetchScreenshot } from '../../hooks/useFetchScreenshot';
 function Toolbar(props: ToolbarProps) {
   const { sessionId, insightId, shot, setShot, mode, setMode, setLoading, activeTabId, selectedModel, tabs, setTabs} = props;
   const [showInputsMenu, setShowInputsMenu] = useState(false);
-  const [expandedTabId, setExpandedTabId] = useState<string | null>(null);
+  const [selectedTabId, setSelectedTabId] = useState<string | null>(null);
   const [editingInput, setEditingInput] = useState<{tabId: string; stepIndex: number} | null>(null);
   const [editedLabel, setEditedLabel] = useState<string>("");
   const [editedValue, setEditedValue] = useState<string>("");
@@ -161,7 +161,15 @@ function Toolbar(props: ToolbarProps) {
                 } else if (m == "crop") {
                   setMode("crop");
                 } else if (m === "show-inputs") {
-                  setShowInputsMenu(!showInputsMenu);
+                  const newShowInputsMenu = !showInputsMenu;
+                  setShowInputsMenu(newShowInputsMenu);
+                  // Auto-select first tab when opening menu
+                  if (newShowInputsMenu && !selectedTabId) {
+                    const firstTab = getInputsByTab()[0];
+                    if (firstTab) {
+                      setSelectedTabId(firstTab.tabId);
+                    }
+                  }
                 } else {
                   setMode(m);
                 }
@@ -192,41 +200,49 @@ function Toolbar(props: ToolbarProps) {
             </button>
           </div>
           <div className="inputs-menu-content">
-            {hasUnsavedChanges && (
-              <div className="save-actions">
-                <button 
-                  className="save-button"
-                  onClick={handleSaveChanges}
-                >
-                  💾 Save Changes
-                </button>
-                <button 
-                  className="cancel-button"
-                  onClick={handleCancelEdit}
-                >
-                  Cancel
-                </button>
-              </div>
-            )}
             {getInputsByTab().length === 0 ? (
               <p className="inputs-menu-empty">No inputs recorded yet</p>
             ) : (
-              getInputsByTab().map((tab) => (
-                <div key={tab.tabId} className="tab-group">
-                  <div 
-                    className="tab-group-header"
-                    onClick={() => setExpandedTabId(expandedTabId === tab.tabId ? null : tab.tabId)}
-                  >
-                    <span className="tab-group-title">{tab.tabTitle}</span>
-                    <span className="tab-group-count">({tab.inputs.length})</span>
-                    <span className="tab-group-arrow">
-                      {expandedTabId === tab.tabId ? '▼' : '▶'}
-                    </span>
+              <>
+                {/* Tab Navigation Bar */}
+                <div className="inputs-tabs-nav">
+                  {getInputsByTab().map((tab) => (
+                    <button
+                      key={tab.tabId}
+                      className={`inputs-tab-button ${selectedTabId === tab.tabId ? 'active' : ''}`}
+                      onClick={() => setSelectedTabId(tab.tabId)}
+                    >
+                      {tab.tabTitle}
+                      <span className="inputs-tab-badge">{tab.inputs.length}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Save Actions */}
+                {hasUnsavedChanges && (
+                  <div className="save-actions">
+                    <button 
+                      className="save-button"
+                      onClick={handleSaveChanges}
+                    >
+                      Save
+                    </button>
+                    <button 
+                      className="cancel-button"
+                      onClick={handleCancelEdit}
+                    >
+                      Cancel
+                    </button>
                   </div>
-                  {expandedTabId === tab.tabId && (
-                    <div className="tab-group-content">
-                      {tab.inputs.map((input, index) => {
-                        const isEditing = editingInput?.tabId === tab.tabId && editingInput?.stepIndex === input.stepIndex;
+                )}
+
+                {/* Tab Content */}
+                {selectedTabId && getInputsByTab().find(tab => tab.tabId === selectedTabId) && (
+                  <div className="inputs-tab-content">
+                    {getInputsByTab()
+                      .find(tab => tab.tabId === selectedTabId)!
+                      .inputs.map((input, index) => {
+                        const isEditing = editingInput?.tabId === selectedTabId && editingInput?.stepIndex === input.stepIndex;
                         
                         return (
                           <div key={index} className="input-item">
@@ -256,14 +272,14 @@ function Toolbar(props: ToolbarProps) {
                               <>
                                 <div 
                                   className="input-item-label editable"
-                                  onClick={() => handleEditInput(tab.tabId, input.stepIndex, input.label, input.value)}
+                                  onClick={() => handleEditInput(selectedTabId, input.stepIndex, input.label, input.value)}
                                   title="Click to edit"
                                 >
                                   {input.label}
                                 </div>
                                 <div 
                                   className="input-item-value editable"
-                                  onClick={() => handleEditInput(tab.tabId, input.stepIndex, input.label, input.value)}
+                                  onClick={() => handleEditInput(selectedTabId, input.stepIndex, input.label, input.value)}
                                   title="Click to edit"
                                 >
                                   {input.value}
@@ -273,10 +289,9 @@ function Toolbar(props: ToolbarProps) {
                           </div>
                         );
                       })}
-                    </div>
-                  )}
-                </div>
-              ))
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

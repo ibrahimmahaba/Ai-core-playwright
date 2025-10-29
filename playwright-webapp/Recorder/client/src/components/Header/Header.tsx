@@ -152,7 +152,7 @@ function Header(props : HeaderProps) {
                 renderInput={(params) => (
                   <TextField {...params} label="Select LLM" placeholder="Search models..." size="small" />
                 )}
-                sx={{ minWidth: 200 }}
+                sx={{ minWidth: 300 }}
               />
               {mode === "crop" && <span className="header-crop-mode">
               Drag to select crop area

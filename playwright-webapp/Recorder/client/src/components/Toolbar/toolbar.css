@@ -293,11 +293,17 @@
   border-color: #ccc;
 }
 
+.input-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
 .input-item-label {
   font-weight: 600;
   color: #333;
   font-size: 12px;
-  margin-bottom: 6px;
 }
 
 .input-item-label.editable {
@@ -309,6 +315,25 @@
 
 .input-item-label.editable:hover {
   background: #e8e8e8;
+}
+
+.store-value-indicator {
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.store-value-checked {
+  color: #28a745;
+  background: #d4edda;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.store-value-unchecked {
+  color: #6c757d;
+  background: #e9ecef;
+  padding: 2px 6px;
+  border-radius: 4px;
 }
 
 .input-value-container {

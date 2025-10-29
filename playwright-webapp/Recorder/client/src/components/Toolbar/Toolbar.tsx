@@ -101,7 +101,8 @@ function Toolbar(props: ToolbarProps) {
           .map(({ step, stepIndex }) => ({
             stepIndex,
             label: (step as any).label!,
-            value: (step as any).text
+            value: (step as any).text,
+            storeValue: (step as any).storeValue !== false
           }))
       }));
     };
@@ -312,12 +313,21 @@ function Toolbar(props: ToolbarProps) {
                               </>
                             ) : (
                               <>
-                                <div 
-                                  className="input-item-label editable"
-                                  onClick={() => handleEditInput(selectedTabId, input.stepIndex, input.label, input.value)}
-                                  title="Click to edit"
-                                >
-                                  {input.label}
+                                <div className="input-item-header">
+                                  <div 
+                                    className="input-item-label editable"
+                                    onClick={() => handleEditInput(selectedTabId, input.stepIndex, input.label, input.value)}
+                                    title="Click to edit"
+                                  >
+                                    {input.label}
+                                  </div>
+                                  <div className="store-value-indicator" title={input.storeValue ? "Value is stored" : "Value not stored"}>
+                                    {input.storeValue ? (
+                                      <span className="store-value-checked">✓ Stored</span>
+                                    ) : (
+                                      <span className="store-value-unchecked">Not stored</span>
+                                    )}
+                                  </div>
                                 </div>
                                 <div className="input-value-container">
                                   <div 

@@ -34,6 +34,7 @@ function ExpandedInputs({ tabs, setTabs, onClose }: ExpandedInputsProps) {
           stepIndex,
           label: step.label!,
           value: (step as any).text,
+          storeValue: (step as any).storeValue !== false,
         })),
     }));
   };
@@ -182,19 +183,28 @@ function ExpandedInputs({ tabs, setTabs, onClose }: ExpandedInputsProps) {
                                 </>
                               ) : (
                                 <>
-                                  <div
-                                    className="expanded-input-label editable"
-                                    onClick={() =>
-                                      handleEditInput(
-                                        selectedTabId,
-                                        input.stepIndex,
-                                        input.label,
-                                        input.value
-                                      )
-                                    }
-                                    title="Click to edit"
-                                  >
-                                    {input.label}
+                                  <div className="expanded-input-header">
+                                    <div
+                                      className="expanded-input-label editable"
+                                      onClick={() =>
+                                        handleEditInput(
+                                          selectedTabId,
+                                          input.stepIndex,
+                                          input.label,
+                                          input.value
+                                        )
+                                      }
+                                      title="Click to edit"
+                                    >
+                                      {input.label}
+                                    </div>
+                                    <div className="expanded-store-value-indicator" title={input.storeValue ? "Value is stored" : "Value not stored"}>
+                                      {input.storeValue ? (
+                                        <span className="expanded-store-value-checked">✓ Stored</span>
+                                      ) : (
+                                        <span className="expanded-store-value-unchecked">Not stored</span>
+                                      )}
+                                    </div>
                                   </div>
                                   <div className="expanded-value-container">
                                     <div

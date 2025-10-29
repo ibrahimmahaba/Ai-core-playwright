@@ -156,11 +156,17 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
+.expanded-input-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
 .expanded-input-label {
   font-weight: 600;
   color: #333;
   font-size: 14px;
-  margin-bottom: 8px;
 }
 
 .expanded-input-label.editable {
@@ -172,6 +178,25 @@
 
 .expanded-input-label.editable:hover {
   background: #e8e8e8;
+}
+
+.expanded-store-value-indicator {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.expanded-store-value-checked {
+  color: #28a745;
+  background: #d4edda;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.expanded-store-value-unchecked {
+  color: #6c757d;
+  background: #e9ecef;
+  padding: 3px 8px;
+  border-radius: 4px;
 }
 
 .expanded-value-container {

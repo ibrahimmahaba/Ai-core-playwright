@@ -393,21 +393,34 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       setEditedData(output.actions || []);
       setUpdatedData(output.actions || []);
     } else {
-      setTabs(prevTabs => prevTabs.map(tab => {
-        if (tab.id === actionTabId) {
-          return { ...tab, actions: tab.actions.slice(1) };
-        }
-        return tab;
-      }));
-      
-      // Update display
       const newEditedData = editedData.slice(1);
-      setEditedData(newEditedData);
-      
-      if (output.actions && output.actions.length > 0) {
+      console.log("newEditedData after executing step:", newEditedData);
+      if (!newEditedData || newEditedData.length === 0) {
+        console.log("No more edited data, setting to output actions");
+        setEditedData(output.actions);
         setUpdatedData(output.actions);
       } else {
-        setUpdatedData(newEditedData);
+        console.log("Merging output actions into remaining edited data");
+        const updatedEditedData = newEditedData.map((action, index) => {
+          if (output.actions[index]) {
+            return { ...action, ...output.actions[index] };
+          }
+          return action;
+        });
+        setEditedData(updatedEditedData);
+      }
+      
+      setUpdatedData(output.actions);
+      
+      if (tabs && setTabs && activeTabId) {
+        console.log("Updating tabs actions for tab:", actionTabId);
+        console.log("New actions for tab:", output.actions || []);
+        setTabs(prevTabs => prevTabs.map(tab => {
+          if (tab.id === actionTabId) {
+            return { ...tab, actions: output.actions || tab.actions.slice(1) };
+          }
+          return tab;
+        }));
       }
     }
     

@@ -36,9 +36,15 @@ export function useSendStep() {
       setTabs(prevTabs => {
         const updatedTabs = prevTabs.map(tab => {
           if (tab.id === currentTabId) {
+            // If navigating, clear all TYPE steps (inputs) from the current tab
+            const stepsToKeep = step.type === "NAVIGATE" 
+              ? tab.steps.filter(s => s.type !== "TYPE")
+              : tab.steps;
+            
+            // Add the new step
             return {
               ...tab,
-              steps: [...tab.steps, step],
+              steps: [...stepsToKeep, step],
               title: step.type === "NAVIGATE" && tabTitle ? tabTitle : tab.title
             };
           }

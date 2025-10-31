@@ -4,15 +4,20 @@ import {
     ArrowDownward as ArrowDownIcon,
     AccessTime as AccessTimeIcon,
     Sync as SyncIcon,
-    CropFree as CropIcon, 
+    CropFree as CropIcon,
+    List as ListIcon,
+    OpenInFull as ExpandIcon,
+    Visibility as VisibilityIcon,
+    VisibilityOff as VisibilityOffIcon,
   } from "@mui/icons-material";
-import { type JSX } from "react";
+import { type JSX, useState } from "react";
 import type { Step, Viewport } from "../../types";
-import { useSendStep } from "../../hooks/useSendStep"
+import {useSendStep} from"../../hooks/useSendStep"
 import './toolbar.css';
-import { fetchScreenshot } from '../../hooks/useFetchScreenshot'; 
+import { fetchScreenshot } from '../../hooks/useFetchScreenshot';
 import { useSessionStore } from "../../store/useSessionStore";
 
+import ExpandedInputs from '../ExpandedInputs/ExpandedInputs'; 
 function Toolbar() {
   const {
     sessionId,
@@ -23,7 +28,15 @@ function Toolbar() {
     setMode,
     activeTabId,
     selectedModel
-  } = useSessionStore();
+  , tabs, setTabs} = useSessionStore();
+  const [showInputsMenu, setShowInputsMenu] = useState(false);
+  const [showExpandedView, setShowExpandedView] = useState(false);
+  const [selectedTabId, setSelectedTabId] = useState<string | null>(null);
+  const [editingInput, setEditingInput] = useState<{tabId: string; stepIndex: number} | null>(null);
+  const [editedLabel, setEditedLabel] = useState<string>("");
+  const [editedValue, setEditedValue] = useState<string>("");
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
 
   const viewport: Viewport = {
     width: shot?.width ?? 1280,
@@ -64,7 +77,118 @@ function Toolbar() {
     }, activeTabId);
   }
 
+    // Get total count of all inputs across all tabs
+    const getTotalInputsCount = () => {
+      let count = 0;
+      tabs.forEach(tab => {
+        tab.steps.forEach(step => {
+          if (step.type === 'TYPE' && step.label) {
+            count++;
+          }
+        });
+      });
+      return count;
+    };
+
+    // Get inputs grouped by tab
+    const getInputsByTab = () => {
+      return tabs.map(tab => ({
+        tabId: tab.id,
+        tabTitle: tab.title,
+        inputs: tab.steps
+          .map((step, stepIndex) => ({ step, stepIndex }))
+          .filter(({ step }) => step.type === 'TYPE' && (step as any).label)
+          .map(({ step, stepIndex }) => ({
+            stepIndex,
+            label: (step as any).label!,
+            value: (step as any).text,
+            storeValue: (step as any).storeValue,
+            hasStoreValue: (step as any).storeValue !== undefined
+          }))
+      }));
+    };
+
+    const handleEditInput = (tabId: string, stepIndex: number, label: string, value: string) => {
+      setEditingInput({ tabId, stepIndex });
+      setEditedLabel(label);
+      setEditedValue(value);
+    };
+
+    const handleSaveChanges = () => {
+      if (!editingInput) return;
+
+      const updatedTabs = tabs.map(tab => {
+        if (tab.id === editingInput.tabId) {
+          return {
+            ...tab,
+            steps: tab.steps.map((step, idx) => {
+              if (idx === editingInput.stepIndex && step.type === 'TYPE') {
+                return {
+                  ...step,
+                  label: editedLabel,
+                  text: editedValue
+                };
+              }
+              return step;
+            })
+          };
+        }
+        return tab;
+      });
+
+      setTabs(updatedTabs);
+      setEditingInput(null);
+      setHasUnsavedChanges(false);
+    };
+
+    const handleCancelEdit = () => {
+      setEditingInput(null);
+      setHasUnsavedChanges(false);
+    };
+
+    const toggleStoreValue = (tabId: string, stepIndex: number, currentValue: boolean) => {
+      const updatedTabs = tabs.map(tab => {
+        if (tab.id === tabId) {
+          return {
+            ...tab,
+            steps: tab.steps.map((step, idx) => {
+              if (idx === stepIndex && step.type === 'TYPE') {
+                return {
+                  ...step,
+                  storeValue: !currentValue
+                };
+              }
+              return step;
+            })
+          };
+        }
+        return tab;
+      });
+      setTabs(updatedTabs);
+    };
+
+    const togglePasswordVisibility = (key: string) => {
+      setVisiblePasswords(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(key)) {
+          newSet.delete(key);
+        } else {
+          newSet.add(key);
+        }
+        return newSet;
+      });
+    };
+
+    const isPasswordField = (label: string) => {
+      return label.toLowerCase().includes('password');
+    };
+
+    const maskPassword = (value: string) => {
+      return '•'.repeat(value.length);
+    };
+
   return (
+    <>
     <div className="toolbar-container">
         {([
           { m: "click", icon: <MouseIcon />, label: "Click" },
@@ -72,7 +196,8 @@ function Toolbar() {
           { m: "scroll-down", icon: <ArrowDownIcon />, label: "Scroll Down" },
           { m: "delay", icon: <AccessTimeIcon />, label: "Delay" },
           { m: "fetch-screenshot", icon: <SyncIcon />, label: "Refresh" },
-          { m: "crop", icon: <CropIcon />, label: "Add Context" }
+          { m: "crop", icon: <CropIcon />, label: "Add Context" },
+          { m: "show-inputs", icon: <ListIcon />, label: "Show Inputs" }
 
         ] as { m: string; icon: JSX.Element; label: string }[]).map(({ m, icon, label }) => {
           const active = mode === m;
@@ -97,6 +222,16 @@ function Toolbar() {
                   setMode("click");
                 } else if (m == "crop") {
                   setMode("crop");
+                } else if (m === "show-inputs") {
+                  const newShowInputsMenu = !showInputsMenu;
+                  setShowInputsMenu(newShowInputsMenu);
+                  // Auto-select first tab when opening menu
+                  if (newShowInputsMenu && !selectedTabId) {
+                    const firstTab = getInputsByTab()[0];
+                    if (firstTab) {
+                      setSelectedTabId(firstTab.tabId);
+                    }
+                  }
                 } else {
                   setMode(m);
                 }
@@ -109,10 +244,183 @@ function Toolbar() {
               }`}
             >
               {icon}
+              {m === "show-inputs" && getTotalInputsCount() > 0 && (
+                <span className="toolbar-button-badge">
+                  {getTotalInputsCount() > 9 ? '9+' : getTotalInputsCount()}
+                </span>
+              )}
             </button>
           );
         })}
       </div>
+
+      {/* Inputs Menu */}
+      {showInputsMenu && (
+        <div className="inputs-menu">
+          <div className="inputs-menu-header">
+            <h3>Stored Inputs</h3>
+            <div className="inputs-menu-header-actions">
+              <button 
+                className="inputs-menu-expand"
+                onClick={() => {
+                  setShowExpandedView(true);
+                  setShowInputsMenu(false);
+                }}
+                title="Expand view"
+              >
+                <ExpandIcon fontSize="small" />
+              </button>
+              <button 
+                className="inputs-menu-close"
+                onClick={() => setShowInputsMenu(false)}
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+          <div className="inputs-menu-content">
+            {getInputsByTab().length === 0 ? (
+              <p className="inputs-menu-empty">No inputs recorded yet</p>
+            ) : (
+              <>
+                {/* Tab Navigation Bar */}
+                <div className="inputs-tabs-nav">
+                  {getInputsByTab().map((tab) => (
+                    <button
+                      key={tab.tabId}
+                      className={`inputs-tab-button ${selectedTabId === tab.tabId ? 'active' : ''}`}
+                      onClick={() => setSelectedTabId(tab.tabId)}
+                    >
+                      {tab.tabTitle}
+                      <span className="inputs-tab-badge">{tab.inputs.length}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Tab Content */}
+                {selectedTabId && getInputsByTab().find(tab => tab.tabId === selectedTabId) && (
+                  <div className="inputs-tab-content">
+                    {(() => {
+                      const selectedTab = getInputsByTab().find(tab => tab.tabId === selectedTabId);
+                      if (!selectedTab || selectedTab.inputs.length === 0) {
+                        return <p className="inputs-menu-empty">No inputs in this tab</p>;
+                      }
+                      
+                      return selectedTab.inputs.map((input, index) => {
+                        const isEditing = editingInput?.tabId === selectedTabId && editingInput?.stepIndex === input.stepIndex;
+                        
+                        return (
+                          <div key={index} className="input-item">
+                            {isEditing ? (
+                              <>
+                                <input
+                                  className="input-item-edit"
+                                  value={editedLabel}
+                                  onChange={(e) => {
+                                    setEditedLabel(e.target.value);
+                                    setHasUnsavedChanges(true);
+                                  }}
+                                  placeholder="Label"
+                                />
+                                <textarea
+                                  className="input-item-edit-value"
+                                  value={editedValue}
+                                  onChange={(e) => {
+                                    setEditedValue(e.target.value);
+                                    setHasUnsavedChanges(true);
+                                  }}
+                                  placeholder="Value"
+                                  rows={2}
+                                />
+                              </>
+                            ) : (
+                              <>
+                                <div className="input-item-header">
+                                  <div 
+                                    className="input-item-label editable"
+                                    onClick={() => handleEditInput(selectedTabId, input.stepIndex, input.label, input.value)}
+                                    title="Click to edit"
+                                  >
+                                    {input.label}
+                                  </div>
+                                  {input.hasStoreValue && (
+                                    <div 
+                                      className="store-value-indicator clickable" 
+                                      onClick={() => toggleStoreValue(selectedTabId, input.stepIndex, input.storeValue)}
+                                      title={input.storeValue ? "Click to mark as not stored" : "Click to mark as stored"}
+                                    >
+                                      {input.storeValue ? (
+                                        <span className="store-value-checked">✓ Stored</span>
+                                      ) : (
+                                        <span className="store-value-unchecked">✗ Not stored</span>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="input-value-container">
+                                  <div 
+                                    className="input-item-value editable"
+                                    onClick={() => handleEditInput(selectedTabId, input.stepIndex, input.label, input.value)}
+                                    title="Click to edit"
+                                  >
+                                    {isPasswordField(input.label) && !visiblePasswords.has(`${selectedTabId}-${input.stepIndex}`)
+                                      ? maskPassword(input.value)
+                                      : input.value}
+                                  </div>
+                                  {isPasswordField(input.label) && (
+                                    <button
+                                      className="password-toggle"
+                                      onClick={() => togglePasswordVisibility(`${selectedTabId}-${input.stepIndex}`)}
+                                      title={visiblePasswords.has(`${selectedTabId}-${input.stepIndex}`) ? "Hide password" : "Show password"}
+                                    >
+                                      {visiblePasswords.has(`${selectedTabId}-${input.stepIndex}`) 
+                                        ? <VisibilityOffIcon fontSize="small" />
+                                        : <VisibilityIcon fontSize="small" />
+                                      }
+                                    </button>
+                                  )}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Save Actions - Fixed at bottom */}
+          {hasUnsavedChanges && (
+            <div className="save-actions">
+              <button 
+                className="save-button"
+                onClick={handleSaveChanges}
+              >
+                Save
+              </button>
+              <button 
+                className="cancel-button"
+                onClick={handleCancelEdit}
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Expanded Inputs View */}
+      {showExpandedView && (
+        <ExpandedInputs
+          tabs={tabs}
+          setTabs={setTabs}
+          onClose={() => setShowExpandedView(false)}
+        />
+      )}
+    </>
   )
 }
 

@@ -101,14 +101,14 @@ export const useSessionStore = create<SessionStore>((set) => ({
 
   resetSession: () => {
     set({
-      sessionId: "",
+      // sessionId: "",
       shot: undefined,
       tabs: [{ id: "tab-1", title: "tab-1", steps: [] }],
       activeTabId: "tab-1",
       title: "",
       description: "",
       mode: "click",
-      loading: false,
+      // loading: false,
     });
   },
 }));

@@ -11,10 +11,13 @@ function Header() {
     sessionId,
     insightId,
     shot,
+    setShot,
     initSession,
     isInitialized,
     tabs,
+    setTabs,
     activeTabId,
+    setActiveTabId,
     title,
     setTitle,
     description,
@@ -22,7 +25,6 @@ function Header() {
     mode,
     selectedModel,
     setSelectedModel,
-    resetSession,
     loading,
     setLoading,
   } = useSessionStore();
@@ -140,13 +142,20 @@ function Header() {
   const proceedWithNewSession = async () => {
     setLoading(true);
     try {
-      resetSession();
-      await initSession(insightId, isInitialized);
-      const newSessionId = useSessionStore.getState().sessionId;
-      // Increased delay to ensure session is fully ready on backend
-      // await new Promise(resolve => setTimeout(resolve, 500));
-      console.log("Proceeding to navigate with session:", newSessionId);
+      // Clear only screenshot and steps, keep UI visible
+      setShot(undefined);
+      setTabs([{ id: "tab-1", title: "tab-1", steps: [] }]);
+      setActiveTabId("tab-1");
+      setTitle("");
+      setDescription("");
 
+      await initSession(insightId, isInitialized);
+
+      // Give the backend time to fully initialize the session
+      // This is a simple frontend-only solution without backend changes
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      console.log("Session created, proceeding to navigate");
       await proceedToNavigate();
     } catch (error) {
       console.error("Error creating new session:", error);
@@ -265,6 +274,9 @@ function Header() {
             You already have an existing recording. Would you like to continue with it or start a new one?
           </DialogContent>
           <DialogActions>
+            <Button onClick={() => setShowSessionPrompt(false)} color="error" disabled={loading}>
+              Cancel
+            </Button>
             <Button onClick={handleContinueExisting} disabled={loading}>Continue Existing</Button>
             <Button onClick={handleStartNewRecording} color="primary" variant="contained" disabled={loading}>
               Start New

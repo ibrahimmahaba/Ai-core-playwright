@@ -71,6 +71,8 @@ export function useSendStep() {
       } catch (fetchError) {
         console.error("Failed to fetch screenshot after error:", fetchError);
       }
+      // Re-throw the error so callers can handle it
+      throw error;
     } finally {
       setLoading(false);
     }

@@ -1,33 +1,50 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSendStep } from '../../hooks/useSendStep';
-import type { HeaderProps, ModelOption, Viewport } from '../../types';
+import type { ModelOption, Viewport } from '../../types';
 import { runPixel } from "@semoss/sdk";
 import { Autocomplete, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, TextField, Typography } from '@mui/material';
 import './header.css';
 import { useSessionStore } from '../../store/useSessionStore';
 
-function Header(props : HeaderProps) {
-  const { sessionId, insightId, shot, setShot, initSession, isInitialized} = useSessionStore();
-    const {steps, setSteps, title,
-      setTitle, setLoading, description, setDescription,  mode,
-    selectedModel, setSelectedModel, activeTabId} = props
+function Header() {
+  const {
+    sessionId,
+    insightId,
+    shot,
+    initSession,
+    isInitialized,
+    tabs,
+    activeTabId,
+    title,
+    setTitle,
+    description,
+    setDescription,
+    mode,
+    selectedModel,
+    setSelectedModel,
+    resetSession,
+    loading,
+    setLoading,
+  } = useSessionStore();
 
-    const [showSessionPrompt, setShowSessionPrompt] = useState(false);
-    const [showSaveWarning, setShowSaveWarning] = useState(false);
-    const [url, setUrl] = useState("https://example.com");
-    const [currUserModels, setCurrUserModels] = useState<Record<string, string>>({});
-    const viewport: Viewport = {
-      width: shot?.width ?? 1280,
-      height: shot?.height ?? 800,
-      deviceScaleFactor: shot?.deviceScaleFactor ?? 1,
-    };
-    const modelOptions: ModelOption[] = useMemo(() => 
-      Object.entries(currUserModels).map(([name, id]) => ({
-        label: name,
-        value: id,
-      })), 
-      [currUserModels]
-    );
+  const [showSessionPrompt, setShowSessionPrompt] = useState(false);
+  const [showSaveWarning, setShowSaveWarning] = useState(false);
+  const [url, setUrl] = useState("https://example.com");
+  const [currUserModels, setCurrUserModels] = useState<Record<string, string>>({});
+
+  const viewport: Viewport = {
+    width: shot?.width ?? 1280,
+    height: shot?.height ?? 800,
+    deviceScaleFactor: shot?.deviceScaleFactor ?? 1,
+  };
+
+  const modelOptions: ModelOption[] = useMemo(() =>
+    Object.entries(currUserModels).map(([name, id]) => ({
+      label: name,
+      value: id,
+    })),
+    [currUserModels]
+  );
 
     useEffect(() => {
       async function getUserModels() {
@@ -60,17 +77,10 @@ function Header(props : HeaderProps) {
       } else {
         setSelectedModel(null);
       }
-      console.log("Model options updated:", modelOptions);
     }, [modelOptions, setSelectedModel]);
 
-      const { sendStep } = useSendStep({
-        insightId : insightId,
-        setLoading: setLoading,
-        tabs: props.tabs,
-        setTabs: props.setTabs,
-        _activeTabId: activeTabId,
-        setActiveTabId: props.setActiveTabId
-    });
+    const { sendStep } = useSendStep();
+
     const handleOpenClick = async () => {
       if (shot) {
         setShowSessionPrompt(true);
@@ -91,7 +101,7 @@ function Header(props : HeaderProps) {
         waitAfterMs: 100,
         viewport,
         timestamp: Date.now(),
-      });
+      }, activeTabId); // Pass activeTabId to fix the error
     };
   
     const handleContinueExisting = async () => {
@@ -101,7 +111,8 @@ function Header(props : HeaderProps) {
   
   const handleStartNewRecording = async () => {
     setShowSessionPrompt(false);
-    if (steps && steps.length > 0) {
+    const hasSteps = tabs.some(tab => tab.steps.length > 0);
+    if (hasSteps) {
       setShowSaveWarning(true);
     } else {
       await proceedWithNewSession();
@@ -111,9 +122,9 @@ function Header(props : HeaderProps) {
   const handleSaveAndStartNew = async () => {
     if (!title.trim()) {
       alert("Please enter a title before saving the session.");
-      return;
+      setShowSaveWarning(false);
+      return; 
     }
-
     setShowSaveWarning(false);
     const saved = await saveSession();
     if (saved) {
@@ -127,12 +138,22 @@ function Header(props : HeaderProps) {
   };
 
   const proceedWithNewSession = async () => {
-    setShot(undefined); 
-    setSteps([]); 
-    setTitle(""); 
-    setDescription(""); 
-    await initSession(insightId, isInitialized); 
-    await proceedToNavigate(); 
+    setLoading(true);
+    try {
+      resetSession();
+      await initSession(insightId, isInitialized);
+      const newSessionId = useSessionStore.getState().sessionId;
+      // Increased delay to ensure session is fully ready on backend
+      // await new Promise(resolve => setTimeout(resolve, 500));
+      console.log("Proceeding to navigate with session:", newSessionId);
+
+      await proceedToNavigate();
+    } catch (error) {
+      console.error("Error creating new session:", error);
+      alert("Failed to create new session. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
 
@@ -154,7 +175,7 @@ function Header(props : HeaderProps) {
             description="${description}"
           );`;
       
-          console.log("Running pixel:", pixel);
+
           const res = await runPixel(pixel, insightId);
           console.log("SaveAll success:", res.pixelReturn[0].output);
           alert("Session saved successfully!");
@@ -173,16 +194,19 @@ function Header(props : HeaderProps) {
               <input
               value={url}
               onChange={(e) => setUrl(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleOpenClick();
+                }
+              }}
               className="header-input"
               placeholder="Enter URL"
               />
-              <button
-                onClick={handleOpenClick}
-              >
-                Open
+              <button onClick={handleOpenClick} disabled={loading}>
+                {loading ? 'Loading...' : 'Open'}
               </button>
 
-              <button onClick={saveSession} disabled={!sessionId}>
+              <button onClick={saveSession} disabled={!sessionId || loading}>
               Save
               </button>
 
@@ -241,8 +265,8 @@ function Header(props : HeaderProps) {
             You already have an existing recording. Would you like to continue with it or start a new one?
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleContinueExisting}>Continue Existing</Button>
-            <Button onClick={handleStartNewRecording} color="primary" variant="contained">
+            <Button onClick={handleContinueExisting} disabled={loading}>Continue Existing</Button>
+            <Button onClick={handleStartNewRecording} color="primary" variant="contained" disabled={loading}>
               Start New
             </Button>
           </DialogActions>
@@ -251,16 +275,16 @@ function Header(props : HeaderProps) {
         <Dialog open={showSaveWarning} onClose={() => setShowSaveWarning(false)}>
           <DialogTitle>Save Current Recording?</DialogTitle>
           <DialogContent>
-            You have {steps.length} step{steps.length !== 1 ? 's' : ''} in your current recording. Would you like to save it before starting a new recording?
+            You have {tabs.reduce((sum, tab) => sum + tab.steps.length, 0)} step(s) in your current recording. Would you like to save it before starting a new recording?
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleDontSaveAndStartNew} color="error">
+            <Button onClick={handleDontSaveAndStartNew} color="error" disabled={loading}>
               Don't Save
             </Button>
-            <Button onClick={() => setShowSaveWarning(false)}>
+            <Button onClick={() => setShowSaveWarning(false)} disabled={loading}>
               Cancel
             </Button>
-            <Button onClick={handleSaveAndStartNew} color="primary" variant="contained">
+            <Button onClick={handleSaveAndStartNew} color="primary" variant="contained" disabled={loading}>
               Save & Start New
             </Button>
           </DialogActions>

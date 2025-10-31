@@ -7,62 +7,62 @@ import {
     CropFree as CropIcon, 
   } from "@mui/icons-material";
 import { type JSX } from "react";
-import type { ToolbarProps, Step, Viewport } from "../../types";
-import {useSendStep} from"../../hooks/useSendStep"
+import type { Step, Viewport } from "../../types";
+import { useSendStep } from "../../hooks/useSendStep"
 import './toolbar.css';
 import { fetchScreenshot } from '../../hooks/useFetchScreenshot'; 
-function Toolbar(props: ToolbarProps) {
-  const { sessionId, insightId, shot, setShot, mode, setMode, setLoading, activeTabId, selectedModel} = props;
-  
-    const viewport: Viewport = {
-        width: shot?.width ?? 1280,
-        height: shot?.height ?? 800,
-        deviceScaleFactor: shot?.deviceScaleFactor ?? 1,
-    };
+import { useSessionStore } from "../../store/useSessionStore";
 
+function Toolbar() {
+  const {
+    sessionId,
+    insightId,
+    shot,
+    setShot,
+    mode,
+    setMode,
+    activeTabId,
+    selectedModel
+  } = useSessionStore();
 
-    const { sendStep } = useSendStep({
-      sessionId,
-      insightId,
-      shot: shot,
-      setShot: setShot,
-      setLoading: setLoading,
-      tabs: props.tabs,
-      setTabs: props.setTabs,
-      _activeTabId: activeTabId,
-      setActiveTabId: props.setActiveTabId
-  });
+  const viewport: Viewport = {
+    width: shot?.width ?? 1280,
+    height: shot?.height ?? 800,
+    deviceScaleFactor: shot?.deviceScaleFactor ?? 1,
+  };
 
-    async function waitAndShot() {
-        if (!sessionId) return;
-        const ms = Number(window.prompt("Wait how many ms?", "800")) || 800;
-        const step: Step = { type: "WAIT", waitAfterMs: ms, viewport, timestamp: Date.now() };
-        await sendStep(step, activeTabId);
-      }
+  const { sendStep } = useSendStep();
 
-    async function scrollUp() {
-        if (!shot) return;
-            await sendStep({
-            type: "SCROLL",
-            coords: { x: 0, y: 0 },
-            deltaY: -400,
-            viewport,
-            waitAfterMs: 300,
-            timestamp: Date.now(),
-        }, activeTabId)
-    }
+  async function waitAndShot() {
+    if (!sessionId) return;
+    const ms = Number(window.prompt("Wait how many ms?", "800")) || 800;
+    const step: Step = { type: "WAIT", waitAfterMs: ms, viewport, timestamp: Date.now() };
+    await sendStep(step, activeTabId);
+  }
 
-    async function scrollDown() {
-        if (!shot) return;
-            await sendStep({
-            type: "SCROLL",
-            coords: { x: 0, y: 0 },
-            deltaY: 400,
-            viewport,
-            waitAfterMs: 300,
-            timestamp: Date.now(),
-         }, activeTabId);
-    }
+  async function scrollUp() {
+    if (!shot) return;
+    await sendStep({
+      type: "SCROLL",
+      coords: { x: 0, y: 0 },
+      deltaY: -400,
+      viewport,
+      waitAfterMs: 300,
+      timestamp: Date.now(),
+    }, activeTabId);
+  }
+
+  async function scrollDown() {
+    if (!shot) return;
+    await sendStep({
+      type: "SCROLL",
+      coords: { x: 0, y: 0 },
+      deltaY: 400,
+      viewport,
+      waitAfterMs: 300,
+      timestamp: Date.now(),
+    }, activeTabId);
+  }
 
   return (
     <div className="toolbar-container">

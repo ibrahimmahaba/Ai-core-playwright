@@ -6,7 +6,7 @@ import { Check, Close } from "@mui/icons-material";
 import ReactCrop, { type Crop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import Toolbar from "./Toolbar/Toolbar";
-import type { Coords, CropArea, ModelOption, Probe, ProbeRect, RemoteRunnerProps, ScreenshotResponse, Step, Viewport, TabData } from "../types";
+import type { Coords, CropArea, ModelOption, Probe, ProbeRect, ScreenshotResponse, Step, Viewport } from "../types";
 import Header from "./Header/Header";
 import { useSendStep } from "../hooks/useSendStep";
 import { preferSelectorFromProbe } from "../hooks/usePreferSelector";
@@ -17,11 +17,22 @@ import { useSessionStore } from "../store/useSessionStore";
 
 
 export default function RemoteRunner()  {
-  const { sessionId, insightId, shot, setShot } = useSessionStore();
-  const [loading, setLoading] = useState(false);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [steps, setSteps] = useState<Step[]>([]);
+  const {
+    sessionId,
+    insightId,
+    shot,
+    setShot,
+    loading,
+    setLoading,
+    tabs,
+    setTabs,
+    activeTabId,
+    setActiveTabId,
+    mode,
+    selectedModel,
+    setSelectedModel,
+  } = useSessionStore();
+
   const imgRef = useRef<HTMLImageElement>(null);
   const [overlay, setOverlay] = useState<{
     kind: "input" | "confirm";
@@ -30,23 +41,24 @@ export default function RemoteRunner()  {
     draftLabel?: string | null;
   } | null>(null);
   const [crop, setCrop] = useState<Crop>();
- const [visionPopup, setVisionPopup] = useState<{x: number; y: number; query: string; response: string | null; } | null>(null);
- const [currentCropArea, setCurrentCropArea] = useState<CropArea | null>(null);
- const [mode, setMode] = useState<string>("click");
- const ENGINE_ID = import.meta.env.VITE_LLM_ENGINE_ID;
- const modelOptions: ModelOption[] = Object.entries({"Default Dev Model": ENGINE_ID}).map(([name, id]) => ({
-  label: name,
-  value: id,
-}));
- const [selectedModel, setSelectedModel] = React.useState<ModelOption | null>(modelOptions[0]);
- const [tabs, setTabs] = useState<TabData[]>([
-    { id: "tab-1", title: "tab-1", steps: [] }  
-  ]);
-  const [activeTabId, setActiveTabId] = useState<string>("tab-1");
+  const [visionPopup, setVisionPopup] = useState<{x: number; y: number; query: string; response: string | null; } | null>(null);
+  const [currentCropArea, setCurrentCropArea] = useState<CropArea | null>(null);
 
-  const currentTab = tabs.find(t => t.id === activeTabId);
-  const currentSteps = currentTab?.steps || [];
-  
+  const ENGINE_ID = import.meta.env.VITE_LLM_ENGINE_ID;
+  const modelOptions: ModelOption[] = Object.entries({"Default Dev Model": ENGINE_ID}).map(([name, id]) => ({
+    label: name,
+    value: id,
+  }));
+
+  // Initialize selectedModel if it's null
+  React.useEffect(() => {
+    if (!selectedModel && modelOptions.length > 0) {
+      setSelectedModel(modelOptions[0]);
+    }
+  }, [selectedModel, modelOptions, setSelectedModel]);
+
+ 
+
   const handleTabChange = (_event: React.SyntheticEvent, newValue: string) => {
     setActiveTabId(newValue);
 
@@ -75,17 +87,7 @@ export default function RemoteRunner()  {
     deviceScaleFactor: shot?.deviceScaleFactor ?? 1,
   };
 
-  const { sendStep } = useSendStep({
-    insightId : insightId,
-    sessionId : sessionId,
-    shot: shot,
-    setShot: setShot,
-    setLoading: setLoading,
-    tabs: tabs,
-    setTabs: setTabs,
-    _activeTabId: activeTabId,
-    setActiveTabId: setActiveTabId
-  });
+  const { sendStep } = useSendStep();
 
   function imageToPageCoords(e: React.MouseEvent<HTMLImageElement, MouseEvent>): Coords {
     const img = imgRef.current!;
@@ -105,7 +107,6 @@ export default function RemoteRunner()  {
     let pixel = `ProbeElement (sessionId = "${sessionId}" , coords = "${pendingCoords?.x}, ${pendingCoords?.y}", tabId = "${activeTabId}");`
     const res = await runPixel(pixel, insightId);
     const { output } = res.pixelReturn[0] as { output: Probe };
-    console.log(output)
     return output;
 
   }
@@ -374,8 +375,6 @@ export default function RemoteRunner()  {
   function handleVisionPopup(cropArea: CropArea) { 
     const dialogX = Math.min(cropArea.endX + 20, (shot?.width ?? 800) - 300);
     const dialogY = cropArea.startY;
-    console.log(cropArea)
-    console.log()
     setCurrentCropArea(cropArea);
     
     setVisionPopup({
@@ -390,43 +389,10 @@ export default function RemoteRunner()  {
   return (
     <div className="remote-runner-container">
       {/* toolbar */}
-      <Toolbar 
-      sessionId={sessionId}
-      insightId={insightId}
-      mode={mode}
-      setMode={setMode}
-      shot={shot}
-      setShot={setShot}
-      loading={loading}
-      setLoading={setLoading}
-      selectedModel={selectedModel}
-      currentSteps={currentSteps}
-      activeTabId={activeTabId}
-      tabs={tabs}
-      setTabs={setTabs}
-      setActiveTabId={setActiveTabId}
-    />
+      <Toolbar />
 
       {/* Header / and metadata form */}
-      <Header 
-      insightId={insightId}
-      sessionId={sessionId}
-      steps={steps}
-      setSteps={setSteps}
-      loading={loading}
-      setLoading={setLoading}
-      title={title}
-      setTitle={setTitle}
-      setDescription={setDescription}
-      description={description}
-      mode={mode}
-      selectedModel={selectedModel}
-      setSelectedModel={setSelectedModel}
-      activeTabId={activeTabId}
-      tabs={tabs}
-      setTabs={setTabs}
-      setActiveTabId={setActiveTabId}
-      />
+      <Header />
 
       
       {!shot && loading && (
@@ -480,8 +446,6 @@ export default function RemoteRunner()  {
                         endY: c.y + c.height,
                       };
                       handleVisionPopup(cropArea);
-                    //setMode("click");
-                    //setCrop(undefined);
                   }
                 }}
                 aspect={undefined}
@@ -554,19 +518,12 @@ export default function RemoteRunner()  {
               </div>
             )}
 
-          <VisionPopup 
-            sessionId={sessionId} 
-            insightId={insightId}
-            visionPopup={visionPopup} 
+          <VisionPopup
+            visionPopup={visionPopup}
             setVisionPopup={setVisionPopup}
             currentCropArea={currentCropArea}
             setCurrentCropArea={setCurrentCropArea}
-            mode={mode}
-            setMode={setMode} 
-            crop={crop}
-            setCrop={setCrop}  
-            selectedModel={selectedModel}
-            tabId={activeTabId}        
+            setCrop={setCrop}
           />
           </div>
         </>

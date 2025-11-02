@@ -1,3 +1,4 @@
+import type { Insight } from 'https://cdn.jsdelivr.net/npm/@semoss/sdk@1.0.0-beta.29/+esm';
 import { type Crop } from 'react-image-crop';
 
 export type CropArea = {
@@ -81,6 +82,7 @@ export type CropArea = {
   export type RemoteRunnerProps = {
     sessionId: string;
     insightId: string;
+    insight: Insight;
   };
   
   export type ReplayPixelOutput = {
@@ -194,7 +196,8 @@ export type CropArea = {
 
   export interface VisionPopupProps {
     sessionId: string;
-    insightId: string
+    insightId: string;
+    insight: Insight;
     visionPopup  :  VisionPopup | null;
     setVisionPopup: React.Dispatch<React.SetStateAction<VisionPopup | null>>;
     currentCropArea: CropArea | null;

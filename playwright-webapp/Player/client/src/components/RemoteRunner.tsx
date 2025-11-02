@@ -23,7 +23,7 @@ import { useSkipStep } from "../hooks/useSkipStep";
 import { useProbeAt } from "../hooks/useProbeAt";
 import { Tabs, Tab, Box } from "@mui/material";
 
-export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps) {
+export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRunnerProps) {
 
   const [loading, setLoading] = useState(false);
   const [shot, setShot] = useState<ScreenshotResponse>();
@@ -1013,6 +1013,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
           {/* VisionPopup */}
           <VisionPopup 
             sessionId={sessionId} 
+            insight={insight}
             insightId={insightId}
             visionPopup={visionPopup} 
             setVisionPopup={setVisionPopup}

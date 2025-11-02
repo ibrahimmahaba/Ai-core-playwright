@@ -2,13 +2,16 @@ import './App.css'
 import RemoteRunner from './components/RemoteRunner'
 import { Env } from '@semoss/sdk/react';
 import { runPixel } from "@semoss/sdk";
-import { useInsight } from "@semoss/sdk-react";
+// import { useInsight } from "@semoss/sdk-react";
+import { Insight } from 'https://cdn.jsdelivr.net/npm/@semoss/sdk@1.0.0-beta.29/+esm';
 import { useEffect, useState } from 'react';
 import { Alert, CircularProgress } from '@mui/material';
 
 function App() {
 
-  const { insightId, isInitialized } = useInsight();
+  const [insight] = useState(() => new Insight());
+  const [isInitialized, setIsInitialized] = useState<boolean>(false);
+  const [insightId, setInsightId] = useState<string>("");
   const [sessionId, setSessionId] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   
@@ -23,6 +26,10 @@ function App() {
       if(!isInitialized) {
         // wait until initialized
         console.log("Waiting for initialization...");
+        console.log("Initializing insight...");
+        await insight.initialize();
+        setInsightId(insight._store.insightId);
+        setIsInitialized(true);
         return;
    
       }
@@ -39,7 +46,7 @@ function App() {
     }
   };
     init();
-}, [isInitialized] );
+}, [isInitialized, insightId, insight] );
 
   if(error) {
     return (
@@ -58,7 +65,7 @@ function App() {
 
   return (
       <>
-          <RemoteRunner sessionId={sessionId} insightId={insightId} ></RemoteRunner>
+          <RemoteRunner sessionId={sessionId} insight={insight} insightId={insightId} ></RemoteRunner>
       </>
   )
 }

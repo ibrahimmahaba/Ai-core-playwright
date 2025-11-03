@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { TabData } from "../../types";
 import { Visibility as VisibilityIcon, VisibilityOff as VisibilityOffIcon } from "@mui/icons-material";
+import { useSendStep } from "../../hooks/useSendStep";
 import "./ExpandedInputs.css";
 
 interface ExpandedInputsProps {
@@ -21,6 +22,34 @@ function ExpandedInputs({ tabs, setTabs, onClose }: ExpandedInputsProps) {
   const [editedValue, setEditedValue] = useState<string>("");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
+  const [editedSteps, setEditedSteps] = useState<Map<string, {tabId: string; stepIndex: number; label: string; text: string; storeValue: boolean; stepId?: number}>>(new Map());
+  const [originalSteps, setOriginalSteps] = useState<Map<string, {storeValue: boolean}>>(new Map());
+  
+  const editingRef = useRef<HTMLDivElement>(null);
+  const saveActionsRef = useRef<HTMLDivElement>(null);
+
+  const { updateSteps } = useSendStep();
+
+  // Handle click outside to exit edit mode
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (editingInput && editingRef.current && !editingRef.current.contains(event.target as Node)) {
+        // Don't exit if clicking on save/cancel buttons
+        if (saveActionsRef.current && saveActionsRef.current.contains(event.target as Node)) {
+          return;
+        }
+        // Clicked outside the editing area, exit edit mode without saving
+        setEditingInput(null);
+      }
+    }
+
+    if (editingInput) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [editingInput]);
 
   // Get inputs grouped by tab
   const getInputsByTab = () => {
@@ -32,7 +61,7 @@ function ExpandedInputs({ tabs, setTabs, onClose }: ExpandedInputsProps) {
         .filter(({ step }) => step.type === "TYPE" && step.label)
         .map(({ step, stepIndex }) => ({
           stepIndex,
-          label: step.label!,
+          label: (step as any).label!,
           value: (step as any).text,
           storeValue: (step as any).storeValue,
           hasStoreValue: (step as any).storeValue !== undefined,
@@ -46,62 +75,156 @@ function ExpandedInputs({ tabs, setTabs, onClose }: ExpandedInputsProps) {
     label: string,
     value: string
   ) => {
+    const tab = tabs.find(t => t.id === tabId);
+    if (!tab) return;
+    const step = tab.steps[stepIndex];
+    if (!step.id) return;
     setEditingInput({ tabId, stepIndex });
     setEditedLabel(label);
     setEditedValue(value);
   };
 
-  const handleSaveChanges = () => {
-    if (!editingInput) return;
+  const handleSaveChanges = async () => {
+    if (editedSteps.size === 0) return;
 
-    const updatedTabs = tabs.map((tab) => {
-      if (tab.id === editingInput.tabId) {
-        return {
-          ...tab,
-          steps: tab.steps.map((step, idx) => {
-            if (idx === editingInput.stepIndex && step.type === "TYPE") {
-              return {
-                ...step,
-                label: editedLabel,
-                text: editedValue,
-              };
-            }
-            return step;
-          }),
-        };
+    // Convert edited steps map to array for batch update
+    const stepsToUpdate = Array.from(editedSteps.values());
+    
+    // Group by tabId for organized updates
+    const stepsByTab = stepsToUpdate.reduce((acc, step) => {
+      if (!acc[step.tabId]) acc[step.tabId] = [];
+      acc[step.tabId].push(step);
+      return acc;
+    }, {} as Record<string, typeof stepsToUpdate>);
+
+    // Send batch update to backend using the hook
+    try {
+      for (const [tabId, steps] of Object.entries(stepsByTab)) {
+        const updatePayload = steps.map(step => ({
+          id: step.stepId,
+          label: step.label,
+          text: step.text,
+          storeValue: step.storeValue
+        }));
+
+        await updateSteps(updatePayload, tabId);
       }
-      return tab;
-    });
+    } catch (error) {
+      console.error("Error saving changes:", error);
+      return;
+    }
 
-    setTabs(updatedTabs);
+    // Clear edited steps and reset state
+    setEditedSteps(new Map());
+    setOriginalSteps(new Map());
     setEditingInput(null);
     setHasUnsavedChanges(false);
   };
 
   const handleCancelEdit = () => {
+    // Revert optimistic UI changes for toggled storeValue
+    setTabs(prevTabs => prevTabs.map(tab => {
+      return {
+        ...tab,
+        steps: tab.steps.map((step) => {
+          const original = originalSteps.get(step.id?.toString() || "");
+          if (step.type === 'TYPE' && original) {
+            return {
+              ...step,
+              storeValue: original.storeValue
+            };
+          }
+          return step;
+        })
+      };
+    }));
+    setEditedSteps(new Map());
+    setOriginalSteps(new Map());
     setEditingInput(null);
     setHasUnsavedChanges(false);
   };
 
+  const handleFieldChange = (field: 'label' | 'text', value: string) => {
+    if (!editingInput) return;
+    const tab = tabs.find(t => t.id === editingInput.tabId);
+    if (!tab) return;
+    const step = tab.steps[editingInput.stepIndex];
+    if (step.type !== 'TYPE' || !step.id) return;
+    
+    // Validation: label must not be empty and must be unique within tab
+    let newLabel = field === 'label' ? value : (editedSteps.get(step.id?.toString())?.label ?? editedLabel);
+    if (field === 'label') {
+      if (!newLabel.trim()) {
+        alert('Label cannot be empty.');
+        return;
+      }
+      const duplicate = tab.steps.some((s, idx) => s.type === 'TYPE' && s.label === newLabel && idx !== editingInput.stepIndex);
+      if (duplicate) {
+        alert('Label must be unique within this tab.');
+        return;
+      }
+    }
+    
+    const key = step.id?.toString();
+    const existing = editedSteps.get(key);
+    const updatedStep = {
+      tabId: editingInput.tabId,
+      stepIndex: editingInput.stepIndex,
+      label: newLabel,
+      text: field === 'text' ? value : (existing?.text ?? editedValue),
+      storeValue: existing?.storeValue ?? step.storeValue ?? true,
+      stepId: step.id
+    };
+    setEditedSteps(new Map(editedSteps.set(key, updatedStep)));
+    setHasUnsavedChanges(true);
+    if (field === 'label') setEditedLabel(value);
+    if (field === 'text') setEditedValue(value);
+  };
+
   const toggleStoreValue = (tabId: string, stepIndex: number, currentValue: boolean) => {
-    const updatedTabs = tabs.map(tab => {
-      if (tab.id === tabId) {
+    const tab = tabs.find(t => t.id === tabId);
+    if (!tab) return;
+    const step = tab.steps[stepIndex];
+    if (step.type !== 'TYPE' || !step.id) return;
+    
+    const key = step.id.toString();
+    const existing = editedSteps.get(key);
+    
+    // Save original value if this is the first edit
+    if (!originalSteps.has(key)) {
+      setOriginalSteps(new Map(originalSteps.set(key, { storeValue: currentValue })));
+    }
+    
+    const updatedStep = {
+      tabId,
+      stepIndex,
+      label: existing?.label ?? step.label ?? '',
+      text: existing?.text ?? step.text,
+      storeValue: !currentValue,
+      stepId: step.id
+    };
+    setEditedSteps(new Map(editedSteps.set(key, updatedStep)));
+    
+    // Also update local tabs state for immediate UI feedback
+    const updatedTabs = tabs.map(t => {
+      if (t.id === tabId) {
         return {
-          ...tab,
-          steps: tab.steps.map((step, idx) => {
-            if (idx === stepIndex && step.type === 'TYPE') {
+          ...t,
+          steps: t.steps.map((s) => {
+            if (s.id === step.id && s.type === 'TYPE') {
               return {
-                ...step,
+                ...s,
                 storeValue: !currentValue
               };
             }
-            return step;
+            return s;
           })
         };
       }
-      return tab;
+      return t;
     });
     setTabs(updatedTabs);
+    setHasUnsavedChanges(true);
   };
 
   const togglePasswordVisibility = (key: string) => {
@@ -180,25 +303,20 @@ function ExpandedInputs({ tabs, setTabs, onClose }: ExpandedInputsProps) {
                             editingInput?.stepIndex === input.stepIndex;
 
                           return (
-                            <div key={index} className="expanded-input-item">
+                            <div key={index} className="expanded-input-item" ref={isEditing ? editingRef : null}>
                               {isEditing ? (
                                 <>
                                   <input
                                     className="expanded-input-edit"
                                     value={editedLabel}
-                                    onChange={(e) => {
-                                      setEditedLabel(e.target.value);
-                                      setHasUnsavedChanges(true);
-                                    }}
+                                    onChange={(e) => handleFieldChange('label', e.target.value)}
                                     placeholder="Label"
+                                    autoFocus
                                   />
                                   <textarea
                                     className="expanded-input-edit-value"
                                     value={editedValue}
-                                    onChange={(e) => {
-                                      setEditedValue(e.target.value);
-                                      setHasUnsavedChanges(true);
-                                    }}
+                                    onChange={(e) => handleFieldChange('text', e.target.value)}
                                     placeholder="Value"
                                     rows={3}
                                   />
@@ -279,7 +397,7 @@ function ExpandedInputs({ tabs, setTabs, onClose }: ExpandedInputsProps) {
 
         {/* Save Actions - Fixed at bottom */}
         {hasUnsavedChanges && (
-          <div className="expanded-save-actions">
+          <div className="expanded-save-actions" ref={saveActionsRef}>
             <button className="expanded-save-button" onClick={handleSaveChanges}>
               Save
             </button>

@@ -116,23 +116,24 @@ function Toolbar() {
       return count;
     };
 
-    // Get inputs grouped by tab
-    const getInputsByTab = () => {
-      return tabs.map(tab => ({
-        tabId: tab.id,
-        tabTitle: tab.title,
-        inputs: tab.steps
-          .map((step, stepIndex) => ({ step, stepIndex }))
-          .filter(({ step }) => step.type === 'TYPE' && (step as any).label)
-          .map(({ step, stepIndex }) => ({
-            stepIndex,
-            label: (step as any).label!,
-            value: (step as any).text,
-            storeValue: (step as any).storeValue,
-            hasStoreValue: (step as any).storeValue !== undefined
-          }))
-      }));
-    };
+  // Get inputs grouped by tab
+  const getInputsByTab = () => {
+    return tabs.map(tab => ({
+      tabId: tab.id,
+      tabTitle: tab.title,
+      inputs: tab.steps
+        .map((step, stepIndex) => ({ step, stepIndex }))
+        .filter(({ step }) => step.type === 'TYPE' && (step as any).label)
+        .map(({ step, stepIndex }) => ({
+          stepIndex,
+          label: (step as any).label!,
+          value: (step as any).text,
+          storeValue: (step as any).storeValue,
+          hasStoreValue: (step as any).storeValue !== undefined,
+          isPassword: (step as any).isPassword
+        }))
+    }));
+  };
 
     const handleEditInput = (tabId: string, stepIndex: number, label: string, value: string) => {
   const tab = tabs.find(t => t.id === tabId);
@@ -296,8 +297,8 @@ function Toolbar() {
       });
     };
 
-    const isPasswordField = (label: string) => {
-      return label.toLowerCase().includes('password');
+    const isPasswordField = (isPassword?: boolean, label?: string) => {
+      return isPassword || (label && label.toLowerCase().includes('password'));
     };
 
     const maskPassword = (value: string) => {
@@ -437,13 +438,19 @@ function Toolbar() {
                                   placeholder="Label"
                                   autoFocus
                                 />
-                                <textarea
-                                  className="input-item-edit-value"
-                                  value={editedValue}
-                                  onChange={(e) => handleFieldChange('text', e.target.value)}
-                                  placeholder="Value"
-                                  rows={2}
-                                />
+                                {input.isPassword ? (
+                                  <div className="input-item-value-readonly" style={{ padding: '8px', backgroundColor: '#f5f5f5', borderRadius: '4px', color: '#666' }}>
+                                    {maskPassword(input.value)} (Password values cannot be edited)
+                                  </div>
+                                ) : (
+                                  <textarea
+                                    className="input-item-edit-value"
+                                    value={editedValue}
+                                    onChange={(e) => handleFieldChange('text', e.target.value)}
+                                    placeholder="Value"
+                                    rows={2}
+                                  />
+                                )}
                               </>
                             ) : (
                               <>
@@ -455,7 +462,7 @@ function Toolbar() {
                                   >
                                     {input.label}
                                   </div>
-                                  {input.hasStoreValue && (
+                                  {input.hasStoreValue && !isPasswordField(input.isPassword, input.label) && (
                                     <div 
                                       className="store-value-indicator clickable" 
                                       onClick={() => toggleStoreValue(selectedTabId, input.stepIndex, input.storeValue)}
@@ -471,15 +478,16 @@ function Toolbar() {
                                 </div>
                                 <div className="input-value-container">
                                   <div 
-                                    className="input-item-value editable"
-                                    onClick={() => handleEditInput(selectedTabId, input.stepIndex, input.label, input.value)}
-                                    title="Click to edit"
+                                    className={`input-item-value ${!input.isPassword ? 'editable' : ''}`}
+                                    onClick={() => !input.isPassword && handleEditInput(selectedTabId, input.stepIndex, input.label, input.value)}
+                                    title={input.isPassword ? "Password values cannot be edited" : "Click to edit"}
+                                    style={input.isPassword ? { cursor: 'not-allowed' } : {}}
                                   >
-                                    {isPasswordField(input.label) && !visiblePasswords.has(`${selectedTabId}-${input.stepIndex}`)
+                                    {isPasswordField(input.isPassword, input.label) && !visiblePasswords.has(`${selectedTabId}-${input.stepIndex}`)
                                       ? maskPassword(input.value)
                                       : input.value}
                                   </div>
-                                  {isPasswordField(input.label) && (
+                                  {isPasswordField(input.isPassword, input.label) && (
                                     <button
                                       className="password-toggle"
                                       onClick={() => togglePasswordVisibility(`${selectedTabId}-${input.stepIndex}`)}

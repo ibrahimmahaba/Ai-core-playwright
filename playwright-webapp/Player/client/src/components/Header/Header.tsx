@@ -1,10 +1,11 @@
-
-import { useEffect, useState, useMemo } from "react";
-import { runPixel } from "@semoss/sdk";
-import './Header.css';
-import {Insight}  from 'https://cdn.jsdelivr.net/npm/@semoss/sdk@1.0.0-beta.29/+esm';
 import { Autocomplete, Box, TextField, Typography } from "@mui/material"
+import { useEffect, useMemo ,useState } from "react";
 import type { HeaderProps, ModelOption, ReplayPixelOutput } from "../../types";
+import {runPixel } from "@semoss/sdk";
+import {Insight}  from 'https://cdn.jsdelivr.net/npm/@semoss/sdk@1.0.0-beta.29/+esm';
+
+import './Header.css';
+
 
 function Header(props : HeaderProps) {
     const {insightId, sessionId, selectedRecording, setSelectedRecording

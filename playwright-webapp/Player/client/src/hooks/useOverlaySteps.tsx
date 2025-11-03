@@ -12,50 +12,11 @@ interface UseOverlayStepsProps {
   handleSkipStep: () => void;
 }
 
-// Flag to control which format to use
-// Set to true for new format (type field), false for old format (CLICK/TYPE as keys)
-const USE_NEW_FORMAT = false;
-
-// Extract action data from NEW format: { id: 1, type: "CLICK", coords: {...} }
-function extractActionDataNewFormat(action: any, index: number, shot: ScreenshotResponse): { type: string; coords: Coords | null; text: string } {
-  const type = action.type;
-  let coords: Coords | null = null;
-  let text = "";
-
-  console.log(`📋 Processing action (NEW format): index=${index}, type=${type}`);
-  console.log(`  📦 Full action data:`, JSON.stringify(action, null, 2));
-
-  if (type === "CLICK") {
-    if (action.coords) {
-      coords = action.coords;
-      console.log(`  ✅ CLICK coords found:`, coords);
-    } else {
-      console.warn(`  ⚠️ CLICK action but no coords field found`);
-    }
-  } else if (type === "TYPE") {
-    text = action.text || "";
-    coords = action.coords || null;
-    console.log(`  ✅ TYPE text="${text}", coords=`, coords);
-
-    if (!coords) {
-      console.warn(`  ⚠️ TYPE action but no coords found`);
-    }
-  } else if (type === "SCROLL") {
-    // SCROLL always goes to center by default
-    coords = { x: shot.width / 2, y: shot.height / 2 };
-    console.log(`  ✅ SCROLL using center coords:`, coords);
-  } else {
-    console.warn(`  ⚠️ Unknown action type: ${type}`);
-  }
-
-  return { type, coords, text };
-}
-
-// Extract action data from OLD format: { CLICK: { coords: {...} }, tabId: "tab-1" }
-function extractActionDataOldFormat(action: any, index: number, shot: ScreenshotResponse): { type: string; coords: Coords | null; text: string } {
+// Extract action data from format: { CLICK: { coords: {...} }, tabId: "tab-1" }
+function extractActionData(action: any, index: number, shot: ScreenshotResponse): { type: string; coords: Coords | null; text: string } {
   // Find the action type by looking for known action keys, ignoring 'tabId'
   const allKeys = Object.keys(action);
-  console.log(`📋 Processing action (OLD format): index=${index}, all keys:`, allKeys);
+  console.log(`📋 Processing action: index=${index}, all keys:`, allKeys);
 
   const actionTypes = ['CLICK', 'TYPE', 'SCROLL', 'WAIT', 'NAVIGATE'];
   const type = allKeys.find(key => actionTypes.includes(key)) || allKeys[0];
@@ -116,20 +77,21 @@ export function useOverlaySteps({
 }: UseOverlayStepsProps) {
   const renderStepLabels = () => {
     if (!shot || !editedData || editedData.length === 0 || !imgRef.current) {
+      console.log(`🎬 renderStepLabels: Early return - shot=${!!shot}, editedData=${!!editedData}, length=${editedData?.length}, imgRef=${!!imgRef.current}`);
       return null;
     }
 
     console.log(`🎬 renderStepLabels called with ${editedData.length} actions`);
-    console.log(`🎬 USE_NEW_FORMAT flag is set to: ${USE_NEW_FORMAT}`);
+    console.log(`🎬 showFutureSteps flag: ${showFutureSteps}`);
     console.log(`🎬 Full editedData:`, JSON.stringify(editedData, null, 2));
 
     return (
       <>
         {editedData.map((action, index) => {
-          // Extract action data using the appropriate format handler
-          const { type, coords: extractedCoords, text } = USE_NEW_FORMAT
-            ? extractActionDataNewFormat(action as any, index, shot)
-            : extractActionDataOldFormat(action as any, index, shot);
+          console.log(`\n🎯 Processing action at index ${index} of ${editedData.length}`);
+
+          // Extract action data
+          const { type, coords: extractedCoords, text } = extractActionData(action as any, index, shot);
 
           let coords = extractedCoords;
 
@@ -150,7 +112,12 @@ export function useOverlaySteps({
 
           // If this is not the first step and showNonCurrentStepIndicators is false, don't render
           if (index > 0 && !showFutureSteps) {
+            console.log(`🚫 Skipping future step ${index} because showFutureSteps=${showFutureSteps}`);
             return null;
+          }
+
+          if (index > 0) {
+            console.log(`📍 Rendering future step ${index} as numbered indicator (showFutureSteps=${showFutureSteps})`);
           }
 
           // Calculate position on scaled image

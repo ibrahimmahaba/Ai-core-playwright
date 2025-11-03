@@ -75,8 +75,6 @@ function Header(props : HeaderProps) {
           const tool = await initRes?.tool;
     
           const maybeSymbol = tool?.parameters?.sessionId;
-          // const maybeSymbol = tool?.parameters?.recordedFile;
-
     
           setSelectedRecording(maybeSymbol);
           

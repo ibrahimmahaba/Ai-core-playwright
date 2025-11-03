@@ -5,19 +5,21 @@ import { runPixel } from "@semoss/sdk";
 import { Autocomplete, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, TextField, Typography } from '@mui/material';
 import './header.css';
 import { useSessionStore } from '../../store/useSessionStore';
+//import { run } from 'node:test';
+
 
 function Header() {
   const {
     sessionId,
     insightId,
     shot,
-    setShot,
+    //setShot,
     initSession,
     isInitialized,
     tabs,
-    setTabs,
+   // setTabs,
     activeTabId,
-    setActiveTabId,
+   // setActiveTabId,
     title,
     setTitle,
     description,
@@ -27,12 +29,14 @@ function Header() {
     setSelectedModel,
     loading,
     setLoading,
+    resetSession,
   } = useSessionStore();
 
   const [showSessionPrompt, setShowSessionPrompt] = useState(false);
   const [showSaveWarning, setShowSaveWarning] = useState(false);
   const [url, setUrl] = useState("https://example.com");
   const [currUserModels, setCurrUserModels] = useState<Record<string, string>>({});
+	//const notification = useNotification();
 
   const viewport: Viewport = {
     width: shot?.width ?? 1280,
@@ -91,7 +95,7 @@ function Header() {
       await proceedToNavigate();
     };
   
-    const proceedToNavigate = async () => {
+    const proceedToNavigate = async (explicitTabId?: string) => {
       let formattedUrl = url.trim();
       if (!/^https?:\/\//i.test(formattedUrl)) {
         formattedUrl = "https://" + formattedUrl;
@@ -103,7 +107,7 @@ function Header() {
         waitAfterMs: 100,
         viewport,
         timestamp: Date.now(),
-      }, activeTabId); // Pass activeTabId to fix the error
+      }, explicitTabId || activeTabId); // Use explicit tabId if provided, otherwise use activeTabId
     };
   
     const handleContinueExisting = async () => {
@@ -142,21 +146,17 @@ function Header() {
   const proceedWithNewSession = async () => {
     setLoading(true);
     try {
-      // Clear only screenshot and steps, keep UI visible
-      setShot(undefined);
-      setTabs([{ id: "tab-1", title: "tab-1", steps: [] }]);
-      setActiveTabId("tab-1");
-      setTitle("");
-      setDescription("");
-
+      resetSession();
+      
       await initSession(insightId, isInitialized);
 
       // Give the backend time to fully initialize the session
       // This is a simple frontend-only solution without backend changes
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       console.log("Session created, proceeding to navigate");
-      await proceedToNavigate();
+      // Explicitly pass "tab-1" to ensure we use the correct tab ID
+      await proceedToNavigate("tab-1");
     } catch (error) {
       console.error("Error creating new session:", error);
       alert("Failed to create new session. Please try again.");
@@ -187,7 +187,12 @@ function Header() {
 
           const res = await runPixel(pixel, insightId);
           console.log("SaveAll success:", res.pixelReturn[0].output);
-          alert("Session saved successfully!");
+          // notification.add({
+          //   color: "success",
+          //   message: "File saved successfuly!",
+          // });   
+          console.log("File saved successfuly!");       
+          await updateMCP();
           return true;
         } catch (err) {
           console.error("Error saving session:", err);
@@ -195,6 +200,30 @@ function Header() {
           return false;
         }
       }
+
+    async function updateMCP(): Promise<boolean> {
+      try {
+        //app id
+        const pixel = 'MakePlaywrightMCP(project ="");'
+        await runPixel(pixel, insightId);
+
+        // notification.add({
+        //   color: "success",
+        //   message: "Update mcp successful!",
+        // });
+        console.log("Update mcp successful!");
+        return true;
+      }
+      catch (err)
+      {
+        // notification.add({
+				// 		color: "error",
+				// 		message: "Couldnt update mcp file",
+				// 	});
+        console.log("Could not update mcp file");
+        return false;
+      }
+    }
   return (
     <>
         <div className="header-container">

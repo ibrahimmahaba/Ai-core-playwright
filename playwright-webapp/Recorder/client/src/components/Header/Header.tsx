@@ -27,6 +27,7 @@ function Header() {
     setSelectedModel,
     loading,
     setLoading,
+    resetSession,
   } = useSessionStore();
 
   const [showSessionPrompt, setShowSessionPrompt] = useState(false);
@@ -91,7 +92,7 @@ function Header() {
       await proceedToNavigate();
     };
   
-    const proceedToNavigate = async () => {
+    const proceedToNavigate = async (explicitTabId?: string) => {
       let formattedUrl = url.trim();
       if (!/^https?:\/\//i.test(formattedUrl)) {
         formattedUrl = "https://" + formattedUrl;
@@ -103,7 +104,7 @@ function Header() {
         waitAfterMs: 100,
         viewport,
         timestamp: Date.now(),
-      }, activeTabId); // Pass activeTabId to fix the error
+      }, explicitTabId || activeTabId); // Use explicit tabId if provided, otherwise use activeTabId
     };
   
     const handleContinueExisting = async () => {
@@ -142,21 +143,17 @@ function Header() {
   const proceedWithNewSession = async () => {
     setLoading(true);
     try {
-      // Clear only screenshot and steps, keep UI visible
-      setShot(undefined);
-      setTabs([{ id: "tab-1", title: "tab-1", steps: [] }]);
-      setActiveTabId("tab-1");
-      setTitle("");
-      setDescription("");
-
+      resetSession();
+      
       await initSession(insightId, isInitialized);
 
       // Give the backend time to fully initialize the session
       // This is a simple frontend-only solution without backend changes
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       console.log("Session created, proceeding to navigate");
-      await proceedToNavigate();
+      // Explicitly pass "tab-1" to ensure we use the correct tab ID
+      await proceedToNavigate("tab-1");
     } catch (error) {
       console.error("Error creating new session:", error);
       alert("Failed to create new session. Please try again.");

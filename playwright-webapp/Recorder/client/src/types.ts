@@ -22,6 +22,7 @@ export interface ScreenshotResponse {
   
   // Base interface for all step types
   interface BaseStep {
+    id?: number;  // Optional during creation, assigned by sendStep
     viewport: Viewport;
     waitAfterMs?: number;
     timestamp: number;

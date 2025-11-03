@@ -226,17 +226,17 @@ function Header() {
                 renderOption={(props, option) => (
                   <Box component="li" {...props}>
                     <div>
-                      <Typography variant="body1">{option.label}</Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.7rem" }}>
+                      <Typography variant="body2" sx={{ fontSize: "0.875rem" }}>{option.label}</Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.65rem" }}>
                         {option.value}
                       </Typography>
                     </div>
                   </Box>
                 )}
                 renderInput={(params) => (
-                  <TextField {...params} label="Select LLM" placeholder="Search models..." />
+                  <TextField {...params} label="Select LLM" placeholder="Search models..." size="small" />
                 )}
-                sx={{ minWidth: 250 }}
+                sx={{ minWidth: 300 }}
               />
               {mode === "crop" && <span className="header-crop-mode">
               Drag to select crop area
@@ -260,7 +260,6 @@ function Header() {
                   label="Description"
                   value={description}
                   fullWidth
-                  multiline
                   rows={2}
                   onChange={(e) => setDescription(e.target.value)}
                 />

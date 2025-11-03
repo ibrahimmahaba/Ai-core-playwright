@@ -481,6 +481,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       // Extract HTML with coordinates from the cropped area
       const extractPixel = `ExtractElementsDataForLLM(
         sessionId="${sessionId}", 
+        tabId = "${activeTabId}",
         paramValues=[{
           "startX": ${cropArea.startX}, 
           "startY": ${cropArea.startY}, 

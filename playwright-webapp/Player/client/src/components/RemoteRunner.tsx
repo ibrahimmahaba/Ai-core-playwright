@@ -57,7 +57,8 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
     { id: "tab-1", title: "New Tab", actions: [] }
   ]);
   const [activeTabId, setActiveTabId] = useState<string>("tab-1");
-  
+  const [showFutureSteps, setShowFutureSteps] = useState<boolean>(true);
+
   useEffect(() => {
     if (!sessionId || !live) return;
     let cancelled = false;
@@ -959,6 +960,21 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
       )}
       {shot && (
         <>
+          {/* <button
+            onClick={() => setShowFutureSteps(!showFutureSteps)}
+            style={{
+              marginBottom: '8px',
+              padding: '8px 16px',
+              backgroundColor: showFutureSteps ? '#4CAF50' : '#f44336',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            {showFutureSteps ? 'Hide Future Steps' : 'Show Future Steps'}
+          </button> */}
           <div className="screenshot-container">
           {mode === "crop" || mode === "generate-steps" ? (
               <ReactCrop
@@ -1097,6 +1113,11 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
 
                 if (!coords) {
                   console.log(`⚠️ Step ${index} (${type}) has no coords, skipping label`);
+                  return null;
+                }
+
+                // If this is not the first step and showNonCurrentStepIndicators is false, don't render
+                if (index > 0 && !showFutureSteps) {
                   return null;
                 }
 

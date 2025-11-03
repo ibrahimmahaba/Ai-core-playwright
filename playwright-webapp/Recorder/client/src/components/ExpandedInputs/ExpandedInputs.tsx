@@ -65,6 +65,7 @@ function ExpandedInputs({ tabs, setTabs, onClose }: ExpandedInputsProps) {
           value: (step as any).text,
           storeValue: (step as any).storeValue,
           hasStoreValue: (step as any).storeValue !== undefined,
+          isPassword: (step as any).isPassword,
         })),
     }));
   };
@@ -239,8 +240,8 @@ function ExpandedInputs({ tabs, setTabs, onClose }: ExpandedInputsProps) {
     });
   };
 
-  const isPasswordField = (label: string) => {
-    return label.toLowerCase().includes('password');
+  const isPasswordField = (isPassword?: boolean, label?: string) => {
+    return isPassword || (label && label.toLowerCase().includes('password'));
   };
 
   const maskPassword = (value: string) => {
@@ -313,13 +314,19 @@ function ExpandedInputs({ tabs, setTabs, onClose }: ExpandedInputsProps) {
                                     placeholder="Label"
                                     autoFocus
                                   />
-                                  <textarea
-                                    className="expanded-input-edit-value"
-                                    value={editedValue}
-                                    onChange={(e) => handleFieldChange('text', e.target.value)}
-                                    placeholder="Value"
-                                    rows={3}
-                                  />
+                                  {input.isPassword ? (
+                                    <div className="expanded-input-value-readonly" style={{ padding: '12px', backgroundColor: '#f5f5f5', borderRadius: '4px', color: '#666', fontSize: '14px' }}>
+                                      {maskPassword(input.value)} (Password values cannot be edited)
+                                    </div>
+                                  ) : (
+                                    <textarea
+                                      className="expanded-input-edit-value"
+                                      value={editedValue}
+                                      onChange={(e) => handleFieldChange('text', e.target.value)}
+                                      placeholder="Value"
+                                      rows={3}
+                                    />
+                                  )}
                                 </>
                               ) : (
                                 <>
@@ -338,7 +345,7 @@ function ExpandedInputs({ tabs, setTabs, onClose }: ExpandedInputsProps) {
                                     >
                                       {input.label}
                                     </div>
-                                    {input.hasStoreValue && (
+                                    {input.hasStoreValue && !isPasswordField(input.isPassword, input.label) && (
                                       <div 
                                         className="expanded-store-value-indicator clickable" 
                                         onClick={() => toggleStoreValue(selectedTabId, input.stepIndex, input.storeValue)}
@@ -354,22 +361,23 @@ function ExpandedInputs({ tabs, setTabs, onClose }: ExpandedInputsProps) {
                                   </div>
                                   <div className="expanded-value-container">
                                     <div
-                                      className="expanded-input-value editable"
+                                      className={`expanded-input-value ${!input.isPassword ? 'editable' : ''}`}
                                       onClick={() =>
-                                        handleEditInput(
+                                        !input.isPassword && handleEditInput(
                                           selectedTabId,
                                           input.stepIndex,
                                           input.label,
                                           input.value
                                         )
                                       }
-                                      title="Click to edit"
+                                      title={input.isPassword ? "Password values cannot be edited" : "Click to edit"}
+                                      style={input.isPassword ? { cursor: 'not-allowed' } : {}}
                                     >
-                                      {isPasswordField(input.label) && !visiblePasswords.has(`${selectedTabId}-${input.stepIndex}`)
+                                      {isPasswordField(input.isPassword, input.label) && !visiblePasswords.has(`${selectedTabId}-${input.stepIndex}`)
                                         ? maskPassword(input.value)
                                         : input.value}
                                     </div>
-                                    {isPasswordField(input.label) && (
+                                    {isPasswordField(input.isPassword, input.label) && (
                                       <button
                                         className="expanded-password-toggle"
                                         onClick={() => togglePasswordVisibility(`${selectedTabId}-${input.stepIndex}`)}

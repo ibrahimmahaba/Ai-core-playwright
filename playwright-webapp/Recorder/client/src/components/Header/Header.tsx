@@ -201,28 +201,15 @@ function Header() {
         }
       }
 
-    async function updateMCP(): Promise<boolean> {
-      try {
-        //app id
-        const pixel = 'MakePlaywrightMCP(project ="");'
-        await runPixel(pixel, insightId);
+    async function updateMCP() {
+        try {
+            const makePlaywrightPixel = `MakePlaywrightMCP(project="d481f66b-5a78-4020-a157-4bf1ffc71082")`;
+            const makePlaywrightRes = await runPixel(makePlaywrightPixel, insightId);
+            console.log("MakePlaywrightMCP success:", makePlaywrightRes.pixelReturn[0].output);
+        } catch (makePlaywrightErr) {
+            console.error("Error running MakePlaywrightMCP:", makePlaywrightErr);
+        }
 
-        // notification.add({
-        //   color: "success",
-        //   message: "Update mcp successful!",
-        // });
-        console.log("Update mcp successful!");
-        return true;
-      }
-      catch (err)
-      {
-        // notification.add({
-				// 		color: "error",
-				// 		message: "Couldnt update mcp file",
-				// 	});
-        console.log("Could not update mcp file");
-        return false;
-      }
     }
   return (
     <>

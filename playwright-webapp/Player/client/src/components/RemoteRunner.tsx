@@ -58,6 +58,7 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
   ]);
   const [activeTabId, setActiveTabId] = useState<string>("tab-1");
   const [showFutureSteps, setShowFutureSteps] = useState<boolean>(true);
+  setShowFutureSteps(true);
 
   useEffect(() => {
     if (!sessionId || !live) return;

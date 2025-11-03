@@ -22,6 +22,8 @@ import StepsBottomSection from "./StepsBottomSection/StepsBottomSection";
 import { useSkipStep } from "../hooks/useSkipStep";
 import { useProbeAt } from "../hooks/useProbeAt";
 import { Tabs, Tab, Box } from "@mui/material";
+import {Insight}  from 'https://cdn.jsdelivr.net/npm/@semoss/sdk@1.0.0-beta.29/+esm';
+
 
 export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps) {
 
@@ -74,7 +76,10 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
   useEffect(() => {
     // Auto-show input overlay for TYPE steps
     if (editedData && editedData.length > 0 && !overlay && !loading && showData && shot) {
-      setOverlayForType();
+      const handleSetOverlayForType = async () => {
+        await setOverlayForType();
+      };
+      handleSetOverlayForType();
     }
   }, [editedData, overlay, loading, showData, shot]);
 
@@ -85,10 +90,32 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     deviceScaleFactor: shot?.deviceScaleFactor ?? 1,
   };
 
-  function setOverlayForType() {
+  async function setOverlayForType() {
     const nextAction = editedData[0];
     if ("TYPE" in nextAction) {
       const typeAction = nextAction.TYPE;
+
+      const insight = new Insight();
+      const initRes: any = await insight.initialize();
+      const tool = await initRes?.tool;
+
+      // Check if we have initial parameter values from tool parameters
+      let initialValue = typeAction.text;
+      // Following the same approach as in Header.tsx for accessing tool parameters
+      if (tool?.parameters?.paramValues) {
+        const paramValues = tool?.parameters?.paramValues;
+        // Loop through paramValues and check if any of them has the label
+        for (const [key, value] of Object.entries(paramValues)) {
+          // Compare case-insensitive and ignore spaces/hyphens/underscores
+          const normalizedKey = key.toLowerCase().replace(/[\s\-_]/g, '');
+          const normalizedLabel = (typeAction.label || '').toLowerCase().replace(/[\s\-_]/g, '');
+          if (normalizedKey === normalizedLabel) {
+            initialValue = value as string;
+            break;
+          }
+        }
+      }
+      
       const probe: Probe = typeAction.probe || {
         tag: "input",
         type: typeAction.isPassword ? "password" : "text",
@@ -97,7 +124,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
         selector: null,
         placeholder: null,
         labelText: typeAction.label,
-        value: typeAction.text,
+        value: initialValue,
         href: null,
         contentEditable: false,
         rect: typeAction.coords ? {
@@ -115,7 +142,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       setOverlay({
         kind: "input",
         probe: {...probe, rect : {...probe.rect} }, 
-        draftValue: typeAction.text,
+        draftValue: initialValue,
         draftLabel: typeAction.label
       });
     }

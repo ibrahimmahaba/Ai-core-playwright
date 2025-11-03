@@ -191,7 +191,8 @@ function Header() {
           //   color: "success",
           //   message: "File saved successfuly!",
           // });   
-          console.log("File saved successfuly!");       
+          console.log("File saved successfuly!");      
+          alert("File saved successfully!"); 
           await updateMCP();
           return true;
         } catch (err) {
@@ -203,9 +204,10 @@ function Header() {
 
     async function updateMCP() {
         try {
-            const makePlaywrightPixel = `MakePlaywrightMCP(project="d481f66b-5a78-4020-a157-4bf1ffc71082")`;
+            const makePlaywrightPixel = `MakePlaywrightMCP(project="84ede0d8-6da3-4772-9968-e8554c538c8b")`;
             const makePlaywrightRes = await runPixel(makePlaywrightPixel, insightId);
             console.log("MakePlaywrightMCP success:", makePlaywrightRes.pixelReturn[0].output);
+            alert("MCP updated successfully!"); 
         } catch (makePlaywrightErr) {
             console.error("Error running MakePlaywrightMCP:", makePlaywrightErr);
         }

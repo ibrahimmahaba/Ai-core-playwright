@@ -22,7 +22,8 @@ import StepsBottomSection from "./StepsBottomSection/StepsBottomSection";
 import { useSkipStep } from "../hooks/useSkipStep";
 import { useProbeAt } from "../hooks/useProbeAt";
 import { Tabs, Tab, Box } from "@mui/material";
-import { Insight }  from 'https://cdn.jsdelivr.net/npm/@semoss/sdk@1.0.0-beta.29/+esm';
+import {Insight}  from 'https://cdn.jsdelivr.net/npm/@semoss/sdk@1.0.0-beta.29/+esm';
+
 
 export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRunnerProps) {
 
@@ -99,13 +100,14 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
       const initRes: any = await insight.initialize();
       const tool = await initRes?.tool;
 
+      // Check if we have initial parameter values from tool parameters
       let initialValue = typeAction.text;
+      // Following the same approach as in Header.tsx for accessing tool parameters
       if (tool?.parameters?.paramValues) {
-
         const paramValues = tool?.parameters?.paramValues;
-
+        // Loop through paramValues and check if any of them has the label
         for (const [key, value] of Object.entries(paramValues)) {
-
+          // Compare case-insensitive and ignore spaces/hyphens/underscores
           const normalizedKey = key.toLowerCase().replace(/[\s\-_]/g, '');
           const normalizedLabel = (typeAction.label || '').toLowerCase().replace(/[\s\-_]/g, '');
           if (normalizedKey === normalizedLabel) {
@@ -114,7 +116,7 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
           }
         }
       }
-
+      
       const probe: Probe = typeAction.probe || {
         tag: "input",
         type: typeAction.isPassword ? "password" : "text",
@@ -507,6 +509,7 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
       // Extract HTML with coordinates from the cropped area
       const extractPixel = `ExtractElementsDataForLLM(
         sessionId="${sessionId}", 
+        tabId = "${activeTabId}",
         paramValues=[{
           "startX": ${cropArea.startX}, 
           "startY": ${cropArea.startY}, 

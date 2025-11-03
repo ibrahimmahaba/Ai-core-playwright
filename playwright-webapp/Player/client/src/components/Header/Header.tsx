@@ -1,7 +1,8 @@
 import { Autocomplete, Box, TextField, Typography } from "@mui/material"
 import { useEffect, useMemo ,useState } from "react";
 import type { HeaderProps, ModelOption, ReplayPixelOutput } from "../../types";
-import {Insight, runPixel } from "@semoss/sdk";
+import {runPixel } from "@semoss/sdk";
+import {Insight}  from 'https://cdn.jsdelivr.net/npm/@semoss/sdk@1.0.0-beta.29/+esm';
 
 import './Header.css';
 

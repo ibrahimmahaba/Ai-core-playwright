@@ -58,7 +58,6 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
   ]);
   const [activeTabId, setActiveTabId] = useState<string>("tab-1");
   const [showFutureSteps, setShowFutureSteps] = useState<boolean>(true);
-  setShowFutureSteps(true);
 
   useEffect(() => {
     if (!sessionId || !live) return;
@@ -961,7 +960,7 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
       )}
       {shot && (
         <>
-          {/* <button
+          <button
             onClick={() => setShowFutureSteps(!showFutureSteps)}
             style={{
               marginBottom: '8px',
@@ -975,7 +974,7 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
             }}
           >
             {showFutureSteps ? 'Hide Future Steps' : 'Show Future Steps'}
-          </button> */}
+          </button>
           <div className="screenshot-container">
           {mode === "crop" || mode === "generate-steps" ? (
               <ReactCrop

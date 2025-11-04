@@ -124,7 +124,7 @@ function Header() {
 
   const handleSaveAndStartNew = async () => {
     if (!title.trim()) {
-      showToast("Please enter a title before saving the session.", "error");
+      showToast("Please enter a title before saving the session.", "info");
       setShowSaveWarning(false);
       return; 
     }

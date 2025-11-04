@@ -1,8 +1,8 @@
 .toolbar-container {
   position: fixed;
-  top: 0;
+  top: 48px;
   left: 0;
-  height: 100vh;
+  height: calc(100vh - 48px);
   width: 56px;
   z-index: 1000;
   display: flex;
@@ -67,9 +67,9 @@
 /* Side Panel */
 .toolbar-panel {
   position: fixed;
-  top: 0;
+  top: 48px;
   left: 56px;
-  height: 100vh;
+  height: calc(100vh - 48px);
   width: 300px;
   z-index: 999;
   background: #fff;

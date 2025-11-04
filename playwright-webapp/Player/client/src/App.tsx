@@ -1,5 +1,6 @@
 import './App.css'
 import RemoteRunner from './components/RemoteRunner'
+import AppHeader from './components/AppHeader/AppHeader'
 import { Env } from '@semoss/sdk/react';
 import { runPixel } from "@semoss/sdk";
 // import { useInsight } from "@semoss/sdk-react";
@@ -65,6 +66,7 @@ function App() {
 
   return (
       <>
+          <AppHeader />
           <RemoteRunner sessionId={sessionId} insight={insight} insightId={insightId} ></RemoteRunner>
       </>
   )

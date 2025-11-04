@@ -5,6 +5,7 @@ import { useInsight } from "@semoss/sdk-react";
 import { useEffect, useState } from 'react';
 import { Alert, CircularProgress } from '@mui/material';
 import { useSessionStore } from './store/useSessionStore';
+import ToastNotificationContainer from './components/Toast/ToastNotificationContainer';
 
 function App() {
   const { insightId, isInitialized } = useInsight();
@@ -53,6 +54,7 @@ function App() {
   return (
     <>
       <RemoteRunner />
+      <ToastNotificationContainer />
     </>
   );
 }

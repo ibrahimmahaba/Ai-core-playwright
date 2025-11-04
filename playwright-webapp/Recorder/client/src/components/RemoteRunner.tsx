@@ -14,6 +14,7 @@ import { fetchScreenshot } from "../hooks/useFetchScreenshot";
 import VisionPopup from "./VisionPopup/VisionPopup";
 import './remote-runner.css';
 import { useSessionStore } from "../store/useSessionStore";
+import { useToastNotificationStore } from "../store/useToastNotificationStore";
 
 
 export default function RemoteRunner()  {
@@ -33,6 +34,7 @@ export default function RemoteRunner()  {
     setSelectedModel,
   } = useSessionStore();
 
+  const { showToast } = useToastNotificationStore();
   const imgRef = useRef<HTMLImageElement>(null);
   const [overlay, setOverlay] = useState<{
     kind: "input" | "confirm";
@@ -102,7 +104,10 @@ export default function RemoteRunner()  {
   }
   async function probeAt(pendingCoords: Coords | null) {
     if (!sessionId) return ;
-    if (!pendingCoords) alert("Invalid Coordinates");
+    if (!pendingCoords) {
+      showToast("Invalid Coordinates", "error");
+      return;
+    }
 
     let pixel = `ProbeElement (sessionId = "${sessionId}" , coords = "${pendingCoords?.x}, ${pendingCoords?.y}", tabId = "${activeTabId}");`
     const res = await runPixel(pixel, insightId);

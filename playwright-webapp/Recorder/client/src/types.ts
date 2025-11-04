@@ -140,6 +140,13 @@ export interface ScreenshotResponse {
     setCrop: React.Dispatch<React.SetStateAction<Crop | undefined>>;
   }
   
-
-
   export type ModelOption = { label: string; value: string } ;
+
+  export type ToastType = 'success' | 'error' | 'info';
+
+  export interface ToastNotificationProps {
+    message: string;
+    type: ToastType;
+    duration?: number;
+    onClose: () => void;
+  }

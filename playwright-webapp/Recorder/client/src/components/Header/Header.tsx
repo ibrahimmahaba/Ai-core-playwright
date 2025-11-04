@@ -5,7 +5,7 @@ import { runPixel } from "@semoss/sdk";
 import { Autocomplete, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, TextField, Typography } from '@mui/material';
 import './header.css';
 import { useSessionStore } from '../../store/useSessionStore';
-//import { run } from 'node:test';
+import { useToastNotificationStore } from '../../store/useToastNotificationStore';
 
 
 function Header() {
@@ -13,13 +13,10 @@ function Header() {
     sessionId,
     insightId,
     shot,
-    //setShot,
     initSession,
     isInitialized,
     tabs,
-   // setTabs,
     activeTabId,
-   // setActiveTabId,
     title,
     setTitle,
     description,
@@ -32,11 +29,11 @@ function Header() {
     resetSession,
   } = useSessionStore();
 
+  const { showToast } = useToastNotificationStore();
   const [showSessionPrompt, setShowSessionPrompt] = useState(false);
   const [showSaveWarning, setShowSaveWarning] = useState(false);
   const [url, setUrl] = useState("https://example.com");
   const [currUserModels, setCurrUserModels] = useState<Record<string, string>>({});
-	//const notification = useNotification();
 
   const viewport: Viewport = {
     width: shot?.width ?? 1280,
@@ -107,7 +104,7 @@ function Header() {
         waitAfterMs: 100,
         viewport,
         timestamp: Date.now(),
-      }, explicitTabId || activeTabId); // Use explicit tabId if provided, otherwise use activeTabId
+      }, explicitTabId || activeTabId); 
     };
   
     const handleContinueExisting = async () => {
@@ -127,7 +124,7 @@ function Header() {
 
   const handleSaveAndStartNew = async () => {
     if (!title.trim()) {
-      alert("Please enter a title before saving the session.");
+      showToast("Please enter a title before saving the session.", "error");
       setShowSaveWarning(false);
       return; 
     }
@@ -149,17 +146,10 @@ function Header() {
       resetSession();
       
       await initSession(insightId, isInitialized);
-
-      // Give the backend time to fully initialize the session
-      // This is a simple frontend-only solution without backend changes
       await new Promise(resolve => setTimeout(resolve, 500));
-
-      console.log("Session created, proceeding to navigate");
-      // Explicitly pass "tab-1" to ensure we use the correct tab ID
       await proceedToNavigate("tab-1");
     } catch (error) {
-      console.error("Error creating new session:", error);
-      alert("Failed to create new session. Please try again.");
+      showToast("Failed to create new session. Please try again.", "error");
     } finally {
       setLoading(false);
     }
@@ -170,7 +160,7 @@ function Header() {
         if (!sessionId) return false;
 
         if (!title.trim()) {
-          alert("Please enter a title before saving the session.");
+          showToast("Please enter a title before saving the session.", "error");
           return false;
         }
       
@@ -187,17 +177,12 @@ function Header() {
 
           const res = await runPixel(pixel, insightId);
           console.log("SaveAll success:", res.pixelReturn[0].output);
-          // notification.add({
-          //   color: "success",
-          //   message: "File saved successfuly!",
-          // });   
-          console.log("File saved successfuly!");      
-          alert("File saved successfully!"); 
+          showToast("File saved successfully!", "success");
           await updateMCP();
           return true;
         } catch (err) {
           console.error("Error saving session:", err);
-          alert("Failed to save session");
+          showToast("Failed to save session", "error");
           return false;
         }
       }
@@ -207,7 +192,7 @@ function Header() {
             const makePlaywrightPixel = `MakePlaywrightMCP(project="84ede0d8-6da3-4772-9968-e8554c538c8b")`;
             const makePlaywrightRes = await runPixel(makePlaywrightPixel, insightId);
             console.log("MakePlaywrightMCP success:", makePlaywrightRes.pixelReturn[0].output);
-            alert("MCP updated successfully!"); 
+            showToast("MCP updated successfully!", "success");
         } catch (makePlaywrightErr) {
             console.error("Error running MakePlaywrightMCP:", makePlaywrightErr);
         }

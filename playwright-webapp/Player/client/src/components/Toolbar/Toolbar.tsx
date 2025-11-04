@@ -169,9 +169,9 @@ function Toolbar(props: ToolbarProps) {
       
       {showPanel && needsPanel && activeItem && (
         <div className="toolbar-panel">
-          <div className="toolbar-panel-header">
+          {/* <div className="toolbar-panel-header">
             <span className="toolbar-panel-title">{activeItem.label}</span>
-          </div>
+          </div> */}
           <div className="toolbar-panel-content">
             {mode === "tools" && (
               <ToolsPanel
@@ -202,7 +202,7 @@ function Toolbar(props: ToolbarProps) {
                     setMode("generate-steps");
                   }
                 }}
-                selectedTool={mode === "click" ? "click" : mode === "crop" ? "crop" : undefined}
+                // selectedTool={mode === "click" ? "click" : mode === "crop" ? "crop" : undefined}
               />
             )}
             {mode === "show-steps" && editedData !== undefined && (

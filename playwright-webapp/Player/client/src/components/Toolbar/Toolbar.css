@@ -55,12 +55,12 @@
 }
 
 .toolbar-button-active {
-  background: #1976d2 !important;
-  color: #fff !important;
+  background: #d9e8fc !important;
+  color: #3672e3 !important;
 }
 
 .toolbar-button-active:hover {
-  background: #1565c0 !important;
+  background: #3672e3 !important;
   color: #fff !important;
 }
 
@@ -80,7 +80,7 @@
 }
 
 .toolbar-panel-header {
-  background: #1976d2;
+  background: #d9e8fc;
   color: #fff;
   padding: 16px;
   font-weight: 600;

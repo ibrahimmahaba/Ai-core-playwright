@@ -132,6 +132,8 @@ export type CropArea = {
     setGenerationUserPrompt: React.Dispatch<React.SetStateAction<string>>;
     selectedModel: ModelOption | null;
     tabId: string;
+    editedData?: Action[];
+    setEditedData?: React.Dispatch<React.SetStateAction<Action[]>>;
   }
 
 

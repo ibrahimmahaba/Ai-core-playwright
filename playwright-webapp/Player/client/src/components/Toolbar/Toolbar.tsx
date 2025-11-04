@@ -6,16 +6,22 @@ import {
     Sync as SyncIcon,
     CropFree as CropIcon, 
     AutoAwesome as AutoAwesomeIcon,
+    ListAlt as ListAltIcon,
+    Edit as EditIcon,
   } from "@mui/icons-material";
-import { type JSX } from "react";
+import { type JSX, useState, useEffect } from "react";
 import { runPixel } from "@semoss/sdk";
 import type { ToolbarProps, ScreenshotResponse, Step, Viewport } from "../../types";
 import {useSendStep} from"../../hooks/useSendStep"
+import StepsPanel from "../StepsPanel/StepsPanel";
+import InputsPanel from "../InputsPanel/InputsPanel";
 import './Toolbar.css';
 
 function Toolbar(props: ToolbarProps) {
   const { sessionId, insightId, shot, setShot, mode, setMode, steps, setSteps, setLoading,
-    generationUserPrompt, setGenerationUserPrompt, selectedModel, tabId} = props;
+    generationUserPrompt, setGenerationUserPrompt, selectedModel, tabId, editedData, setEditedData} = props;
+  
+  const [showPanel, setShowPanel] = useState(false);
 
     const viewport: Viewport = {
         width: shot?.width ?? 1280,
@@ -88,19 +94,33 @@ function Toolbar(props: ToolbarProps) {
          }, tabId);
     }
 
+  const toolbarItems = [
+    { m: "click", icon: <MouseIcon />, label: "Click" },
+    { m: "scroll-up", icon: <ArrowUpIcon />, label: "Scroll Up" },
+    { m: "scroll-down", icon: <ArrowDownIcon />, label: "Scroll Down" },
+    { m: "delay", icon: <AccessTimeIcon />, label: "Delay" },
+    { m: "fetch-screenshot", icon: <SyncIcon />, label: "Refresh" },
+    { m: "crop", icon: <CropIcon />, label: "Add Context" },
+    { m: "generate-steps", icon: <AutoAwesomeIcon />, label: "Generate Steps" },
+    { m: "show-steps", icon: <ListAltIcon />, label: "Show Steps" },
+    { m: "edit-inputs", icon: <EditIcon />, label: "Edit Inputs" }
+  ] as { m: string; icon: JSX.Element; label: string }[];
+
+  const activeItem = toolbarItems.find(item => mode === item.m);
+  const needsPanel = mode === "click" || mode === "crop" || mode === "generate-steps" || 
+                     mode === "show-steps" || mode === "edit-inputs";
+
+  // Sync panel visibility with mode
+  useEffect(() => {
+    const shouldShowPanel = mode === "click" || mode === "crop" || mode === "generate-steps" || 
+                           mode === "show-steps" || mode === "edit-inputs";
+    setShowPanel(shouldShowPanel);
+  }, [mode]);
+
   return (
-    <div className="toolbar-container">
-        {([
-          { m: "click", icon: <MouseIcon />, label: "Click" },
-          { m: "scroll-up", icon: <ArrowUpIcon />, label: "Scroll Up" },
-          { m: "scroll-down", icon: <ArrowDownIcon />, label: "Scroll Down" },
-          { m: "delay", icon: <AccessTimeIcon />, label: "Delay" },
-          { m: "fetch-screenshot", icon: <SyncIcon />, label: "Refresh" },
-          { m: "crop", icon: <CropIcon />, label: "Add Context" },
-          { m: "generate-steps", icon: <AutoAwesomeIcon />, label: "Generate Steps" }
-
-
-        ] as { m: string; icon: JSX.Element; label: string }[]).map(({ m, icon, label }) => {
+    <>
+      <div className="toolbar-container">
+        {toolbarItems.map(({ m, icon, label }) => {
           const active = mode === m;
           const isModelRequired = m === "crop" || m === "generate-steps";
           const disabled = isModelRequired && !selectedModel;
@@ -122,16 +142,22 @@ function Toolbar(props: ToolbarProps) {
                 if (disabled) return;
                 if (m === "scroll-up") {
                   scrollUp();
+                  setShowPanel(false);
                 } else if (m === "scroll-down") {
                   scrollDown();
+                  setShowPanel(false);
                 } else if (m == "delay") {
                   await waitAndShot();
+                  setShowPanel(false);
                 } else if (m == "fetch-screenshot") {
                   await fetchScreenshot();
+                  setShowPanel(false);
                 } else if (m === "cancel") {
                   setMode("click");
+                  setShowPanel(false);
                 } else if (m == "crop") {
                   setMode("crop");
+                  setShowPanel(true);
                 } else if (m == "generate-steps") {
                   if (!shot) {
                     alert("No screenshot available");
@@ -140,8 +166,21 @@ function Toolbar(props: ToolbarProps) {
                   const prompt = window.prompt("Provide context for AI step generation:", generationUserPrompt);
                   if (prompt) setGenerationUserPrompt(prompt);
                   setMode("generate-steps");
+                  setShowPanel(true);
+                } else if (m === "show-steps") {
+                  setMode("show-steps");
+                  setShowPanel(true);
+                } else if (m === "edit-inputs") {
+                  setMode("edit-inputs");
+                  setShowPanel(true);
                 } else {
                   setMode(m);
+                  // Show panel for modes that need it (click mode might need input values)
+                  if (m === "click") {
+                    setShowPanel(true);
+                  } else {
+                    setShowPanel(false);
+                  }
                 }
               }}
               className={`toolbar-button ${active ? "toolbar-button-active" : ""} ${
@@ -159,6 +198,41 @@ function Toolbar(props: ToolbarProps) {
           );
         })}
       </div>
+      
+      {showPanel && needsPanel && activeItem && (
+        <div className="toolbar-panel">
+          <div className="toolbar-panel-header">
+            <span className="toolbar-panel-title">{activeItem.label}</span>
+          </div>
+          <div className="toolbar-panel-content">
+            {mode === "show-steps" && editedData !== undefined && (
+              <StepsPanel steps={steps || []} editedData={editedData || []} />
+            )}
+            {mode === "edit-inputs" && editedData !== undefined && setEditedData !== undefined && (
+              <InputsPanel editedData={editedData || []} setEditedData={setEditedData} />
+            )}
+            {(mode === "click" || mode === "crop" || mode === "generate-steps") && (
+              <>
+                <button 
+                  className="toolbar-panel-action" 
+                  title="Show Steps"
+                  onClick={() => setMode("show-steps")}
+                >
+                  <ListAltIcon />
+                </button>
+                <button 
+                  className="toolbar-panel-action" 
+                  title="Enter Input Values"
+                  onClick={() => setMode("edit-inputs")}
+                >
+                  <EditIcon />
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 

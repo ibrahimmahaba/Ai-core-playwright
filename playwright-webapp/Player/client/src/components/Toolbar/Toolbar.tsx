@@ -1,10 +1,5 @@
 import {
-    Mouse as MouseIcon,
-    ArrowUpward as ArrowUpIcon,
-    ArrowDownward as ArrowDownIcon,
-    AccessTime as AccessTimeIcon,
-    Sync as SyncIcon,
-    CropFree as CropIcon, 
+    Settings as SettingsIcon,
     AutoAwesome as AutoAwesomeIcon,
     ListAlt as ListAltIcon,
     Edit as EditIcon,
@@ -15,6 +10,7 @@ import type { ToolbarProps, ScreenshotResponse, Step, Viewport } from "../../typ
 import {useSendStep} from"../../hooks/useSendStep"
 import StepsPanel from "../StepsPanel/StepsPanel";
 import InputsPanel from "../InputsPanel/InputsPanel";
+import ToolsPanel from "../ToolsPanel/ToolsPanel";
 import './Toolbar.css';
 
 function Toolbar(props: ToolbarProps) {
@@ -95,12 +91,7 @@ function Toolbar(props: ToolbarProps) {
     }
 
   const toolbarItems = [
-    { m: "click", icon: <MouseIcon />, label: "Click" },
-    { m: "scroll-up", icon: <ArrowUpIcon />, label: "Scroll Up" },
-    { m: "scroll-down", icon: <ArrowDownIcon />, label: "Scroll Down" },
-    { m: "delay", icon: <AccessTimeIcon />, label: "Delay" },
-    { m: "fetch-screenshot", icon: <SyncIcon />, label: "Refresh" },
-    { m: "crop", icon: <CropIcon />, label: "Add Context" },
+    { m: "tools", icon: <SettingsIcon />, label: "Tools" },
     { m: "generate-steps", icon: <AutoAwesomeIcon />, label: "Generate Steps" },
     { m: "show-steps", icon: <ListAltIcon />, label: "Show Steps" },
     { m: "edit-inputs", icon: <EditIcon />, label: "Edit Inputs" }
@@ -132,13 +123,11 @@ function Toolbar(props: ToolbarProps) {
       <div className="toolbar-container">
         {toolbarItems.map(({ m, icon, label }) => {
           const active = mode === m;
-          const isModelRequired = m === "crop" || m === "generate-steps";
+          const isModelRequired = m === "generate-steps";
           const disabled = isModelRequired && !selectedModel;
 
           const hoverMessage =
-            disabled && m === "crop"
-              ? "Add context: Please add a model to your model catalog to activate"
-              : disabled && m === "generate-steps"
+            disabled && m === "generate-steps"
               ? "Generate steps: Please add a model to your model catalog to activate"
               : label;
 
@@ -150,22 +139,8 @@ function Toolbar(props: ToolbarProps) {
               aria-pressed={active}
               onClick={async () => {
                 if (disabled) return;
-                if (m === "scroll-up") {
-                  scrollUp();
-                  setMode(m);
-                } else if (m === "scroll-down") {
-                  scrollDown();
-                  setMode(m);
-                } else if (m == "delay") {
-                  await waitAndShot();
-                  setMode(m);
-                } else if (m == "fetch-screenshot") {
-                  await fetchScreenshot();
-                  setMode(m);
-                } else if (m === "cancel") {
-                  setMode("click");
-                } else if (m == "crop") {
-                  setMode("crop");
+                if (m === "tools") {
+                  setMode("tools");
                 } else if (m == "generate-steps") {
                   if (!shot) {
                     alert("No screenshot available");
@@ -198,15 +173,45 @@ function Toolbar(props: ToolbarProps) {
             <span className="toolbar-panel-title">{activeItem.label}</span>
           </div>
           <div className="toolbar-panel-content">
+            {mode === "tools" && (
+              <ToolsPanel
+                onToolSelect={(tool) => {
+                  if (tool === "click") {
+                    setMode("click");
+                  } else if (tool === "scroll-up") {
+                    scrollUp();
+                    setMode("tools");
+                  } else if (tool === "scroll-down") {
+                    scrollDown();
+                    setMode("tools");
+                  } else if (tool === "delay") {
+                    waitAndShot();
+                    setMode("tools");
+                  } else if (tool === "fetch-screenshot") {
+                    fetchScreenshot();
+                    setMode("tools");
+                  } else if (tool === "crop") {
+                    setMode("crop");
+                  } else if (tool === "generate-steps") {
+                    if (!shot) {
+                      alert("No screenshot available");
+                      return;
+                    }
+                    const prompt = window.prompt("Provide context for AI step generation:", generationUserPrompt);
+                    if (prompt) setGenerationUserPrompt(prompt);
+                    setMode("generate-steps");
+                  }
+                }}
+                selectedTool={mode === "click" ? "click" : mode === "crop" ? "crop" : undefined}
+              />
+            )}
             {mode === "show-steps" && editedData !== undefined && (
               <StepsPanel steps={steps || []} editedData={editedData || []} />
             )}
             {mode === "edit-inputs" && editedData !== undefined && setEditedData !== undefined && (
               <InputsPanel editedData={editedData || []} setEditedData={setEditedData} />
             )}
-            {(mode === "click" || mode === "crop" || mode === "generate-steps" || 
-              mode === "scroll-up" || mode === "scroll-down" || mode === "delay" || 
-              mode === "fetch-screenshot") && (
+            {mode === "generate-steps" && (
               <>
                 <button 
                   className="toolbar-panel-action" 

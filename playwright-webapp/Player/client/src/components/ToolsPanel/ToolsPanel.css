@@ -1,0 +1,102 @@
+.tools-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tools-panel-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.tools-header-tag {
+  background: #1976d2;
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: inline-block;
+  margin-bottom: 16px;
+  width: fit-content;
+}
+
+.tools-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  flex: 1;
+}
+
+.tool-item {
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  margin-bottom: 8px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.tool-item:last-child {
+  margin-bottom: 0;
+  border-bottom: none;
+}
+
+.tool-item-selected {
+  border-bottom: 1px solid #1976d2;
+}
+
+.tool-item-selected:last-child {
+  border-bottom: none;
+}
+
+.tool-item:hover {
+  border-color: #1976d2;
+}
+
+.tool-item-selected {
+  background: #1976d2;
+  border-color: #1976d2;
+  color: #fff;
+}
+
+.tool-item-selected .tool-item-icon-wrapper {
+  color: #fff;
+}
+
+.tool-item-selected .tool-item-label {
+  color: #fff;
+}
+
+.tool-item-selected:hover {
+  border-color: #1976d2;
+  background: #1976d2;
+}
+
+.tool-item-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #888;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.tool-item-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  flex: 1;
+}
+

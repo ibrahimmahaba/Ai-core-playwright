@@ -107,15 +107,25 @@ function Toolbar(props: ToolbarProps) {
   ] as { m: string; icon: JSX.Element; label: string }[];
 
   const activeItem = toolbarItems.find(item => mode === item.m);
-  const needsPanel = mode === "click" || mode === "crop" || mode === "generate-steps" || 
-                     mode === "show-steps" || mode === "edit-inputs";
+  // All toolbar items can show a panel
+  const needsPanel = true;
 
-  // Sync panel visibility with mode
+  // Sync panel visibility with mode - show panel for any selected mode
   useEffect(() => {
-    const shouldShowPanel = mode === "click" || mode === "crop" || mode === "generate-steps" || 
-                           mode === "show-steps" || mode === "edit-inputs";
+    const shouldShowPanel = mode !== undefined && mode !== "";
     setShowPanel(shouldShowPanel);
-  }, [mode]);
+    
+    // Add/remove class to body to adjust main content layout
+    if (shouldShowPanel && activeItem) {
+      document.body.classList.add('toolbar-panel-open');
+    } else {
+      document.body.classList.remove('toolbar-panel-open');
+    }
+    
+    return () => {
+      document.body.classList.remove('toolbar-panel-open');
+    };
+  }, [mode, activeItem]);
 
   return (
     <>
@@ -142,22 +152,20 @@ function Toolbar(props: ToolbarProps) {
                 if (disabled) return;
                 if (m === "scroll-up") {
                   scrollUp();
-                  setShowPanel(false);
+                  setMode(m);
                 } else if (m === "scroll-down") {
                   scrollDown();
-                  setShowPanel(false);
+                  setMode(m);
                 } else if (m == "delay") {
                   await waitAndShot();
-                  setShowPanel(false);
+                  setMode(m);
                 } else if (m == "fetch-screenshot") {
                   await fetchScreenshot();
-                  setShowPanel(false);
+                  setMode(m);
                 } else if (m === "cancel") {
                   setMode("click");
-                  setShowPanel(false);
                 } else if (m == "crop") {
                   setMode("crop");
-                  setShowPanel(true);
                 } else if (m == "generate-steps") {
                   if (!shot) {
                     alert("No screenshot available");
@@ -166,32 +174,17 @@ function Toolbar(props: ToolbarProps) {
                   const prompt = window.prompt("Provide context for AI step generation:", generationUserPrompt);
                   if (prompt) setGenerationUserPrompt(prompt);
                   setMode("generate-steps");
-                  setShowPanel(true);
                 } else if (m === "show-steps") {
                   setMode("show-steps");
-                  setShowPanel(true);
                 } else if (m === "edit-inputs") {
                   setMode("edit-inputs");
-                  setShowPanel(true);
                 } else {
                   setMode(m);
-                  // Show panel for modes that need it (click mode might need input values)
-                  if (m === "click") {
-                    setShowPanel(true);
-                  } else {
-                    setShowPanel(false);
-                  }
                 }
               }}
               className={`toolbar-button ${active ? "toolbar-button-active" : ""} ${
                 disabled ? "toolbar-button-disabled" : ""
               }`}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.borderRadius = "12px";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.borderRadius = "50%";
-              }}
             >
               {icon}
             </button>
@@ -211,7 +204,9 @@ function Toolbar(props: ToolbarProps) {
             {mode === "edit-inputs" && editedData !== undefined && setEditedData !== undefined && (
               <InputsPanel editedData={editedData || []} setEditedData={setEditedData} />
             )}
-            {(mode === "click" || mode === "crop" || mode === "generate-steps") && (
+            {(mode === "click" || mode === "crop" || mode === "generate-steps" || 
+              mode === "scroll-up" || mode === "scroll-down" || mode === "delay" || 
+              mode === "fetch-screenshot") && (
               <>
                 <button 
                   className="toolbar-panel-action" 

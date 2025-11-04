@@ -1,5 +1,11 @@
 .remote-runner-container {
   padding: 16px;
+  transition: margin-left 0.3s ease;
+}
+
+/* Adjust main content when panel is open */
+body.toolbar-panel-open .remote-runner-container {
+  margin-left: 356px; /* 56px sidebar + 300px panel */
 }
 
 .screenshot-container {

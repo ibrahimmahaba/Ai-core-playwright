@@ -19,21 +19,20 @@
 .toolbar-button {
   width: 40px;
   height: 40px;
-  border-radius: 50%;
-  border: 1px solid #bbb;
-  background: #fafafa;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
   color: #888;
-  font-size: 18px;
+  font-size: 20px;
   padding: 0;
 }
 
 .toolbar-button:hover {
-  border-radius: 12px;
   background: #f0f0f0;
   color: #555;
 }
@@ -48,8 +47,7 @@
 }
 
 .toolbar-button-disabled:hover {
-  border-radius: 50%;
-  background: #f5f5f5;
+  background: transparent;
 }
 
 .toolbar-button-disabled:active {
@@ -59,7 +57,6 @@
 .toolbar-button-active {
   background: #1976d2 !important;
   color: #fff !important;
-  border-color: #1976d2 !important;
 }
 
 .toolbar-button-active:hover {
@@ -96,6 +93,7 @@
 .toolbar-panel-title {
   display: flex;
   align-items: center;
+  padding-left: 16px;
 }
 
 .toolbar-panel-content {
@@ -132,4 +130,14 @@
 
 .toolbar-panel-action svg {
   font-size: 20px;
+}
+
+/* Adjust main content when panel is open */
+body.toolbar-panel-open .remote-runner-container {
+  margin-left: 356px; /* 56px sidebar + 300px panel */
+  transition: margin-left 0.3s ease;
+}
+
+body.toolbar-panel-open .screenshot-container {
+  max-width: calc(100% - 356px);
 }

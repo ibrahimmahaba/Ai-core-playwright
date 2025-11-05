@@ -59,6 +59,7 @@ function InputsPanel(props: InputsPanelProps) {
   return (
     <div className="inputs-panel">
       <div className="inputs-panel-content">
+        <a className="tools-header-tag">INPUTS</a>
         {inputActions.length > 0 ? (
           <>
             <h3 className="inputs-panel-section-title">Inputs ({inputActions.length})</h3>

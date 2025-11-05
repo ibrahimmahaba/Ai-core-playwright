@@ -11,6 +11,21 @@
   padding: 16px;
 }
 
+.tools-header-tag {
+  background: #d9e8fc;
+  color: #3672e3;
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: inline-block;
+  margin-bottom: 16px;
+  width: fit-content;
+  text-decoration: none;
+}
+
 .inputs-panel-section-title {
   font-size: 14px;
   font-weight: 600;

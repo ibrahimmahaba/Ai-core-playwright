@@ -126,6 +126,7 @@ function StepsPanel(props: StepsPanelProps) {
   return (
     <div className="steps-panel">
       <div className="steps-panel-content">
+        <a className="tools-header-tag">STEPS</a>
         {editedData && editedData.length > 0 ? (
           <>
             <h3 className="steps-panel-section-title">Actions ({editedData.length})</h3>

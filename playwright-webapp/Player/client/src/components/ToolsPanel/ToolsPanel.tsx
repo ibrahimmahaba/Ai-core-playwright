@@ -23,7 +23,7 @@ function ToolsPanel(props: ToolsPanelProps) {
   return (
     <div className="tools-panel">
       <div className="tools-panel-content">
-        <div className="tools-header-tag">TOOLS</div>
+        <a className="tools-header-tag">TOOLS</a>
         <div className="tools-list">
           {tools.map((tool) => {
             const isSelected = selectedTool === tool.id;

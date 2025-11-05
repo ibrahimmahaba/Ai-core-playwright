@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ScreenshotResponse, Step, UseSendStepParams, TabData } from "../types";
 import { runPixel } from "@semoss/sdk";
+import { checkSessionExpired } from "../utils/errorHandler";
 
 export function useSendStep({
   sessionId,
@@ -32,6 +33,11 @@ export function useSendStep({
       console.log("Sending pixel:", pixel);
       
       const res = await runPixel(pixel, insightId);
+      
+      if (checkSessionExpired(res.pixelReturn)) {
+        return;
+      }
+      
       const { output } = res.pixelReturn[0] as any;
       
       const data: ScreenshotResponse = output["screenshot"] as ScreenshotResponse;

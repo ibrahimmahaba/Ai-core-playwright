@@ -4,6 +4,7 @@ import StyledPrimaryButton from "../StyledButtons/StyledPrimaryButton";
 import StyledButton from "../StyledButtons/StyledButtonRoot";
 import StyledDangerButton from "../StyledButtons/StyledDangerButton";
 import { runPixel } from "@semoss/sdk";
+import { checkSessionExpired } from "../../utils/errorHandler";
 import { useSessionStore } from "../../store/useSessionStore";
 import './vision-popup.css';
 import type { VisionPopupProps } from "../../types";
@@ -31,6 +32,11 @@ export function VisionPopup(props: VisionPopupProps) {
       )`;
       
       const res = await runPixel(pixel, insightId);
+      
+      if (checkSessionExpired(res.pixelReturn)) {
+        return;
+      }
+      
       const output = res.pixelReturn[0].output as { response: string };
       console.log("LLM Vision output:", output);
       

@@ -9,6 +9,7 @@ import {
   } from "@mui/icons-material";
 import { type JSX } from "react";
 import { runPixel } from "@semoss/sdk";
+import { checkSessionExpired } from "../../utils/errorHandler";
 import type { ToolbarProps, ScreenshotResponse, Step, Viewport } from "../../types";
 import {useSendStep} from"../../hooks/useSendStep"
 import './Toolbar.css';
@@ -38,6 +39,11 @@ function Toolbar(props: ToolbarProps) {
         try {
             let pixel = `Screenshot ( sessionId = "${sessionId}", tabId = "${tabId}" )`;
             const res = await runPixel(pixel, insightId);
+            
+            if (checkSessionExpired(res.pixelReturn)) {
+              return;
+            }
+            
             const { output } = res.pixelReturn[0];
             const snap = normalizeShot(output);
             if (snap) setShot(snap);

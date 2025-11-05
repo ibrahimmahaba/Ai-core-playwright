@@ -1,6 +1,7 @@
 
 import React, { useRef, useState, useEffect } from "react";
 import { runPixel } from "@semoss/sdk";
+import { checkSessionExpired } from "../utils/errorHandler";
 import {
   Check, Close
 } from "@mui/icons-material";
@@ -242,6 +243,11 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
     try {
       let pixel = `Screenshot ( sessionId = "${sessionId}", tabId="${targetTabId}" )`;
       const res = await runPixel(pixel, insightId);
+      
+      if (checkSessionExpired(res.pixelReturn)) {
+        return;
+      }
+      
       const { output } = res.pixelReturn[0];
       const snap = normalizeShot(output);
       if (snap) {
@@ -381,6 +387,11 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
     
     setLoading(true);
     const res = await runPixel(pixel, insightId);
+    
+    if (checkSessionExpired(res.pixelReturn)) {
+      return;
+    }
+    
     const { output } = res.pixelReturn[0] as { output: ReplayPixelOutput };
   
     console.log("ReplayStep output:", output);
@@ -531,6 +542,11 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
       )`;
       
       const extractRes = await runPixel(extractPixel, insightId);
+      
+      if (checkSessionExpired(extractRes.pixelReturn)) {
+        return;
+      }
+      
       const extractionData = extractRes.pixelReturn[0].output as ExtractionData;
       
       console.log("Extracted HTML data:", extractionData);
@@ -545,6 +561,11 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
       )`;
       
       const generateRes = await runPixel(generatePixel, insightId);
+      
+      if (checkSessionExpired(generateRes.pixelReturn)) {
+        return;
+      }
+      
       const aiResult = generateRes.pixelReturn[0].output as modelGeneratedSteps;
       
       console.log("AI Result:", aiResult);

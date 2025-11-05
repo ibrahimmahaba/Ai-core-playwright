@@ -1,5 +1,6 @@
 import type { ScreenshotResponse, Step } from "../types";
 import { runPixel } from "@semoss/sdk";
+import { checkSessionExpired } from "../utils/errorHandler";
 import { useSessionStore } from "../store/useSessionStore";
 import { fetchScreenshot } from "./useFetchScreenshot";
 
@@ -55,6 +56,11 @@ export function useSendStep() {
       }
       
       const res = await runPixel(pixel, insightId);
+      
+      if (checkSessionExpired(res.pixelReturn)) {
+        return;
+      }
+      
       const { output } = res.pixelReturn[0] as any;
       
       const data: ScreenshotResponse = output["screenshot"] as ScreenshotResponse;
@@ -150,6 +156,11 @@ export function useSendStep() {
       const pixel = `UpdateStep ( sessionId = "${sessionId}", tabId = "${currentTabId}", inputs = ${JSON.stringify(updates)} )`;
       
       const res = await runPixel(pixel, insightId);
+      
+      if (checkSessionExpired(res.pixelReturn)) {
+        return;
+      }
+      
       const { output } = res.pixelReturn[0] as any;
       
       let data: ScreenshotResponse | undefined;

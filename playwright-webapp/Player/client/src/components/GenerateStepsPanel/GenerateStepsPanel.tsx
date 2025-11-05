@@ -27,7 +27,7 @@ function GenerateStepsPanel(props: GenerateStepsPanelProps) {
         <div className="configure-llm-chip">Configure LLM</div>
         <div className="generate-steps-panel-card">
           <div className="generate-steps-panel-body">
-            <label className="choose-model-label">Choose your preferred LLM model :</label>
+            <label className="choose-model-label">Choose your preferred LLM model:</label>
             <label className="select-model-label">Select model</label>
             <Autocomplete
               options={modelOptions}

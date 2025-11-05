@@ -10,34 +10,39 @@
   padding: 0;
   width: 100%;
   box-sizing: border-box;
+  max-width: 100%;
 }
 
 .configure-llm-chip {
-  background-color: #E0F2F7;
-  color: #1976D2;
   padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 14px;
-  font-weight: 500;
-  margin-bottom: -10px;
-  margin-left: 20px;
+  margin-left: 18px;
   z-index: 1;
   position: relative;
   display: inline-block;
   white-space: nowrap;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  box-sizing: border-box;
+  background: #d9e8fc;
+  color: #3672e3;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: inline-block;
+  margin-top: 16px;
+  width: fit-content;
 }
 
 .generate-steps-panel-card {
   background: white;
-  border: 1px solid #D3D3D3;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   width: 100%;
-  min-width: 400px;
-  padding: 24px;
+  padding: 26px;
   position: relative;
   margin-top: 10px;
+  box-sizing: border-box;
+  margin-left: 0;
+  margin-right: 0;
 }
 
 .generate-steps-panel-body {
@@ -45,11 +50,15 @@
   flex-direction: column;
   gap: 16px;
   padding-top: 20px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .choose-model-label {
   font-size: 14px;
   font-weight: 400;
+  display: block;
+  text-align: left;
   color: #333;
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
@@ -60,6 +69,8 @@
   font-weight: 400;
   color: #999;
   margin: 0;
+  display: block;
+  text-align: left;
   margin-top: -12px;
   margin-bottom: 4px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
@@ -67,6 +78,7 @@
 
 .model-select-autocomplete {
   width: 100%;
+  box-sizing: border-box;
 }
 
 .model-select-input {
@@ -74,7 +86,9 @@
 }
 
 .model-select-input .MuiOutlinedInput-root {
-  border-radius: 4px;
+  border-radius: 20px;
+  font-size: 12px;
+  height: min-content;
   border: 1px solid #D3D3D3;
   background: white;
 }
@@ -100,12 +114,14 @@
   gap: 12px;
   justify-content: flex-end;
   margin-top: 8px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .generate-steps-generate-button {
   padding: 8px 16px;
   border: none;
-  border-radius: 4px;
+  border-radius: 18px;
   background: #1976D2;
   color: white;
   cursor: pointer;

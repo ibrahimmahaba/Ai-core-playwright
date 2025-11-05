@@ -35,6 +35,7 @@ export function useSendStep({
       const res = await runPixel(pixel, insightId);
       
       if (checkSessionExpired(res.pixelReturn)) {
+        setLoading(false);
         return;
       }
       

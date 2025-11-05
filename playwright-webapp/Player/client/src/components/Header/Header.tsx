@@ -152,26 +152,6 @@ function Header(props : HeaderProps) {
           Start Live Replay
         </button>
         <button onClick={() => setLive(false)} disabled={!live}>Stop Live</button>
-
-        <Autocomplete
-          options={modelOptions}
-          value={selectedModel}
-          onChange={(_, newValue) => setSelectedModel(newValue)}
-          renderOption={(props, option) => (
-            <Box component="li" {...props}>
-              <div>
-                <Typography variant="body1">{option.label}</Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.7rem" }}>
-                  {option.value}
-                </Typography>
-              </div>
-            </Box>
-          )}
-          renderInput={(params) => (
-            <TextField {...params} label="Select LLM" placeholder="Search models..." />
-          )}
-          sx={{ minWidth: 250 }}
-        />
       </div>
     </>
   )

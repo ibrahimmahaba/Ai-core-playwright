@@ -892,6 +892,8 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
         generationUserPrompt={generationUserPrompt}
         setGenerationUserPrompt={setGenerationUserPrompt}
         selectedModel={selectedModel}
+        setSelectedModel={setSelectedModel}
+        modelOptions={modelOptions}
         tabId={activeTabId}
         editedData={editedData}
         setEditedData={setEditedData}

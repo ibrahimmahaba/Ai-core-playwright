@@ -117,24 +117,26 @@ export type CropArea = {
     setActiveTabId?: React.Dispatch<React.SetStateAction<string>>;
   }
 
-  export interface ToolbarProps {
-    sessionId: string;
-    insightId: string;
-    shot: ScreenshotResponse | undefined;
-    setShot: React.Dispatch<React.SetStateAction<ScreenshotResponse | undefined>>;
-    mode: string;
-    setMode: React.Dispatch<React.SetStateAction<string>>;
-    loading: boolean;
-    setLoading: React.Dispatch<React.SetStateAction<boolean>>;
-    steps: Step[] | null;
-    setSteps: React.Dispatch<React.SetStateAction<Step[]>>;
-    generationUserPrompt: string;
-    setGenerationUserPrompt: React.Dispatch<React.SetStateAction<string>>;
-    selectedModel: ModelOption | null;
-    tabId: string;
-    editedData?: Action[];
-    setEditedData?: React.Dispatch<React.SetStateAction<Action[]>>;
-  }
+export interface ToolbarProps {
+  sessionId: string;
+  insightId: string;
+  shot: ScreenshotResponse | undefined;
+  setShot: React.Dispatch<React.SetStateAction<ScreenshotResponse | undefined>>;
+  mode: string;
+  setMode: React.Dispatch<React.SetStateAction<string>>;
+  loading: boolean;
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>;
+  steps: Step[] | null;
+  setSteps: React.Dispatch<React.SetStateAction<Step[]>>;
+  generationUserPrompt: string;
+  setGenerationUserPrompt: React.Dispatch<React.SetStateAction<string>>;
+  selectedModel: ModelOption | null;
+  setSelectedModel: React.Dispatch<React.SetStateAction<ModelOption | null>>;
+  modelOptions: ModelOption[];
+  tabId: string;
+  editedData?: Action[];
+  setEditedData?: React.Dispatch<React.SetStateAction<Action[]>>;
+}
 
 
   export interface HeaderProps {
@@ -217,6 +219,17 @@ export type CropArea = {
     showModelResults: boolean;
     setShowModelResults:React.Dispatch<React.SetStateAction<boolean>>;
     modelGeneratedSteps: modelGeneratedSteps | null;
+  }
+
+  export interface GenerateStepsModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    modelOptions: ModelOption[];
+    selectedModel: ModelOption | null;
+    setSelectedModel: React.Dispatch<React.SetStateAction<ModelOption | null>>;
+    generationUserPrompt: string;
+    setGenerationUserPrompt: React.Dispatch<React.SetStateAction<string>>;
+    onGenerate: () => void;
   }
 
   export type ExtractedElement = {

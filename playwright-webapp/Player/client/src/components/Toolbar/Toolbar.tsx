@@ -11,13 +11,15 @@ import {useSendStep} from"../../hooks/useSendStep"
 import StepsPanel from "../StepsPanel/StepsPanel";
 import InputsPanel from "../InputsPanel/InputsPanel";
 import ToolsPanel from "../ToolsPanel/ToolsPanel";
+import GenerateStepsModal from "../GenerateStepsModal/GenerateStepsModal";
 import './Toolbar.css';
 
 function Toolbar(props: ToolbarProps) {
   const { sessionId, insightId, shot, setShot, mode, setMode, steps, setSteps, setLoading,
-    generationUserPrompt, setGenerationUserPrompt, selectedModel, tabId, editedData, setEditedData} = props;
+    generationUserPrompt, setGenerationUserPrompt, selectedModel, setSelectedModel, modelOptions, tabId, editedData, setEditedData} = props;
   
   const [showPanel, setShowPanel] = useState(false);
+  const [showGenerateStepsModal, setShowGenerateStepsModal] = useState(false);
 
     const viewport: Viewport = {
         width: shot?.width ?? 1280,
@@ -146,9 +148,7 @@ function Toolbar(props: ToolbarProps) {
                     alert("No screenshot available");
                     return;
                   }
-                  const prompt = window.prompt("Provide context for AI step generation:", generationUserPrompt);
-                  if (prompt) setGenerationUserPrompt(prompt);
-                  setMode("generate-steps");
+                  setShowGenerateStepsModal(true);
                 } else if (m === "show-steps") {
                   setMode("show-steps");
                 } else if (m === "edit-inputs") {
@@ -232,6 +232,24 @@ function Toolbar(props: ToolbarProps) {
           </div>
         </div>
       )}
+      
+      <GenerateStepsModal
+        isOpen={showGenerateStepsModal}
+        onClose={() => setShowGenerateStepsModal(false)}
+        modelOptions={modelOptions}
+        selectedModel={selectedModel}
+        setSelectedModel={setSelectedModel}
+        generationUserPrompt={generationUserPrompt}
+        setGenerationUserPrompt={setGenerationUserPrompt}
+        onGenerate={() => {
+          const prompt = window.prompt("Provide context for AI step generation:", generationUserPrompt);
+          if (prompt !== null) {
+            setGenerationUserPrompt(prompt);
+          }
+          setShowGenerateStepsModal(false);
+          setMode("generate-steps");
+        }}
+      />
     </>
   )
 }

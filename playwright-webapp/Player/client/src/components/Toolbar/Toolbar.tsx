@@ -11,7 +11,7 @@ import {useSendStep} from"../../hooks/useSendStep"
 import StepsPanel from "../StepsPanel/StepsPanel";
 import InputsPanel from "../InputsPanel/InputsPanel";
 import ToolsPanel from "../ToolsPanel/ToolsPanel";
-import GenerateStepsModal from "../GenerateStepsModal/GenerateStepsModal";
+import GenerateStepsPanel from "../GenerateStepsPanel/GenerateStepsPanel";
 import './Toolbar.css';
 
 function Toolbar(props: ToolbarProps) {
@@ -19,7 +19,6 @@ function Toolbar(props: ToolbarProps) {
     generationUserPrompt, setGenerationUserPrompt, selectedModel, setSelectedModel, modelOptions, tabId, editedData, setEditedData} = props;
   
   const [showPanel, setShowPanel] = useState(false);
-  const [showGenerateStepsModal, setShowGenerateStepsModal] = useState(false);
 
     const viewport: Viewport = {
         width: shot?.width ?? 1280,
@@ -148,7 +147,7 @@ function Toolbar(props: ToolbarProps) {
                     alert("No screenshot available");
                     return;
                   }
-                  setShowGenerateStepsModal(true);
+                  setMode("generate-steps");
                 } else if (m === "show-steps") {
                   setMode("show-steps");
                 } else if (m === "edit-inputs") {
@@ -212,44 +211,24 @@ function Toolbar(props: ToolbarProps) {
               <InputsPanel editedData={editedData || []} setEditedData={setEditedData} />
             )}
             {mode === "generate-steps" && (
-              <>
-                <button 
-                  className="toolbar-panel-action" 
-                  title="Show Steps"
-                  onClick={() => setMode("show-steps")}
-                >
-                  <ListAltIcon />
-                </button>
-                <button 
-                  className="toolbar-panel-action" 
-                  title="Enter Input Values"
-                  onClick={() => setMode("edit-inputs")}
-                >
-                  <EditIcon />
-                </button>
-              </>
+              <GenerateStepsPanel
+                modelOptions={modelOptions || []}
+                selectedModel={selectedModel}
+                setSelectedModel={setSelectedModel}
+                generationUserPrompt={generationUserPrompt}
+                setGenerationUserPrompt={setGenerationUserPrompt}
+                onGenerate={() => {
+                  const prompt = window.prompt("Provide context for AI step generation:", generationUserPrompt);
+                  if (prompt !== null) {
+                    setGenerationUserPrompt(prompt);
+                  }
+                  setMode("generate-steps");
+                }}
+              />
             )}
           </div>
         </div>
       )}
-      
-      <GenerateStepsModal
-        isOpen={showGenerateStepsModal}
-        onClose={() => setShowGenerateStepsModal(false)}
-        modelOptions={modelOptions}
-        selectedModel={selectedModel}
-        setSelectedModel={setSelectedModel}
-        generationUserPrompt={generationUserPrompt}
-        setGenerationUserPrompt={setGenerationUserPrompt}
-        onGenerate={() => {
-          const prompt = window.prompt("Provide context for AI step generation:", generationUserPrompt);
-          if (prompt !== null) {
-            setGenerationUserPrompt(prompt);
-          }
-          setShowGenerateStepsModal(false);
-          setMode("generate-steps");
-        }}
-      />
     </>
   )
 }

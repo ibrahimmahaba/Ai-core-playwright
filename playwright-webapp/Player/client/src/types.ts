@@ -221,16 +221,6 @@ export interface ToolbarProps {
     modelGeneratedSteps: modelGeneratedSteps | null;
   }
 
-  export interface GenerateStepsModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    modelOptions: ModelOption[];
-    selectedModel: ModelOption | null;
-    setSelectedModel: React.Dispatch<React.SetStateAction<ModelOption | null>>;
-    generationUserPrompt: string;
-    setGenerationUserPrompt: React.Dispatch<React.SetStateAction<string>>;
-    onGenerate: () => void;
-  }
 
   export type ExtractedElement = {
     tag: string;

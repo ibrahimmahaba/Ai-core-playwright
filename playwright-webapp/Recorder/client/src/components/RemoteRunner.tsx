@@ -97,9 +97,7 @@ export default function RemoteRunner()  {
     try {
       const pixel = `DeleteTab(sessionId="${sessionId}", tabId="${tabId}");`;
       await runPixel(pixel, insightId);
-      console.log("DeleteTab success for tabId:", tabId);
       showToast("Tab deleted successfully!", "success");
-
       proceedToCloseTab(tabId);
     } catch (err) {
       console.error("Error deleting tab:", err);
@@ -581,9 +579,9 @@ export default function RemoteRunner()  {
       )}
 
       <Dialog open={showCloseTabDialog} onClose={() => setShowCloseTabDialog(false)}>
-        <DialogTitle>Save Recording Before Closing Tab?</DialogTitle>
+        <DialogTitle>Save Steps in This Tab Before Closing?</DialogTitle>
         <DialogContent>
-          Would you like to save the recording before closing this tab?
+          Would you like to steps you made in this tab?
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setShowCloseTabDialog(false)} color="error" disabled={loading}>

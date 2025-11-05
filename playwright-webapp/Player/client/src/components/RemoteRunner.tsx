@@ -1,7 +1,7 @@
 
 import React, { useRef, useState, useEffect } from "react";
 import { runPixel } from "@semoss/sdk";
-import { checkSessionExpired } from "../utils/errorHandler";
+import { checkSessionExpired, setSessionExpiredCallback } from "../utils/errorHandler";
 import {
   Check, Close
 } from "@mui/icons-material";
@@ -48,6 +48,8 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
   const [mode, setMode] = useState<string>("click");
   const [generationUserPrompt, setGenerationUserPrompt] = useState(" ");
   const [currUserModels, setCurrUserModels] = useState<Record<string, string>>({});
+  const [isSessionExpired, setIsSessionExpired] = useState(false);
+  
   const modelOptions: ModelOption[] = Object.entries(currUserModels).map(([name, id]) => ({
     label: name,
     value: id,
@@ -62,6 +64,13 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
   const [activeTabId, setActiveTabId] = useState<string>("tab-1");
   // const [showFutureSteps, setShowFutureSteps] = useState<boolean>(true);
   const showFutureSteps = true;
+
+  // Set up session expired callback
+  useEffect(() => {
+    setSessionExpiredCallback(() => {
+      setIsSessionExpired(true);
+    });
+  }, []);
 
   useEffect(() => {
     if (!sessionId || !live) return;
@@ -914,6 +923,7 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
         setGenerationUserPrompt={setGenerationUserPrompt}
         selectedModel={selectedModel}
         tabId={activeTabId}
+        isSessionExpired={isSessionExpired}
       />
 
       {/* header */}

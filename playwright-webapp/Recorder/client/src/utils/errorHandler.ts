@@ -1,3 +1,9 @@
+let sessionExpiredCallback: (() => void) | null = null;
+
+export function setSessionExpiredCallback(callback: () => void) {
+  sessionExpiredCallback = callback;
+}
+
 export function checkSessionExpired(pixelReturn: any[]): boolean {
   if (!pixelReturn || !Array.isArray(pixelReturn)) {
     return false;
@@ -9,6 +15,12 @@ export function checkSessionExpired(pixelReturn: any[]): boolean {
       const outputString = typeof output === 'string' ? output : JSON.stringify(output);
       
       if (outputString.toLowerCase().includes('expired')) {
+        // Call the callback first to disable UI
+        if (sessionExpiredCallback) {
+          sessionExpiredCallback();
+        }
+        
+        // Show alert
         alert('Your session has expired. Please refresh the app or start a new flow by clicking open url');
         return true;
       }

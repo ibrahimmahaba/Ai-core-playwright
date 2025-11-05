@@ -27,7 +27,8 @@ function Toolbar() {
     mode,
     setMode,
     activeTabId,
-    selectedModel
+    selectedModel,
+    isSessionExpired
   , tabs, setTabs} = useSessionStore();
   const [showInputsMenu, setShowInputsMenu] = useState(false);
   const [showExpandedView, setShowExpandedView] = useState(false);
@@ -320,9 +321,13 @@ function Toolbar() {
         ] as { m: string; icon: JSX.Element; label: string }[]).map(({ m, icon, label }) => {
           const active = mode === m;
           const isModelRequired = m === "crop" || m === "generate-steps";
-          const disabled = isModelRequired && !selectedModel;
+          const disabled = isSessionExpired || (isModelRequired && !selectedModel);
 
-          const hoverMessage = disabled && m === "crop" ? "Add context: Please add a model to your model catalog to activate" : label;
+          const hoverMessage = isSessionExpired 
+            ? "Session expired. Please refresh the page or start a new flow by clicking open url."
+            : (disabled && m === "crop" 
+              ? "Add context: Please add a model to your model catalog to activate" 
+              : label);
 
           return (
             <button

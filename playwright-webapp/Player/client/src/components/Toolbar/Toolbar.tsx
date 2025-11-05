@@ -16,7 +16,7 @@ import './Toolbar.css';
 
 function Toolbar(props: ToolbarProps) {
   const { sessionId, insightId, shot, setShot, mode, setMode, steps, setSteps, setLoading,
-    generationUserPrompt, setGenerationUserPrompt, selectedModel, tabId} = props;
+    generationUserPrompt, setGenerationUserPrompt, selectedModel, tabId, isSessionExpired } = props;
 
     const viewport: Viewport = {
         width: shot?.width ?? 1280,
@@ -109,10 +109,12 @@ function Toolbar(props: ToolbarProps) {
         ] as { m: string; icon: JSX.Element; label: string }[]).map(({ m, icon, label }) => {
           const active = mode === m;
           const isModelRequired = m === "crop" || m === "generate-steps";
-          const disabled = isModelRequired && !selectedModel;
+          const disabled = isSessionExpired || (isModelRequired && !selectedModel);
 
           const hoverMessage =
-            disabled && m === "crop"
+            isSessionExpired
+              ? "Session expired. Please refresh the page."
+              : disabled && m === "crop"
               ? "Add context: Please add a model to your model catalog to activate"
               : disabled && m === "generate-steps"
               ? "Generate steps: Please add a model to your model catalog to activate"

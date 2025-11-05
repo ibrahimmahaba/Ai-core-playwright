@@ -9,7 +9,7 @@ export function checkSessionExpired(pixelReturn: any[]): boolean {
       const outputString = typeof output === 'string' ? output : JSON.stringify(output);
       
       if (outputString.toLowerCase().includes('expired')) {
-        alert('Your session has expired. Please refresh the app or start a new flow by clicking open url');
+        alert('Your session has expired. Please refresh the app');
         return true;
       }
     }

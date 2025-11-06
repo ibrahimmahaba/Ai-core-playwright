@@ -40,6 +40,8 @@ async function handleSkipStep() {
     const res = await runPixel(pixel, insightId);
     
     if (checkSessionExpired(res.pixelReturn)) {
+      setLoading(false);
+      setOverlay(null);
       return;
     }
     

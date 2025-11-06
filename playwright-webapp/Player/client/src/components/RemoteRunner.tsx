@@ -88,13 +88,13 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
 
     useEffect(() => {
     // Auto-show input overlay for TYPE steps
-    if (editedData && editedData.length > 0 && !overlay && !loading && showData && shot) {
+    if (editedData && editedData.length > 0 && !overlay && !loading && showData && shot && !isSessionExpired) {
       const handleSetOverlayForType = async () => {
         await setOverlayForType();
       };
       handleSetOverlayForType();
     }
-  }, [editedData, overlay, loading, showData, shot]);
+  }, [editedData, overlay, loading, showData, shot, isSessionExpired]);
 
 
   const viewport: Viewport = {
@@ -398,6 +398,8 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
     const res = await runPixel(pixel, insightId);
     
     if (checkSessionExpired(res.pixelReturn)) {
+      setLoading(false);
+      setOverlay(null);
       return;
     }
     
@@ -553,6 +555,7 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
       const extractRes = await runPixel(extractPixel, insightId);
       
       if (checkSessionExpired(extractRes.pixelReturn)) {
+        setLoading(false);
         return;
       }
       
@@ -572,6 +575,7 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
       const generateRes = await runPixel(generatePixel, insightId);
       
       if (checkSessionExpired(generateRes.pixelReturn)) {
+        setLoading(false);
         return;
       }
       

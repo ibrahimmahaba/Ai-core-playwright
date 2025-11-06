@@ -28,6 +28,7 @@ function Header() {
     loading,
     setLoading,
     resetSession,
+    setIsSessionExpired,
   } = useSessionStore();
 
   const { showToast } = useToastNotificationStore();
@@ -152,6 +153,7 @@ function Header() {
       resetSession();
       
       await initSession(insightId, isInitialized);
+      setIsSessionExpired(false);
       await new Promise(resolve => setTimeout(resolve, 500));
       await proceedToNavigate("tab-1");
     } catch (error) {

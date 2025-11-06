@@ -96,7 +96,18 @@ export default function RemoteRunner()  {
 
     try {
       const pixel = `DeleteTab(sessionId="${sessionId}", tabId="${tabId}");`;
-      await runPixel(pixel, insightId);
+      const res = await runPixel(pixel, insightId);
+
+      if (checkSessionExpired(res.pixelReturn)) {
+        return;
+      }
+
+      const pixelReturn = res.pixelReturn[0];
+      if (pixelReturn.operationType && pixelReturn.operationType.includes("ERROR")) {
+        showToast(`Failed to delete tab: ${pixelReturn.output}`, "error");
+        return;
+      }
+
       showToast("Tab deleted successfully!", "success");
       proceedToCloseTab(tabId);
     } catch (err) {

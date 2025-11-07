@@ -25,6 +25,51 @@ function StepsPanel(props: StepsPanelProps) {
   const [loadedStepsByTab, setLoadedStepsByTab] = useState<Record<string, Step[]>>({});
   const [loading, setLoading] = useState(false);
 
+  // Sync editedValues with editedData changes (e.g., from overlay)
+  // Only update values that come from editedData, preserving local edits
+  useEffect(() => {
+    if (editedData && editedData.length > 0) {
+      setEditedValues(prev => {
+        const updated = { ...prev };
+        editedData.forEach((action, index) => {
+          if ("TYPE" in action) {
+            // Only update if the value in editedData is different from current
+            if (!updated[index] || updated[index].text !== action.TYPE.text) {
+              updated[index] = {
+                ...updated[index],
+                text: action.TYPE.text
+              };
+            }
+          } else if ("SCROLL" in action) {
+            const deltaYStr = String(action.SCROLL.deltaY);
+            if (!updated[index] || updated[index].deltaY !== deltaYStr) {
+              updated[index] = {
+                ...updated[index],
+                deltaY: deltaYStr
+              };
+            }
+          } else if ("WAIT" in action) {
+            const waitStr = String(action.WAIT);
+            if (!updated[index] || updated[index].wait !== waitStr) {
+              updated[index] = {
+                ...updated[index],
+                wait: waitStr
+              };
+            }
+          } else if ("NAVIGATE" in action) {
+            if (!updated[index] || updated[index].url !== action.NAVIGATE) {
+              updated[index] = {
+                ...updated[index],
+                url: action.NAVIGATE
+              };
+            }
+          }
+        });
+        return updated;
+      });
+    }
+  }, [editedData]);
+
   // Call GetAllSteps when panel opens (component mounts) or when selectedRecording changes
   useEffect(() => {
     async function fetchSteps() {

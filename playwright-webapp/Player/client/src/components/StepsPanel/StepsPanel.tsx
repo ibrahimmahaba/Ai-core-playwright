@@ -5,6 +5,8 @@ import Checkbox from '@mui/material/Checkbox';
 import { Info as InfoIcon, Mouse as ClickIcon } from "@mui/icons-material";
 import { useState, useEffect } from 'react';
 import { runPixel } from "@semoss/sdk";
+import { Box, Button } from "@mui/material";
+import AdsClickIcon from '@mui/icons-material/AdsClick';
 
 interface StepsPanelProps {
   steps: Step[];
@@ -26,7 +28,7 @@ function StepsPanel(props: StepsPanelProps) {
   // Call GetAllSteps when panel opens (component mounts) or when selectedRecording changes
   useEffect(() => {
     async function fetchSteps() {
-      if (!sessionId || !insightId || !selectedRecording) {
+      if (!sessionId || !selectedRecording) {
         setLoadedSteps([]);
         return;
       }
@@ -139,15 +141,16 @@ function StepsPanel(props: StepsPanelProps) {
       case "CLICK":
         return (
           <div key={index} className="step-item step-item-click">
-            <div className="step-checkbox">
-              <Checkbox defaultChecked />
+          <div className="step-checkbox">
+              <Checkbox defaultChecked disabled />
             </div>
-            <div className="step-number">{stepNumber}</div>
+            
             <div className="step-content step-content-click">
+            <div className="step-number">Step: {stepNumber}</div>
               <div className="step-type-label">CLICK</div>
+              <InfoIcon className="step-info-icon" />
               <div className="step-click-icons">
-                <InfoIcon className="step-info-icon" />
-                <ClickIcon className="step-click-icon" />
+                <AdsClickIcon className="step-click-icon" />
               </div>
             </div>
           </div>
@@ -159,8 +162,8 @@ function StepsPanel(props: StepsPanelProps) {
             <div className="step-checkbox">
               <Checkbox defaultChecked />
             </div>
-            <div className="step-number">{stepNumber}</div>
             <div className="step-content">
+            <div className="step-number">Step: {stepNumber}</div>
               <div className="step-title">{step.label || 'Input'}</div>
               <TextField
                 id={`type-field-${index}`}
@@ -168,7 +171,13 @@ function StepsPanel(props: StepsPanelProps) {
                 onChange={(e) => handleValueChange(index, 'text', e.target.value)}
                 disabled={step.isPassword}
                 size="small"
-                sx={{ width: '100%', marginTop: '4px' }}
+                sx={{
+                  width: '100%',
+                  marginTop: '4px',
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '18px', // Rounded border
+                  },
+                }}
               />
             </div>
           </div>
@@ -177,11 +186,11 @@ function StepsPanel(props: StepsPanelProps) {
         const currentDeltaY = getValue(index, 'deltaY', String(step.deltaY ?? 0));
         return (
           <div key={index} className="step-item step-item-type">
-            <div className="step-checkbox">
-              <Checkbox defaultChecked />
-            </div>
-            <div className="step-number">{stepNumber}</div>
-            <div className="step-content">
+              <div className="step-content">
+              <div className="step-checkbox">
+                <Checkbox defaultChecked />
+                <div className="step-number">Step: {stepNumber}</div>
+              </div>
               <div className="step-title">SCROLL</div>
               <TextField
                 id={`scroll-field-${index}`}
@@ -202,8 +211,9 @@ function StepsPanel(props: StepsPanelProps) {
             <div className="step-checkbox">
               <Checkbox defaultChecked />
             </div>
-            <div className="step-number">{stepNumber}</div>
+
             <div className="step-content">
+            <div className="step-number">Step: {stepNumber}</div>
               <div className="step-title">WAIT</div>
               <TextField
                 id={`wait-field-${index}`}
@@ -224,16 +234,25 @@ function StepsPanel(props: StepsPanelProps) {
             <div className="step-checkbox">
               <Checkbox defaultChecked />
             </div>
-            <div className="step-number">{stepNumber}</div>
             <div className="step-content">
+            <div className="step-number">Step: {stepNumber}</div>
               <div className="step-title">NAVIGATE</div>
               <TextField
                 id={`navigate-field-${index}`}
                 value={currentUrl}
                 onChange={(e) => handleValueChange(index, 'url', e.target.value)}
-                label="URL"
+                label=""
                 size="small"
-                sx={{ width: '100%', marginTop: '4px' }}
+                sx={{
+                  width: '100%',
+                  marginTop: '4px',
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '18px', // Rounded border
+                  },
+                }}
+                InputProps={{
+                  readOnly: true, // Make the field uneditable
+                }}
               />
             </div>
           </div>
@@ -254,7 +273,7 @@ function StepsPanel(props: StepsPanelProps) {
           <div className="step-checkbox">
             <Checkbox defaultChecked />
           </div>
-          <div className="step-number">{stepNumber}</div>
+          <div className="step-number">Step: {stepNumber}</div>
           <div className="step-content">
             <div className="step-title">{action.TYPE.label || 'Input'}</div>
             <TextField
@@ -263,7 +282,13 @@ function StepsPanel(props: StepsPanelProps) {
               onChange={(e) => handleValueChange(index, 'text', e.target.value)}
               disabled={action.TYPE.isPassword}
               size="small"
-              sx={{ width: '100%', marginTop: '4px' }}
+              sx={{
+                width: '100%',
+                marginTop: '4px',
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '18px', // Rounded border
+                },
+              }}
             />
           </div>
         </div>
@@ -274,14 +299,16 @@ function StepsPanel(props: StepsPanelProps) {
       return (
         <div key={index} className="step-item step-item-click">
           <div className="step-checkbox">
-            <Checkbox defaultChecked />
+            <Checkbox defaultChecked disabled/>
           </div>
-          <div className="step-number">{stepNumber}</div>
-          <div className="step-content step-content-click">
-            <div className="step-type-label">CLICK</div>
+          <div className="step-number">Step: {stepNumber}</div>
+          <div className="step-content step-content-click ">
+            <div className="step-type-label step-content-click-info">
+              CLICK
+            <InfoIcon className="step-info-icon" />
+            </div>
             <div className="step-click-icons">
-              <InfoIcon className="step-info-icon" />
-              <ClickIcon className="step-click-icon" />
+              <AdsClickIcon className="step-click-icon" />
             </div>
           </div>
         </div>
@@ -296,7 +323,7 @@ function StepsPanel(props: StepsPanelProps) {
           <div className="step-checkbox">
             <Checkbox defaultChecked />
           </div>
-          <div className="step-number">{stepNumber}</div>
+          <div className="step-number">Step: {stepNumber}</div>
           <div className="step-content">
             <div className="step-title">SCROLL</div>
             <TextField
@@ -306,7 +333,13 @@ function StepsPanel(props: StepsPanelProps) {
               label="Delta Y"
               size="small"
               type="number"
-              sx={{ width: '100%', marginTop: '4px' }}
+              sx={{
+                width: '100%',
+                marginTop: '4px',
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '18px', // Rounded border
+                },
+              }}
             />
           </div>
         </div>
@@ -321,7 +354,7 @@ function StepsPanel(props: StepsPanelProps) {
           <div className="step-checkbox">
             <Checkbox defaultChecked />
           </div>
-          <div className="step-number">{stepNumber}</div>
+          <div className="step-number">Step: {stepNumber}</div>
           <div className="step-content">
             <div className="step-title">WAIT</div>
             <TextField
@@ -331,7 +364,13 @@ function StepsPanel(props: StepsPanelProps) {
               label="Duration (ms)"
               size="small"
               type="number"
-              sx={{ width: '100%', marginTop: '4px' }}
+              sx={{
+                width: '100%',
+                marginTop: '4px',
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '18px', // Rounded border
+                },
+              }}
             />
           </div>
         </div>
@@ -346,7 +385,7 @@ function StepsPanel(props: StepsPanelProps) {
           <div className="step-checkbox">
             <Checkbox defaultChecked />
           </div>
-          <div className="step-number">{stepNumber}</div>
+          <div className="step-number">Step: {stepNumber}</div>
           <div className="step-content">
             <div className="step-title">NAVIGATE</div>
             <TextField
@@ -439,6 +478,35 @@ function StepsPanel(props: StepsPanelProps) {
             </p>
           </div>
         )}
+        <Box
+           sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginTop: '16px', // Adjust spacing as needed
+            gap: '8px', // Add spacing between buttons
+          }}
+        >
+          <Button
+            variant="contained"
+            sx={{
+              borderRadius: '18px', // Rounded button
+              marginRight: '8px', // Spacing between buttons
+              flexGrow: 1, // Make button take available space
+            }}
+          >
+            Run Steps
+          </Button>
+          <Button
+            variant="outlined"
+            sx={{
+              borderRadius: '18px', // Rounded button
+              flex: 1, // Make button take available space
+            }}
+          >
+            Let AI Execute
+          </Button>
+        </Box>
       </div>
     </div>
   );

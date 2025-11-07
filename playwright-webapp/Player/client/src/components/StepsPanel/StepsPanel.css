@@ -47,9 +47,10 @@
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  border-radius: 8px;
-  border: 1px solid #e0e0e0;
-  background: #f8f9fa;
+  /* border-radius: 8px; */
+  /* border: 1px solid #e0e0e0; */
+  border-bottom: 1px solid #e0e0e0;
+  /* background: #f8f9fa; */
 }
 
 .step-item:hover {
@@ -67,15 +68,10 @@
 
 .step-number {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  min-width: 36px;
-  height: 28px;
-  background: #3672e3;
-  color: white;
-  border-radius: 50%;
-  font-size: 13px;
+  align-items: stretch;
+  justify-content: left;
+  color: black;
+  font-size: 18px;
   font-weight: 600;
   flex-shrink: 0;
 }
@@ -84,15 +80,23 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
   min-width: 0;
+  
 }
-
+.step-content-header {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+}
 .step-title {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 16px;
   color: #333;
   margin: 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: left;
 }
 
 .step-type-label {
@@ -116,7 +120,12 @@
   align-items: center;
   justify-content: space-between;
 }
-
+.step-content-click-info{
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+}
 .step-click-icons {
   display: flex;
   align-items: center;

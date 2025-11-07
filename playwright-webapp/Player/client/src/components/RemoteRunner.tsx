@@ -814,6 +814,21 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
         onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
           //set editedData draft value
           ol.draftValue = e.target.value;
+          // Update editedData in real-time
+          if (editedData && editedData.length > 0 && "TYPE" in editedData[0]) {
+            setEditedData(prevData => {
+              const updatedData = [...prevData];
+              if (updatedData.length > 0 && "TYPE" in updatedData[0]) {
+                updatedData[0] = {
+                  TYPE: {
+                    ...updatedData[0].TYPE,
+                    text: e.target.value
+                  }
+                };
+              }
+              return updatedData;
+            });
+          }
         },
         style: controlStyle,
       } as const;

@@ -36,6 +36,7 @@ export default function RemoteRunner()  {
 
   const { showToast } = useToastNotificationStore();
   const imgRef = useRef<HTMLImageElement>(null);
+  const draftStepIndexRef = useRef<number | null>(null);
   const [overlay, setOverlay] = useState<{
     kind: "input" | "confirm";
     probe: Probe;
@@ -90,6 +91,71 @@ export default function RemoteRunner()  {
   };
 
   const { sendStep } = useSendStep();
+
+  // Function to create or update draft step in tabs
+  const updateDraftStep = (value: string, label: string | null, probe: Probe, storeValue: boolean = true) => {
+    const currentTab = tabs.find(t => t.id === activeTabId);
+    if (!currentTab) return;
+
+    const coords = {
+      x: Math.round(probe.rect.x + probe.rect.width / 2),
+      y: Math.round(probe.rect.y + probe.rect.height / 2)
+    };
+
+    const draftStep: Step = {
+      type: "TYPE",
+      coords,
+      text: value,
+      label: label,
+      pressEnter: false,
+      isPassword: probe.type === "password",
+      storeValue: probe.type === "password" || probe.type === "email" ? false : storeValue,
+      viewport,
+      waitAfterMs: 300,
+      timestamp: Date.now(),
+      selector: preferSelectorFromProbe(probe) || { strategy: "css", value: "body" }
+    };
+
+    setTabs(prevTabs => {
+      return prevTabs.map(tab => {
+        if (tab.id === activeTabId) {
+          const steps = [...tab.steps];
+          
+          // If we have a draft step index, update it
+          if (draftStepIndexRef.current !== null && draftStepIndexRef.current < steps.length) {
+            steps[draftStepIndexRef.current] = draftStep;
+          } else {
+            // Otherwise, add a new draft step
+            steps.push(draftStep);
+            draftStepIndexRef.current = steps.length - 1;
+          }
+          
+          return { ...tab, steps };
+        }
+        return tab;
+      });
+    });
+  };
+
+  // Function to remove draft step
+  const removeDraftStep = () => {
+    if (draftStepIndexRef.current === null) return;
+
+    setTabs(prevTabs => {
+      return prevTabs.map(tab => {
+        if (tab.id === activeTabId) {
+          const steps = [...tab.steps];
+          if (draftStepIndexRef.current !== null && draftStepIndexRef.current < steps.length) {
+            steps.splice(draftStepIndexRef.current, 1);
+          }
+          return { ...tab, steps };
+        }
+        return tab;
+      });
+    });
+    
+    draftStepIndexRef.current = null;
+  };
 
   function imageToPageCoords(e: React.MouseEvent<HTMLImageElement, MouseEvent>): Coords {
     const img = imgRef.current!;
@@ -185,6 +251,9 @@ export default function RemoteRunner()  {
         },
         onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
           ol.draftValue = e.target.value;
+          // Update draft step in real-time
+          const draftStoreValue = (ol as any).draftStoreValue ?? true;
+          updateDraftStep(e.target.value, ol.draftLabel ?? null, probe, draftStoreValue);
         },
         style: controlStyle,
       } as const;
@@ -204,7 +273,12 @@ export default function RemoteRunner()  {
               style={{ flex: 1, padding: 6, border: "1px solid #eee", borderRadius: 6 }}
               placeholder="Optional label (e.g., username)"
               defaultValue={ol.draftLabel ?? probe.labelText ?? ""}
-              onChange={(e) => (ol.draftLabel = e.target.value)}
+              onChange={(e) => {
+                ol.draftLabel = e.target.value;
+                // Update draft step label in real-time
+                const draftStoreValue = (ol as any).draftStoreValue ?? true;
+                updateDraftStep(ol.draftValue ?? probe.value ?? "", e.target.value || null, probe, draftStoreValue);
+              }}
             />
 
 
@@ -215,6 +289,8 @@ export default function RemoteRunner()  {
                     defaultChecked
                     onChange={(e) => {
                       (ol as any).draftStoreValue = e.target.checked;
+                      // Update draft step storeValue in real-time
+                      updateDraftStep(ol.draftValue ?? probe.value ?? "", ol.draftLabel ?? null, probe, e.target.checked);
                     }}
                   />
                 }
@@ -365,7 +441,13 @@ export default function RemoteRunner()  {
         p.contentEditable;
 
       if (isTextField && p.isTextControl) {
-        setOverlay({ kind: "input", probe: p, draftValue: p.value ?? "", draftLabel: p.labelText ?? "" });
+        const draftValue = p.value ?? "";
+        const draftLabel = p.labelText ?? "";
+        // Remove any existing draft step before creating a new one
+        removeDraftStep();
+        setOverlay({ kind: "input", probe: p, draftValue, draftLabel });
+        // Create initial draft step
+        updateDraftStep(draftValue, draftLabel, p, true);
       } else {
         await sendStep({
           type: "CLICK",
@@ -480,7 +562,10 @@ export default function RemoteRunner()  {
                   ol={overlay}
                   shot={shot}
                   imgRef={imgRef}
-                  onCancel={() => setOverlay(null)}
+                  onCancel={() => {
+                    removeDraftStep();
+                    setOverlay(null);
+                  }}
                   onSubmit={async (value, label) => {
                     const { probe } = overlay!;
                     const draftStoreValue = (overlay as any).draftStoreValue ?? true;
@@ -490,6 +575,8 @@ export default function RemoteRunner()  {
                     };
 
                     if (overlay!.kind === "input") {
+                      // Remove draft step before sending actual step
+                      removeDraftStep();
                       await sendStep({
                         type: "TYPE",
                         coords,

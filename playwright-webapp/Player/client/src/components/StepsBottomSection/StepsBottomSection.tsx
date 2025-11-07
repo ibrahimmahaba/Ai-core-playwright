@@ -384,7 +384,7 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
                                             return (
                                                 <tr key={index}>
                                                     <td>{details.label}</td>
-                                                    <td></td>
+                                                    <td>{details.text || ""}</td>
                                                     {index === 0 && (
                                                         <td>
                                                             <button onClick={handleNextStep}>Execute →</button>

@@ -131,7 +131,6 @@ function Header(props : HeaderProps) {
 
   return (
     <>
-        <h2 className="header-title">Playwright Script Player App</h2>
       <div className="header-controls">
 
         <Autocomplete

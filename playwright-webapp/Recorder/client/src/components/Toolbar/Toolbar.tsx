@@ -103,12 +103,12 @@ function Toolbar() {
       <div className="toolbar-container">
         {/* Action buttons */}
         {([
-          { m: "click", icon: <MouseIcon />, label: "Click" },
-          { m: "scroll-up", icon: <ArrowUpIcon />, label: "Scroll Up" },
-          { m: "scroll-down", icon: <ArrowDownIcon />, label: "Scroll Down" },
-          { m: "delay", icon: <AccessTimeIcon />, label: "Delay" },
+          // { m: "click", icon: <MouseIcon />, label: "Click" },
+          // { m: "scroll-up", icon: <ArrowUpIcon />, label: "Scroll Up" },
+          // { m: "scroll-down", icon: <ArrowDownIcon />, label: "Scroll Down" },
+          // { m: "delay", icon: <AccessTimeIcon />, label: "Delay" },
           { m: "fetch-screenshot", icon: <SyncIcon />, label: "Refresh" },
-          { m: "crop", icon: <CropIcon />, label: "Add Context" },
+          // { m: "crop", icon: <CropIcon />, label: "Add Context" },
         ] as { m: string; icon: JSX.Element; label: string }[]).map(({ m, icon, label }) => {
           const active = mode === m;
           const isModelRequired = m === "crop" || m === "generate-steps";

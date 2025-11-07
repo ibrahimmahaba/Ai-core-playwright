@@ -31,8 +31,8 @@ function StepsPanel(props: StepsPanelProps) {
           <div key={index} className="step-item">
             <div className="step-type">TYPE</div>
             <div className="step-details">
-              <div>Text: {step.text}</div>
-              {step.label && <div>Label: {step.label}</div>}
+              <div>{step.text}</div>
+              {step.label && <div>{step.label}</div>}
               {step.selector && (
                 <div>Selector: {step.selector.strategy} - {step.selector.value}</div>
               )}

@@ -3,6 +3,7 @@ import {
     AutoAwesome as AutoAwesomeIcon,
     ListAlt as ListAltIcon,
     Edit as EditIcon,
+    Sync as SyncIcon,
   } from "@mui/icons-material";
 import { type JSX, useState, useEffect } from "react";
 import { runPixel } from "@semoss/sdk";
@@ -92,6 +93,7 @@ function Toolbar(props: ToolbarProps) {
     }
 
   const toolbarItems = [
+    { m: "fetch-screenshot", icon: <SyncIcon />, label: "Refresh" },
     { m: "tools", icon: <SettingsIcon />, label: "Tools" },
     { m: "generate-steps", icon: <AutoAwesomeIcon />, label: "Generate Steps" },
     { m: "show-steps", icon: <ListAltIcon />, label: "Show Steps" },

@@ -1,6 +1,7 @@
 import type { Action, Step } from "../../types";
 import './StepsPanel.css';
-
+import TextField from '@mui/material/TextField';
+import Checkbox from '@mui/material/Checkbox';
 interface StepsPanelProps {
   steps: Step[];
   editedData: Action[];
@@ -28,8 +29,8 @@ function StepsPanel(props: StepsPanelProps) {
           <div key={index} className="step-item">
             <div className="step-type">TYPE</div>
             <div className="step-details">
-              <div>Text: {step.text}</div>
-              {step.label && <div>Label: {step.label}</div>}
+              <div>{step.text}</div>
+              {step.label && <div>{step.label}</div>}
               {step.selector && (
                 <div>Selector: {step.selector.strategy} - {step.selector.value}</div>
               )}
@@ -72,10 +73,22 @@ function StepsPanel(props: StepsPanelProps) {
     if ("TYPE" in action) {
       return (
         <div key={index} className="step-item">
-          <div className="step-type">TYPE</div>
+          {/* <div className="step-type">TYPE</div> */}
+          
           <div className="step-details">
-            <div>Label: {action.TYPE.label}</div>
-            <div>Text: {action.TYPE.isPassword ? "••••••••" : action.TYPE.text}</div>
+          
+            <div className="step-type">
+            <Checkbox defaultChecked />
+              Step: 
+            
+            </div>
+            <div> {action.TYPE.label}</div>
+            <TextField
+            id="outlined-size-small"
+            defaultValue={action.TYPE.isPassword ? "••••••••" : action.TYPE.text}
+            size="small"
+            sx={{ width: '100%', borderRadius: '12px', marginTop: '4px' }}
+          />
           </div>
         </div>
       );

@@ -93,7 +93,6 @@ function Toolbar(props: ToolbarProps) {
     }
 
   const toolbarItems = [
-    { m: "fetch-screenshot", icon: <SyncIcon />, label: "Refresh" },
     { m: "tools", icon: <SettingsIcon />, label: "Tools" },
     { m: "generate-steps", icon: <AutoAwesomeIcon />, label: "Generate Steps" },
     { m: "show-steps", icon: <ListAltIcon />, label: "Show Steps" },
@@ -106,7 +105,7 @@ function Toolbar(props: ToolbarProps) {
 
   // Sync panel visibility with mode - show panel for any selected mode
   useEffect(() => {
-    const shouldShowPanel = mode !== undefined && mode !== "";
+    const shouldShowPanel = mode !== undefined && mode !== "" && (mode === "tools" || mode === "show-steps" || mode === "edit-inputs" || mode === "generate-steps");
     setShowPanel(shouldShowPanel);
     
     // Add/remove class to body to adjust main content layout
@@ -124,6 +123,27 @@ function Toolbar(props: ToolbarProps) {
   return (
     <>
       <div className="toolbar-container">
+        {/* Action buttons */}
+        {([
+          { m: "fetch-screenshot", icon: <SyncIcon />, label: "Refresh" },
+        ] as { m: string; icon: JSX.Element; label: string }[]).map(({ m, icon, label }) => {
+          return (
+            <button
+              key={m}
+              onClick={async () => {
+                if (m === "fetch-screenshot") {
+                  await fetchScreenshot();
+                }
+              }}
+              title={label}
+              className="toolbar-button"
+            >
+              {icon}
+            </button>
+          );
+        })}
+        
+        {/* Panel toggle buttons */}
         {toolbarItems.map(({ m, icon, label }) => {
           const active = mode === m;
           const isModelRequired = m === "generate-steps";

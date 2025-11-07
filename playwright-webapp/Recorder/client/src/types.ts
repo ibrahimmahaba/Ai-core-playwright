@@ -62,9 +62,15 @@ export interface ScreenshotResponse {
     type: 'WAIT';
     waitAfterMs: number;
   }
+
+  export interface ContextStep extends BaseStep {
+    type: 'CONTEXT';
+    multiCoords: Coords[];
+    prompt: String
+  }
   
   // Discriminated union for all step types
-  export type Step = NavigateStep | ClickStep | TypeStep | ScrollStep | WaitStep;
+  export type Step = NavigateStep | ClickStep | TypeStep | ScrollStep | WaitStep | ContextStep;
   
   export interface VariableRecord {
     label: string;

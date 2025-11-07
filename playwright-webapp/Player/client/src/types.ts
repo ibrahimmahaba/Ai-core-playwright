@@ -77,7 +77,8 @@ export type CropArea = {
     | { CLICK: { coords: Coords } }
     | { SCROLL: { deltaY: number } }
     | { WAIT: number } // waitAfterMilliseconds
-    | { NAVIGATE: string }; // url
+    | { NAVIGATE: string } // url
+    | { CONTEXT: { multiCoords: Coords[], prompt: string}};
   
   export type RemoteRunnerProps = {
     sessionId: string;
@@ -132,6 +133,9 @@ export type CropArea = {
     setGenerationUserPrompt: React.Dispatch<React.SetStateAction<string>>;
     selectedModel: ModelOption | null;
     tabId: string;
+    isSessionExpired?: boolean;
+    storedContexts?: string[];
+    setStoredContexts?: React.Dispatch<React.SetStateAction<string[]>>;
   }
 
 
@@ -190,6 +194,10 @@ export type CropArea = {
     tabs?: TabData[];     
     setTabs?: React.Dispatch<React.SetStateAction<TabData[]>>; 
     setActiveTabId?: React.Dispatch<React.SetStateAction<string>>;
+    setVisionPopup: React.Dispatch<React.SetStateAction<VisionPopup | null>>;
+    setCurrentCropArea: React.Dispatch<React.SetStateAction<CropArea | null>>;
+    setMode: React.Dispatch<React.SetStateAction<string>>;
+    setCrop: React.Dispatch<React.SetStateAction<Crop| undefined>>
   }
 
   export interface VisionPopup {x: number; y: number; query: string; response: string | null;}
@@ -197,7 +205,7 @@ export type CropArea = {
   export interface VisionPopupProps {
     sessionId: string;
     insightId: string;
-    insight: Insight;
+    insight?: Insight;
     visionPopup  :  VisionPopup | null;
     setVisionPopup: React.Dispatch<React.SetStateAction<VisionPopup | null>>;
     currentCropArea: CropArea | null;
@@ -208,6 +216,8 @@ export type CropArea = {
     setCrop: React.Dispatch<React.SetStateAction<Crop| undefined>>
     selectedModel: ModelOption | null;
     tabId: string;
+    storedContexts: string[];
+    setStoredContexts: React.Dispatch<React.SetStateAction<string[]>>;
   }
 
 
@@ -275,4 +285,12 @@ export type CropArea = {
     id: string;
     title: string;
     actions: Action[];
+  }
+
+  export interface StoredContextsSidebarProps {
+    storedContexts: string[];
+    setStoredContexts: React.Dispatch<React.SetStateAction<string[]>>;
+    sessionId: string;
+    insightId: string;
+    onClose: () => void;
   }

@@ -20,7 +20,7 @@ function StepsPanel(props: StepsPanelProps) {
   const [loadedSteps, setLoadedSteps] = useState<Step[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Call GetAllSteps when selectedRecording changes
+  // Call GetAllSteps when panel opens (component mounts) or when selectedRecording changes
   useEffect(() => {
     async function fetchSteps() {
       if (!sessionId || !insightId || !selectedRecording) {
@@ -31,17 +31,62 @@ function StepsPanel(props: StepsPanelProps) {
       setLoading(true);
       try {
         const pixel = `GetAllSteps(sessionId="${sessionId}", fileName="${selectedRecording}")`;
+        console.log("Fetching steps with pixel:", pixel);
         const res = await runPixel(pixel, insightId);
-        const { output } = res.pixelReturn[0] as { output: { steps: Step[] } };
+        console.log("GetAllSteps full response:", res);
         
-        if (output && Array.isArray(output.steps)) {
-          setLoadedSteps(output.steps);
-        } else if (Array.isArray(output)) {
-          // Handle case where output is directly an array
-          setLoadedSteps(output as Step[]);
-        } else {
-          setLoadedSteps([]);
+        // Handle different possible response structures
+        let allSteps: Step[] = [];
+        
+        if (res && res.pixelReturn && res.pixelReturn.length > 0) {
+          const pixelReturn = res.pixelReturn[0];
+          console.log("GetAllSteps pixelReturn:", pixelReturn);
+          
+          // Try different response structures
+          if (pixelReturn.output) {
+            const output = pixelReturn.output;
+            console.log("GetAllSteps output:", output);
+            
+            // Case 1: output.steps (StepsEnvelope structure)
+            if (output.steps && Array.isArray(output.steps)) {
+              allSteps = output.steps;
+              console.log(`Found ${allSteps.length} steps in output.steps`);
+            }
+            // Case 2: output is directly an array of steps
+            else if (Array.isArray(output)) {
+              allSteps = output;
+              console.log(`Found ${allSteps.length} steps in output array`);
+            }
+            // Case 3: output might be a StepsEnvelope with version and steps
+            else if (output.version && output.steps && Array.isArray(output.steps)) {
+              allSteps = output.steps;
+              console.log(`Found ${allSteps.length} steps in StepsEnvelope`);
+            }
+            // Case 4: Check if output has nested structure
+            else if (typeof output === 'object') {
+              // Try to find steps in any property
+              for (const key in output) {
+                if (Array.isArray(output[key]) && output[key].length > 0) {
+                  // Check if it looks like steps array
+                  const potentialSteps = output[key];
+                  if (potentialSteps[0] && potentialSteps[0].type) {
+                    allSteps = potentialSteps;
+                    console.log(`Found ${allSteps.length} steps in output.${key}`);
+                    break;
+                  }
+                }
+              }
+            }
+          }
+          // Case 5: pixelReturn might directly contain steps
+          else if (Array.isArray(pixelReturn)) {
+            allSteps = pixelReturn;
+            console.log(`Found ${allSteps.length} steps directly in pixelReturn`);
+          }
         }
+        
+        console.log(`Total steps to display: ${allSteps.length}`);
+        setLoadedSteps(allSteps);
       } catch (err) {
         console.error("Error fetching steps from GetAllSteps:", err);
         setLoadedSteps([]);
@@ -50,6 +95,7 @@ function StepsPanel(props: StepsPanelProps) {
       }
     }
 
+    // Always fetch when component mounts (panel opens) or when selectedRecording changes
     fetchSteps();
   }, [sessionId, insightId, selectedRecording]);
 

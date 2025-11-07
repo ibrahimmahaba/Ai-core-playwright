@@ -38,7 +38,7 @@ function StepsPanel(props: StepsPanelProps) {
         const res = await runPixel(pixel, insightId);
         console.log("GetAllSteps full response:", JSON.stringify(res, null, 2));
         
-        // Handle different possible response structures
+        // Parse steps from output.steps structure: { "tab-1": { steps: [...] }, "tab-2": { steps: [...] } }
         let allSteps: Step[] = [];
         let stepsByTab: Record<string, Step[]> = {};
         
@@ -50,110 +50,43 @@ function StepsPanel(props: StepsPanelProps) {
           const pixelReturn = res.pixelReturn[0];
           console.log("GetAllSteps pixelReturn:", JSON.stringify(pixelReturn, null, 2));
           
-          // Try different response structures
+          // Parse output.steps structure: { "tab-1": { steps: [...] }, "tab-2": { steps: [...] } }
           if (pixelReturn.output !== undefined) {
             const output = pixelReturn.output;
             console.log("GetAllSteps output type:", typeof output);
             console.log("GetAllSteps output:", JSON.stringify(output, null, 2));
             
-            // Case 1: output.tabs - steps organized by tabs
-            if (output && typeof output === 'object' && output.tabs && Array.isArray(output.tabs)) {
-              console.log(`Found ${output.tabs.length} tabs in output.tabs`);
-              output.tabs.forEach((tab: any) => {
-                if (tab.id && tab.steps && Array.isArray(tab.steps)) {
-                  stepsByTab[tab.id] = tab.steps;
-                  allSteps = allSteps.concat(tab.steps);
-                  console.log(`✓ Tab ${tab.id}: ${tab.steps.length} steps`);
-                }
-              });
-            }
-            // Case 2: output is an object with tabIds as keys
-            else if (output && typeof output === 'object' && !Array.isArray(output)) {
-              console.log("Checking if output contains tabs as keys...");
-              for (const key in output) {
-                const value = output[key];
-                if (Array.isArray(value) && value.length > 0) {
-                  const firstItem = value[0];
-                  // Check if it looks like steps array (has type property)
-                  if (firstItem && typeof firstItem === 'object' && firstItem.type) {
-                    // If key looks like a tabId (starts with "tab-" or is a tab identifier)
-                    if (key.startsWith('tab-') || key.includes('tab') || tabs?.some(t => t.id === key)) {
-                      stepsByTab[key] = value;
-                      allSteps = allSteps.concat(value);
-                      console.log(`✓ Tab ${key}: ${value.length} steps`);
-                    } else {
-                      // Otherwise treat as a single steps array
-                      allSteps = value;
-                      console.log(`✓ Found ${allSteps.length} steps in output.${key}`);
-                      break;
+            // output.steps is an object with tabIds as keys, each containing steps array
+            // Structure: output.steps = { "tab-1": { steps: [...] }, "tab-2": { steps: [...] } }
+            if (output && typeof output === 'object' && output.steps && typeof output.steps === 'object' && !Array.isArray(output.steps)) {
+              console.log("Parsing output.steps for tab-based structure...");
+              const stepsObj = output.steps;
+              for (const tabId in stepsObj) {
+                const tabData = stepsObj[tabId];
+                if (tabData && typeof tabData === 'object') {
+                  // Check if tabData has a steps array
+                  if (Array.isArray(tabData.steps)) {
+                    stepsByTab[tabId] = tabData.steps;
+                    allSteps = allSteps.concat(tabData.steps);
+                    console.log(`✓ Tab ${tabId}: ${tabData.steps.length} steps`);
+                  }
+                  // Check if tabData itself is an array (fallback)
+                  else if (Array.isArray(tabData) && tabData.length > 0) {
+                    const firstItem = tabData[0];
+                    if (firstItem && typeof firstItem === 'object' && firstItem.type) {
+                      stepsByTab[tabId] = tabData;
+                      allSteps = allSteps.concat(tabData);
+                      console.log(`✓ Tab ${tabId}: ${tabData.length} steps (direct array)`);
                     }
                   }
                 }
               }
+            } else {
+              console.warn("GetAllSteps: Expected output.steps structure not found");
+              console.log("Available keys in output:", output ? Object.keys(output) : "output is null/undefined");
             }
-            // Case 3: output.steps (StepsEnvelope structure) - single array
-            else if (output && typeof output === 'object' && output.steps && Array.isArray(output.steps)) {
-              allSteps = output.steps;
-              console.log(`✓ Found ${allSteps.length} steps in output.steps`);
-            }
-            // Case 4: output is directly an array of steps
-            else if (Array.isArray(output)) {
-              allSteps = output;
-              console.log(`✓ Found ${allSteps.length} steps in output array`);
-            }
-            // Case 5: output might be a StepsEnvelope with version and steps
-            else if (output && typeof output === 'object' && output.version && output.steps && Array.isArray(output.steps)) {
-              allSteps = output.steps;
-              console.log(`✓ Found ${allSteps.length} steps in StepsEnvelope`);
-            }
-            // Case 6: Check if output has nested structure - search all properties
-            else if (output && typeof output === 'object' && output !== null) {
-              console.log("Searching output object for steps array...");
-              // Try to find steps in any property
-              for (const key in output) {
-                const value = output[key];
-                console.log(`Checking output.${key}:`, typeof value, Array.isArray(value) ? `array[${value.length}]` : 'not array');
-                
-                if (Array.isArray(value) && value.length > 0) {
-                  // Check if it looks like steps array (has type property)
-                  const firstItem = value[0];
-                  if (firstItem && typeof firstItem === 'object' && firstItem.type) {
-                    allSteps = value;
-                    console.log(`✓ Found ${allSteps.length} steps in output.${key}`);
-                    break;
-                  }
-                }
-              }
-              
-              // If still no steps found, log all keys for debugging
-              if (allSteps.length === 0) {
-                console.log("Available keys in output:", Object.keys(output));
-                console.log("Output structure:", output);
-              }
-            }
-          }
-          // Case 7: pixelReturn might directly contain steps
-          else if (Array.isArray(pixelReturn)) {
-            allSteps = pixelReturn;
-            console.log(`✓ Found ${allSteps.length} steps directly in pixelReturn`);
-          }
-          // Case 8: Check pixelReturn properties directly
-          else if (pixelReturn && typeof pixelReturn === 'object') {
-            console.log("Checking pixelReturn object properties...");
-            for (const key in pixelReturn) {
-              const value = pixelReturn[key];
-              if (Array.isArray(value) && value.length > 0) {
-                const firstItem = value[0];
-                if (firstItem && typeof firstItem === 'object' && firstItem.type) {
-                  allSteps = value;
-                  console.log(`✓ Found ${allSteps.length} steps in pixelReturn.${key}`);
-                  break;
-                }
-              }
-            }
-            if (allSteps.length === 0) {
-              console.log("Available keys in pixelReturn:", Object.keys(pixelReturn));
-            }
+          } else {
+            console.warn("GetAllSteps: No output found in pixelReturn");
           }
         }
         

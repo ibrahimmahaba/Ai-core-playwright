@@ -17,7 +17,7 @@ import './Toolbar.css';
 
 function Toolbar(props: ToolbarProps) {
   const { sessionId, insightId, shot, setShot, mode, setMode, steps, setSteps, setLoading,
-    generationUserPrompt, setGenerationUserPrompt, selectedModel, setSelectedModel, modelOptions, tabId, editedData, setEditedData} = props;
+    generationUserPrompt, setGenerationUserPrompt, selectedModel, setSelectedModel, modelOptions, tabId, editedData, setEditedData, selectedRecording} = props;
   
   const [showPanel, setShowPanel] = useState(false);
 
@@ -207,7 +207,13 @@ function Toolbar(props: ToolbarProps) {
               />
             )}
             {mode === "show-steps" && editedData !== undefined && (
-              <StepsPanel steps={steps || []} editedData={editedData || []} />
+              <StepsPanel 
+                steps={steps || []} 
+                editedData={editedData || []} 
+                sessionId={sessionId}
+                insightId={insightId}
+                selectedRecording={selectedRecording}
+              />
             )}
             {mode === "edit-inputs" && editedData !== undefined && setEditedData !== undefined && (
               <InputsPanel editedData={editedData || []} setEditedData={setEditedData} />

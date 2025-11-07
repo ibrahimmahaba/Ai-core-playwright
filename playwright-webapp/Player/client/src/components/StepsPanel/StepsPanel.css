@@ -42,11 +42,94 @@
 }
 
 .step-item {
-  padding: 8px;
+  padding: 12px;
   transition: all 0.2s ease;
   display: flex;
-  justify-content: start;
   align-items: flex-start;
+  gap: 8px;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  background: #f8f9fa;
+}
+
+.step-item:hover {
+  border-color: #1976d2;
+}
+
+.step-checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+  min-width: 40px;
+}
+
+.step-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  min-width: 32px;
+  height: 24px;
+  background: #3672e3;
+  color: white;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.step-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.step-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: #333;
+  margin: 0;
+}
+
+.step-type-label {
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #666;
+}
+
+.step-item-click {
+  opacity: 0.6;
+  background: #f0f0f0;
+  color: #999;
+}
+
+.step-content-click {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.step-click-icons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.step-info-icon {
+  font-size: 18px;
+  color: #666;
+}
+
+.step-click-icon {
+  font-size: 20px;
+  color: #666;
 }
 
 .step-type {

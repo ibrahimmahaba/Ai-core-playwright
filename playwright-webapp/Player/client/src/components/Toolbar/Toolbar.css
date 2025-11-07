@@ -70,7 +70,7 @@
   top: 48px;
   left: 56px;
   height: calc(100vh - 48px);
-  width: 300px;
+  width: 450px;
   z-index: 999;
   background: #fff;
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
@@ -134,10 +134,10 @@
 
 /* Adjust main content when panel is open */
 body.toolbar-panel-open .remote-runner-container {
-  margin-left: 356px; /* 56px sidebar + 300px panel */
+  margin-left: 506px; /* 56px sidebar + 450px panel */
   transition: margin-left 0.3s ease;
 }
 
 body.toolbar-panel-open .screenshot-container {
-  max-width: calc(100% - 356px);
+  max-width: calc(100% - 506px);
 }

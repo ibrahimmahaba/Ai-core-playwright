@@ -61,21 +61,21 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 40px;
-  min-width: 40px;
+  width: 48px;
+  min-width: 48px;
 }
 
 .step-number {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  min-width: 32px;
-  height: 24px;
+  width: 36px;
+  min-width: 36px;
+  height: 28px;
   background: #3672e3;
   color: white;
   border-radius: 50%;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   flex-shrink: 0;
 }
@@ -104,9 +104,11 @@
 }
 
 .step-item-click {
-  opacity: 0.6;
-  background: #f0f0f0;
-  color: #999;
+  /* No dimming on the entire component */
+}
+
+.step-item-click .step-checkbox {
+  opacity: 0.5;
 }
 
 .step-content-click {
@@ -118,18 +120,21 @@
 .step-click-icons {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   flex-shrink: 0;
+  padding: 4px 8px;
 }
 
 .step-info-icon {
-  font-size: 18px;
+  font-size: 22px;
   color: #666;
+  min-width: 22px;
 }
 
 .step-click-icon {
-  font-size: 20px;
+  font-size: 24px;
   color: #666;
+  min-width: 24px;
 }
 
 .step-type {

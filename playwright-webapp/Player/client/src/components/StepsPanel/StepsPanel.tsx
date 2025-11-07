@@ -1,4 +1,4 @@
-import type { Action, Step } from "../../types";
+import type { Action, Step, TabData } from "../../types";
 import './StepsPanel.css';
 import TextField from '@mui/material/TextField';
 import Checkbox from '@mui/material/Checkbox';
@@ -12,12 +12,15 @@ interface StepsPanelProps {
   sessionId?: string;
   insightId?: string;
   selectedRecording?: string | null;
+  tabs?: TabData[];
+  activeTabId?: string;
 }
 
 function StepsPanel(props: StepsPanelProps) {
-  const { steps, editedData, sessionId, insightId, selectedRecording } = props;
+  const { steps, editedData, sessionId, insightId, selectedRecording, tabs, activeTabId } = props;
   const [editedValues, setEditedValues] = useState<Record<number, { [key: string]: string }>>({});
   const [loadedSteps, setLoadedSteps] = useState<Step[]>([]);
+  const [loadedStepsByTab, setLoadedStepsByTab] = useState<Record<string, Step[]>>({});
   const [loading, setLoading] = useState(false);
 
   // Call GetAllSteps when panel opens (component mounts) or when selectedRecording changes
@@ -33,60 +36,143 @@ function StepsPanel(props: StepsPanelProps) {
         const pixel = `GetAllSteps(sessionId="${sessionId}", fileName="${selectedRecording}")`;
         console.log("Fetching steps with pixel:", pixel);
         const res = await runPixel(pixel, insightId);
-        console.log("GetAllSteps full response:", res);
+        console.log("GetAllSteps full response:", JSON.stringify(res, null, 2));
         
         // Handle different possible response structures
         let allSteps: Step[] = [];
+        let stepsByTab: Record<string, Step[]> = {};
         
-        if (res && res.pixelReturn && res.pixelReturn.length > 0) {
+        if (!res) {
+          console.warn("GetAllSteps: No response received");
+        } else if (!res.pixelReturn || res.pixelReturn.length === 0) {
+          console.warn("GetAllSteps: No pixelReturn in response", res);
+        } else {
           const pixelReturn = res.pixelReturn[0];
-          console.log("GetAllSteps pixelReturn:", pixelReturn);
+          console.log("GetAllSteps pixelReturn:", JSON.stringify(pixelReturn, null, 2));
           
           // Try different response structures
-          if (pixelReturn.output) {
+          if (pixelReturn.output !== undefined) {
             const output = pixelReturn.output;
-            console.log("GetAllSteps output:", output);
+            console.log("GetAllSteps output type:", typeof output);
+            console.log("GetAllSteps output:", JSON.stringify(output, null, 2));
             
-            // Case 1: output.steps (StepsEnvelope structure)
-            if (output.steps && Array.isArray(output.steps)) {
-              allSteps = output.steps;
-              console.log(`Found ${allSteps.length} steps in output.steps`);
+            // Case 1: output.tabs - steps organized by tabs
+            if (output && typeof output === 'object' && output.tabs && Array.isArray(output.tabs)) {
+              console.log(`Found ${output.tabs.length} tabs in output.tabs`);
+              output.tabs.forEach((tab: any) => {
+                if (tab.id && tab.steps && Array.isArray(tab.steps)) {
+                  stepsByTab[tab.id] = tab.steps;
+                  allSteps = allSteps.concat(tab.steps);
+                  console.log(`✓ Tab ${tab.id}: ${tab.steps.length} steps`);
+                }
+              });
             }
-            // Case 2: output is directly an array of steps
-            else if (Array.isArray(output)) {
-              allSteps = output;
-              console.log(`Found ${allSteps.length} steps in output array`);
-            }
-            // Case 3: output might be a StepsEnvelope with version and steps
-            else if (output.version && output.steps && Array.isArray(output.steps)) {
-              allSteps = output.steps;
-              console.log(`Found ${allSteps.length} steps in StepsEnvelope`);
-            }
-            // Case 4: Check if output has nested structure
-            else if (typeof output === 'object') {
-              // Try to find steps in any property
+            // Case 2: output is an object with tabIds as keys
+            else if (output && typeof output === 'object' && !Array.isArray(output)) {
+              console.log("Checking if output contains tabs as keys...");
               for (const key in output) {
-                if (Array.isArray(output[key]) && output[key].length > 0) {
-                  // Check if it looks like steps array
-                  const potentialSteps = output[key];
-                  if (potentialSteps[0] && potentialSteps[0].type) {
-                    allSteps = potentialSteps;
-                    console.log(`Found ${allSteps.length} steps in output.${key}`);
-                    break;
+                const value = output[key];
+                if (Array.isArray(value) && value.length > 0) {
+                  const firstItem = value[0];
+                  // Check if it looks like steps array (has type property)
+                  if (firstItem && typeof firstItem === 'object' && firstItem.type) {
+                    // If key looks like a tabId (starts with "tab-" or is a tab identifier)
+                    if (key.startsWith('tab-') || key.includes('tab') || tabs?.some(t => t.id === key)) {
+                      stepsByTab[key] = value;
+                      allSteps = allSteps.concat(value);
+                      console.log(`✓ Tab ${key}: ${value.length} steps`);
+                    } else {
+                      // Otherwise treat as a single steps array
+                      allSteps = value;
+                      console.log(`✓ Found ${allSteps.length} steps in output.${key}`);
+                      break;
+                    }
                   }
                 }
               }
             }
+            // Case 3: output.steps (StepsEnvelope structure) - single array
+            else if (output && typeof output === 'object' && output.steps && Array.isArray(output.steps)) {
+              allSteps = output.steps;
+              console.log(`✓ Found ${allSteps.length} steps in output.steps`);
+            }
+            // Case 4: output is directly an array of steps
+            else if (Array.isArray(output)) {
+              allSteps = output;
+              console.log(`✓ Found ${allSteps.length} steps in output array`);
+            }
+            // Case 5: output might be a StepsEnvelope with version and steps
+            else if (output && typeof output === 'object' && output.version && output.steps && Array.isArray(output.steps)) {
+              allSteps = output.steps;
+              console.log(`✓ Found ${allSteps.length} steps in StepsEnvelope`);
+            }
+            // Case 6: Check if output has nested structure - search all properties
+            else if (output && typeof output === 'object' && output !== null) {
+              console.log("Searching output object for steps array...");
+              // Try to find steps in any property
+              for (const key in output) {
+                const value = output[key];
+                console.log(`Checking output.${key}:`, typeof value, Array.isArray(value) ? `array[${value.length}]` : 'not array');
+                
+                if (Array.isArray(value) && value.length > 0) {
+                  // Check if it looks like steps array (has type property)
+                  const firstItem = value[0];
+                  if (firstItem && typeof firstItem === 'object' && firstItem.type) {
+                    allSteps = value;
+                    console.log(`✓ Found ${allSteps.length} steps in output.${key}`);
+                    break;
+                  }
+                }
+              }
+              
+              // If still no steps found, log all keys for debugging
+              if (allSteps.length === 0) {
+                console.log("Available keys in output:", Object.keys(output));
+                console.log("Output structure:", output);
+              }
+            }
           }
-          // Case 5: pixelReturn might directly contain steps
+          // Case 7: pixelReturn might directly contain steps
           else if (Array.isArray(pixelReturn)) {
             allSteps = pixelReturn;
-            console.log(`Found ${allSteps.length} steps directly in pixelReturn`);
+            console.log(`✓ Found ${allSteps.length} steps directly in pixelReturn`);
+          }
+          // Case 8: Check pixelReturn properties directly
+          else if (pixelReturn && typeof pixelReturn === 'object') {
+            console.log("Checking pixelReturn object properties...");
+            for (const key in pixelReturn) {
+              const value = pixelReturn[key];
+              if (Array.isArray(value) && value.length > 0) {
+                const firstItem = value[0];
+                if (firstItem && typeof firstItem === 'object' && firstItem.type) {
+                  allSteps = value;
+                  console.log(`✓ Found ${allSteps.length} steps in pixelReturn.${key}`);
+                  break;
+                }
+              }
+            }
+            if (allSteps.length === 0) {
+              console.log("Available keys in pixelReturn:", Object.keys(pixelReturn));
+            }
           }
         }
         
         console.log(`Total steps to display: ${allSteps.length}`);
-        setLoadedSteps(allSteps);
+        console.log(`Steps by tab:`, stepsByTab);
+        if (allSteps.length > 0) {
+          console.log("First step example:", allSteps[0]);
+        }
+        
+        // If we have steps organized by tab, use those; otherwise use the flat array
+        if (Object.keys(stepsByTab).length > 0) {
+          setLoadedStepsByTab(stepsByTab);
+          // Flatten all steps from all tabs for display
+          const allStepsFromTabs = Object.values(stepsByTab).flat();
+          setLoadedSteps(allStepsFromTabs);
+        } else {
+          setLoadedSteps(allSteps);
+          setLoadedStepsByTab({});
+        }
       } catch (err) {
         console.error("Error fetching steps from GetAllSteps:", err);
         setLoadedSteps([]);
@@ -348,8 +434,29 @@ function StepsPanel(props: StepsPanelProps) {
 
   // Determine which steps to display: loadedSteps from GetAllSteps > editedData > steps
   const hasLoadedSteps = loadedSteps.length > 0;
+  const hasLoadedStepsByTab = Object.keys(loadedStepsByTab).length > 0;
   const hasEditedData = editedData && editedData.length > 0;
   const hasSteps = steps && steps.length > 0;
+
+  // If we have steps organized by tabs, show them grouped by tab
+  const renderStepsByTab = () => {
+    if (!hasLoadedStepsByTab) return null;
+    
+    return Object.entries(loadedStepsByTab).map(([tabId, tabSteps]) => {
+      const tab = tabs?.find(t => t.id === tabId);
+      const tabTitle = tab?.title || tabId;
+      const stepsArray = tabSteps as Step[];
+      
+      return (
+        <div key={tabId} className="steps-tab-group">
+          <h4 className="steps-tab-title">{tabTitle} ({stepsArray.length} steps)</h4>
+          <div className="steps-list">
+            {stepsArray.map((step, index) => renderStep(step, index))}
+          </div>
+        </div>
+      );
+    });
+  };
 
   return (
     <div className="steps-panel">
@@ -361,10 +468,19 @@ function StepsPanel(props: StepsPanelProps) {
           </div>
         ) : hasLoadedSteps ? (
           <>
-            <h3 className="steps-panel-section-title">Steps ({loadedSteps.length})</h3>
-            <div className="steps-list">
-              {loadedSteps.map((step, index) => renderStep(step, index))}
-            </div>
+            {hasLoadedStepsByTab ? (
+              <>
+                <h3 className="steps-panel-section-title">All Steps ({loadedSteps.length})</h3>
+                {renderStepsByTab()}
+              </>
+            ) : (
+              <>
+                <h3 className="steps-panel-section-title">Steps ({loadedSteps.length})</h3>
+                <div className="steps-list">
+                  {loadedSteps.map((step, index) => renderStep(step, index))}
+                </div>
+              </>
+            )}
           </>
         ) : hasEditedData ? (
           <>

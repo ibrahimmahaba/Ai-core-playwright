@@ -898,6 +898,7 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
         editedData={editedData}
         setEditedData={setEditedData}
         selectedRecording={selectedRecording}
+        tabs={tabs}
       />
 
       {/* header */}

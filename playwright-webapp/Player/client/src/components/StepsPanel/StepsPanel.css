@@ -174,3 +174,20 @@
   color: #bbb !important;
 }
 
+.steps-tab-group {
+  margin-bottom: 24px;
+}
+
+.steps-tab-group:last-child {
+  margin-bottom: 0;
+}
+
+.steps-tab-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1976d2;
+  margin: 0 0 12px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e0e0e0;
+}
+

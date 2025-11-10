@@ -17,7 +17,7 @@ import './Toolbar.css';
 
 function Toolbar(props: ToolbarProps) {
   const { sessionId, insightId, shot, setShot, mode, setMode, steps, setSteps, setLoading,
-    generationUserPrompt, setGenerationUserPrompt, selectedModel, setSelectedModel, modelOptions, tabId, editedData, setEditedData, selectedRecording, tabs} = props;
+    generationUserPrompt, setGenerationUserPrompt, selectedModel, setSelectedModel, modelOptions, tabId, editedData, setEditedData, selectedRecording, tabs, setActiveTabId} = props;
   
   const [showPanel, setShowPanel] = useState(false);
 
@@ -235,6 +235,7 @@ function Toolbar(props: ToolbarProps) {
                 selectedRecording={selectedRecording}
                 tabs={tabs}
                 activeTabId={tabId}
+                setActiveTabId={setActiveTabId}
               />
             )}
             {mode === "edit-inputs" && editedData !== undefined && setEditedData !== undefined && (

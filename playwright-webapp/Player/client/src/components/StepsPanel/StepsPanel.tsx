@@ -4,8 +4,9 @@ import TextField from '@mui/material/TextField';
 import Checkbox from '@mui/material/Checkbox';
 import { Info as InfoIcon, Mouse as ClickIcon } from "@mui/icons-material";
 import { useState, useEffect } from 'react';
+import { useRef, useCallback } from 'react';
 import { runPixel } from "@semoss/sdk";
-import { Box, Button } from "@mui/material";
+import { Box, Button, FormControl, InputLabel, Select, MenuItem } from "@mui/material";
 import AdsClickIcon from '@mui/icons-material/AdsClick';
 
 interface StepsPanelProps {
@@ -16,163 +17,147 @@ interface StepsPanelProps {
   selectedRecording?: string | null;
   tabs?: TabData[];
   activeTabId?: string;
+  setActiveTabId?: React.Dispatch<React.SetStateAction<string>>;
 }
 
 function StepsPanel(props: StepsPanelProps) {
-  const { steps, editedData, sessionId, insightId, selectedRecording, tabs, activeTabId } = props;
+  const { steps, editedData, sessionId, insightId, selectedRecording, tabs, activeTabId, setActiveTabId } = props;
   const [editedValues, setEditedValues] = useState<Record<number, { [key: string]: string }>>({});
   const [loadedSteps, setLoadedSteps] = useState<Step[]>([]);
   const [loadedStepsByTab, setLoadedStepsByTab] = useState<Record<string, Step[]>>({});
   const [loading, setLoading] = useState(false);
+  const [dirtyFields, setDirtyFields] = useState<Record<number, Set<string>>>({});
+  const isFetchingRef = useRef(false);
+  const [selectedTabId, setSelectedTabId] = useState<string>(() => activeTabId || tabs?.[0]?.id || "");
 
-  // Sync editedValues with editedData changes (e.g., from overlay)
-  // Only update values that come from editedData, preserving local edits
+  // Keep local selection in sync with external activeTabId (screen tabs)
   useEffect(() => {
-    if (editedData && editedData.length > 0) {
-      setEditedValues(prev => {
-        const updated = { ...prev };
-        editedData.forEach((action, index) => {
-          if ("TYPE" in action) {
-            // Only update if the value in editedData is different from current
-            if (!updated[index] || updated[index].text !== action.TYPE.text) {
-              updated[index] = {
-                ...updated[index],
-                text: action.TYPE.text
-              };
-            }
-          } else if ("SCROLL" in action) {
-            const deltaYStr = String(action.SCROLL.deltaY);
-            if (!updated[index] || updated[index].deltaY !== deltaYStr) {
-              updated[index] = {
-                ...updated[index],
-                deltaY: deltaYStr
-              };
-            }
-          } else if ("WAIT" in action) {
-            const waitStr = String(action.WAIT);
-            if (!updated[index] || updated[index].wait !== waitStr) {
-              updated[index] = {
-                ...updated[index],
-                wait: waitStr
-              };
-            }
-          } else if ("NAVIGATE" in action) {
-            if (!updated[index] || updated[index].url !== action.NAVIGATE) {
-              updated[index] = {
-                ...updated[index],
-                url: action.NAVIGATE
-              };
-            }
-          }
-        });
-        return updated;
-      });
+    if (activeTabId && activeTabId !== selectedTabId) {
+      setSelectedTabId(activeTabId);
+      // Reset local edit caches when switching tabs
+      setEditedValues({});
+      setDirtyFields({});
     }
-  }, [editedData]);
+  }, [activeTabId]);
 
-  // Call GetAllSteps when panel opens (component mounts) or when selectedRecording changes
-  useEffect(() => {
-    async function fetchSteps() {
-      if (!sessionId || !selectedRecording) {
-        setLoadedSteps([]);
-        return;
-      }
+  // Remove editedData sync to avoid cursor jumps and always rely on GetAllSteps
 
-      setLoading(true);
-      try {
-        const pixel = `GetAllSteps(sessionId="${sessionId}", fileName="${selectedRecording}")`;
-        console.log("Fetching steps with pixel:", pixel);
-        const res = await runPixel(pixel, insightId);
-        console.log("GetAllSteps full response:", JSON.stringify(res, null, 2));
-        
-        // Parse steps from output.steps structure: { "tab-1": { steps: [...] }, "tab-2": { steps: [...] } }
-        let allSteps: Step[] = [];
-        let stepsByTab: Record<string, Step[]> = {};
-        
-        if (!res) {
-          console.warn("GetAllSteps: No response received");
-        } else if (!res.pixelReturn || res.pixelReturn.length === 0) {
-          console.warn("GetAllSteps: No pixelReturn in response", res);
-        } else {
-          const pixelReturn = res.pixelReturn[0];
-          console.log("GetAllSteps pixelReturn:", JSON.stringify(pixelReturn, null, 2));
-          
-          // Parse output.steps structure: { "tab-1": { steps: [...] }, "tab-2": { steps: [...] } }
-          if (pixelReturn.output !== undefined) {
-            const output = pixelReturn.output;
-            console.log("GetAllSteps output type:", typeof output);
-            console.log("GetAllSteps output:", JSON.stringify(output, null, 2));
-            
-            // output.steps is an object with tabIds as keys, each containing steps array
-            // Structure: output.steps = { "tab-1": { steps: [...] }, "tab-2": { steps: [...] } }
-            if (output && typeof output === 'object' && output.steps && typeof output.steps === 'object' && !Array.isArray(output.steps)) {
-              console.log("Parsing output.steps for tab-based structure...");
-              const stepsObj = output.steps;
-              for (const tabId in stepsObj) {
-                const tabData = stepsObj[tabId];
-                if (tabData && typeof tabData === 'object') {
-                  // Check if tabData has a steps array
-                  if (Array.isArray(tabData.steps)) {
-                    stepsByTab[tabId] = tabData.steps;
-                    allSteps = allSteps.concat(tabData.steps);
-                    console.log(`✓ Tab ${tabId}: ${tabData.steps.length} steps`);
-                  }
-                  // Check if tabData itself is an array (fallback)
-                  else if (Array.isArray(tabData) && tabData.length > 0) {
-                    const firstItem = tabData[0];
-                    if (firstItem && typeof firstItem === 'object' && firstItem.type) {
-                      stepsByTab[tabId] = tabData;
-                      allSteps = allSteps.concat(tabData);
-                      console.log(`✓ Tab ${tabId}: ${tabData.length} steps (direct array)`);
-                    }
-                  }
-                }
-              }
-            } else {
-              console.warn("GetAllSteps: Expected output.steps structure not found");
-              console.log("Available keys in output:", output ? Object.keys(output) : "output is null/undefined");
-            }
-          } else {
-            console.warn("GetAllSteps: No output found in pixelReturn");
-          }
-        }
-        
-        console.log(`Total steps to display: ${allSteps.length}`);
-        console.log(`Steps by tab:`, stepsByTab);
-        if (allSteps.length > 0) {
-          console.log("First step example:", allSteps[0]);
-        }
-        
-        // If we have steps organized by tab, use those; otherwise use the flat array
-        if (Object.keys(stepsByTab).length > 0) {
-          setLoadedStepsByTab(stepsByTab);
-          // Flatten all steps from all tabs for display
-          const allStepsFromTabs = Object.values(stepsByTab).flat();
-          setLoadedSteps(allStepsFromTabs);
-        } else {
-          setLoadedSteps(allSteps);
-          setLoadedStepsByTab({});
-        }
-      } catch (err) {
-        console.error("Error fetching steps from GetAllSteps:", err);
-        setLoadedSteps([]);
-      } finally {
-        setLoading(false);
-      }
+  // Fetch steps (factored for reuse by polling)
+  const fetchSteps = useCallback(async () => {
+    if (!sessionId || !selectedRecording) {
+      setLoadedSteps([]);
+      setLoadedStepsByTab({});
+      return;
     }
 
-    // Always fetch when component mounts (panel opens) or when selectedRecording changes
+    setLoading(true);
+    try {
+      const pixel = `GetAllSteps(sessionId="${sessionId}", fileName="${selectedRecording}")`;
+      const res = await runPixel(pixel, insightId);
+      let allSteps: Step[] = [];
+      let stepsByTab: Record<string, Step[]> = {};
+
+      const pixelReturn = res?.pixelReturn?.[0];
+      const output = pixelReturn?.output;
+      if (output && typeof output === 'object' && output.steps && typeof output.steps === 'object' && !Array.isArray(output.steps)) {
+        const stepsObj = output.steps;
+        for (const tabId in stepsObj) {
+          const tabData = stepsObj[tabId];
+          if (tabData && typeof tabData === 'object') {
+            if (Array.isArray(tabData.steps)) {
+              stepsByTab[tabId] = tabData.steps;
+              allSteps = allSteps.concat(tabData.steps);
+            } else if (Array.isArray(tabData) && tabData.length > 0 && (tabData as any)[0]?.type) {
+              stepsByTab[tabId] = tabData as Step[];
+              allSteps = allSteps.concat(tabData as Step[]);
+            }
+          }
+        }
+      }
+
+      if (Object.keys(stepsByTab).length > 0) {
+        setLoadedStepsByTab(stepsByTab);
+        setLoadedSteps(Object.values(stepsByTab).flat());
+      } else {
+        setLoadedSteps(allSteps);
+        setLoadedStepsByTab({});
+      }
+    } catch (err) {
+      console.error("Error fetching steps from GetAllSteps:", err);
+      setLoadedSteps([]);
+      setLoadedStepsByTab({});
+    } finally {
+      setLoading(false);
+    }
+  }, [sessionId, selectedRecording, insightId]);
+
+  // Initial fetch and refetch when identifiers change
+  useEffect(() => {
     fetchSteps();
-  }, [sessionId, insightId, selectedRecording]);
+  }, [fetchSteps]);
+
+  // Lightweight polling to live-update panel (does not overwrite dirty fields)
+  useEffect(() => {
+    if (!sessionId || !selectedRecording) return;
+    const id = setInterval(async () => {
+      if (isFetchingRef.current) return;
+      isFetchingRef.current = true;
+      try {
+        await fetchSteps();
+      } finally {
+        isFetchingRef.current = false;
+      }
+    }, 1000);
+    return () => clearInterval(id);
+  }, [sessionId, selectedRecording, fetchSteps]);
+
+  // Seed editedValues from currently displayed steps without overwriting fields user is actively editing
+  useEffect(() => {
+    const current = Object.keys(loadedStepsByTab).length > 0
+      ? (loadedStepsByTab[selectedTabId] || [])
+      : loadedSteps;
+    if (!current || current.length === 0) return;
+
+    setEditedValues(prev => {
+      const next = { ...prev };
+      current.forEach((step, index) => {
+        const dirty = dirtyFields[index] || new Set<string>();
+        if (step.type === 'TYPE') {
+          if (!dirty.has('text')) {
+            next[index] = { ...(next[index] || {}), text: step.isPassword ? '••••••••' : step.text };
+          }
+        } else if (step.type === 'SCROLL') {
+          if (!dirty.has('deltaY')) {
+            next[index] = { ...(next[index] || {}), deltaY: String(step.deltaY ?? 0) };
+          }
+        } else if (step.type === 'WAIT') {
+          if (!dirty.has('wait')) {
+            next[index] = { ...(next[index] || {}), wait: String(step.waitAfterMs ?? 0) };
+          }
+        } else if (step.type === 'NAVIGATE') {
+          if (!dirty.has('url')) {
+            next[index] = { ...(next[index] || {}), url: step.url };
+          }
+        }
+      });
+      return next;
+    });
+  }, [loadedSteps, loadedStepsByTab, selectedTabId]);
 
   const handleValueChange = (index: number, field: string, value: string) => {
     setEditedValues(prev => ({
       ...prev,
       [index]: {
-        ...prev[index],
+        ...(prev[index] || {}),
         [field]: value
       }
     }));
+    setDirtyFields(prev => {
+      const copy = { ...prev };
+      copy[index] = new Set(copy[index] || []);
+      copy[index].add(field);
+      return copy;
+    });
   };
 
   const getValue = (index: number, field: string, defaultValue: string) => {
@@ -449,62 +434,57 @@ function StepsPanel(props: StepsPanelProps) {
     return null;
   };
 
-  // Determine which steps to display: loadedSteps from GetAllSteps > editedData > steps
+  // Determine which steps to display (current tab only if tabbed steps are available)
   const hasLoadedSteps = loadedSteps.length > 0;
   const hasLoadedStepsByTab = Object.keys(loadedStepsByTab).length > 0;
-  const hasEditedData = editedData && editedData.length > 0;
   const hasSteps = steps && steps.length > 0;
+  const currentSteps: Step[] = hasLoadedStepsByTab
+    ? (loadedStepsByTab[selectedTabId] || [])
+    : loadedSteps;
 
-  // If we have steps organized by tabs, show them grouped by tab
-  const renderStepsByTab = () => {
-    if (!hasLoadedStepsByTab) return null;
-    
-    return Object.entries(loadedStepsByTab).map(([tabId, tabSteps]) => {
-      const tab = tabs?.find(t => t.id === tabId);
-      const tabTitle = tab?.title || tabId;
-      const stepsArray = tabSteps as Step[];
-      
-      return (
-        <div key={tabId} className="steps-tab-group">
-          <h4 className="steps-tab-title">{tabTitle} ({stepsArray.length} steps)</h4>
-          <div className="steps-list">
-            {stepsArray.map((step, index) => renderStep(step, index))}
-          </div>
-        </div>
-      );
-    });
+  const handleTabChange = (value: string) => {
+    setSelectedTabId(value);
+    if (setActiveTabId) setActiveTabId(value);
+    // Reset local edit caches when switching tabs
+    setEditedValues({});
+    setDirtyFields({});
   };
 
   return (
     <div className="steps-panel">
       <div className="steps-panel-content">
         <a className="tools-header-tag">STEPS</a>
+        {tabs && tabs.length > 0 && (
+          <div style={{ marginBottom: 12 }}>
+            <FormControl size="small" fullWidth>
+              <InputLabel id="steps-tab-select">Tab</InputLabel>
+              <Select
+                labelId="steps-tab-select"
+                label="Tab"
+                value={selectedTabId || ""}
+                onChange={(e) => handleTabChange(e.target.value as string)}
+              >
+                {tabs.map(t => (
+                  <MenuItem key={t.id} value={t.id}>{t.title || t.id}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </div>
+        )}
         {loading ? (
           <div className="steps-panel-empty">
             <p>Loading steps...</p>
           </div>
-        ) : hasEditedData ? (
+        ) : (hasLoadedSteps || hasLoadedStepsByTab) ? (
           <>
-            <h3 className="steps-panel-section-title">Actions ({editedData.length})</h3>
+            <h3 className="steps-panel-section-title">
+              {tabs && tabs.length > 0
+                ? `${(tabs.find(t => t.id === selectedTabId)?.title || selectedTabId)} (${currentSteps.length})`
+                : `Steps (${currentSteps.length})`}
+            </h3>
             <div className="steps-list">
-              {editedData.map((action, index) => renderAction(action, index))}
+              {currentSteps.map((step, index) => renderStep(step, index))}
             </div>
-          </>
-        ) : hasLoadedSteps ? (
-          <>
-            {hasLoadedStepsByTab ? (
-              <>
-                <h3 className="steps-panel-section-title">All Steps ({loadedSteps.length})</h3>
-                {renderStepsByTab()}
-              </>
-            ) : (
-              <>
-                <h3 className="steps-panel-section-title">Steps ({loadedSteps.length})</h3>
-                <div className="steps-list">
-                  {loadedSteps.map((step, index) => renderStep(step, index))}
-                </div>
-              </>
-            )}
           </>
         ) : hasSteps ? (
           <>

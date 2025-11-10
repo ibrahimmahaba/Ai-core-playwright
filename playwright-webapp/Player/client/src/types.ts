@@ -138,6 +138,7 @@ export interface ToolbarProps {
   setEditedData?: React.Dispatch<React.SetStateAction<Action[]>>;
   selectedRecording?: string | null;
   tabs?: TabData[];
+  setActiveTabId?: React.Dispatch<React.SetStateAction<string>>;
 }
 
 

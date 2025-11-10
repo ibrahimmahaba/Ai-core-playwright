@@ -910,6 +910,7 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
         setSelectedModel={setSelectedModel}
         modelOptions={modelOptions}
         tabId={activeTabId}
+        setActiveTabId={setActiveTabId}
         editedData={editedData}
         setEditedData={setEditedData}
         selectedRecording={selectedRecording}

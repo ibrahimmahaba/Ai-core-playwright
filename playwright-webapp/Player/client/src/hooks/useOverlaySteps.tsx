@@ -92,7 +92,7 @@ export function useOverlaySteps({
 
 
           // Extract action data
-          const { type, coords: extractedCoords, text } = extractActionData(action as any, index, shot);
+          const { type, coords: extractedCoords, text } = extractActionData(action as any, shot);
 
           let coords = extractedCoords;
 

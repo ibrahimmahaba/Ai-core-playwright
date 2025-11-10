@@ -162,6 +162,12 @@ function Toolbar(props: ToolbarProps) {
               aria-pressed={active}
               onClick={async () => {
                 if (disabled) return;
+                // Toggle behavior: if clicking the active panel icon, close the panel
+                if (active) {
+                  setMode("");
+                  setShowPanel(false);
+                  return;
+                }
                 if (m === "tools") {
                   setMode("tools");
                 } else if (m == "generate-steps") {

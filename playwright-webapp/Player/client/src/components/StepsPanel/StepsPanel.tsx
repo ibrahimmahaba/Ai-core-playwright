@@ -96,20 +96,9 @@ function StepsPanel(props: StepsPanelProps) {
     fetchSteps();
   }, [fetchSteps]);
 
-  // Lightweight polling to live-update panel (does not overwrite dirty fields)
-  useEffect(() => {
-    if (!sessionId || !selectedRecording) return;
-    const id = setInterval(async () => {
-      if (isFetchingRef.current) return;
-      isFetchingRef.current = true;
-      try {
-        await fetchSteps();
-      } finally {
-        isFetchingRef.current = false;
-      }
-    }, 1000);
-    return () => clearInterval(id);
-  }, [sessionId, selectedRecording, fetchSteps]);
+  // Disable periodic polling; we'll refetch only on user-initiated changes
+  // (e.g., typing in text fields or switching tabs)
+  const refetchTimeoutRef = useRef<number | null>(null);
 
   // Seed editedValues from currently displayed steps without overwriting fields user is actively editing
   useEffect(() => {
@@ -158,6 +147,20 @@ function StepsPanel(props: StepsPanelProps) {
       copy[index].add(field);
       return copy;
     });
+
+    // Debounced refetch to sync from backend only when user edits
+    if (refetchTimeoutRef.current) {
+      clearTimeout(refetchTimeoutRef.current);
+    }
+    refetchTimeoutRef.current = window.setTimeout(async () => {
+      if (isFetchingRef.current) return;
+      isFetchingRef.current = true;
+      try {
+        await fetchSteps();
+      } finally {
+        isFetchingRef.current = false;
+      }
+    }, 400);
   };
 
   const getValue = (index: number, field: string, defaultValue: string) => {
@@ -448,6 +451,16 @@ function StepsPanel(props: StepsPanelProps) {
     // Reset local edit caches when switching tabs
     setEditedValues({});
     setDirtyFields({});
+    // Refetch steps for the newly selected tab
+    (async () => {
+      if (isFetchingRef.current) return;
+      isFetchingRef.current = true;
+      try {
+        await fetchSteps();
+      } finally {
+        isFetchingRef.current = false;
+      }
+    })();
   };
 
   return (

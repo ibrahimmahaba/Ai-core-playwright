@@ -120,6 +120,13 @@ function Toolbar(props: ToolbarProps) {
     };
   }, [mode, activeItem]);
 
+  // Listen for requests to open Steps panel (e.g., after loading a JSON file)
+  useEffect(() => {
+    const openStepsHandler = () => setMode("show-steps");
+    window.addEventListener('openShowStepsPanel', openStepsHandler as EventListener);
+    return () => window.removeEventListener('openShowStepsPanel', openStepsHandler as EventListener);
+  }, [setMode]);
+
   return (
     <>
       <div className="toolbar-container">

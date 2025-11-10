@@ -483,6 +483,13 @@ function StepsPanel(props: StepsPanelProps) {
           <div className="steps-panel-empty">
             <p>Loading steps...</p>
           </div>
+        ) : hasEditedData ? (
+          <>
+            <h3 className="steps-panel-section-title">Actions ({editedData.length})</h3>
+            <div className="steps-list">
+              {editedData.map((action, index) => renderAction(action, index))}
+            </div>
+          </>
         ) : hasLoadedSteps ? (
           <>
             {hasLoadedStepsByTab ? (
@@ -498,13 +505,6 @@ function StepsPanel(props: StepsPanelProps) {
                 </div>
               </>
             )}
-          </>
-        ) : hasEditedData ? (
-          <>
-            <h3 className="steps-panel-section-title">Actions ({editedData.length})</h3>
-            <div className="steps-list">
-              {editedData.map((action, index) => renderAction(action, index))}
-            </div>
           </>
         ) : hasSteps ? (
           <>

@@ -10,7 +10,7 @@ import { useState } from "react";
 
 export function VisionPopup(props : VisionPopupProps) {
     const {sessionId, insightId, visionPopup , setVisionPopup,
-    currentCropArea, setCurrentCropArea,  setMode, setCrop, selectedModel, tabId, storedContexts, setStoredContexts} = props;
+    currentCropArea, setCurrentCropArea,  setMode, setCrop, selectedModel, tabId, storedContexts, setStoredContexts, imgRef} = props;
     const [isLoading, setIsLoading] = useState(false);
 
     async function handleLLMAnalysis() {
@@ -20,15 +20,32 @@ export function VisionPopup(props : VisionPopupProps) {
     setIsLoading(true);
 
     try {
+
+      const imgRect = imgRef?.current?.getBoundingClientRect();
+      
+      const displayWidth = imgRect?.width ??  1280;
+      const displayHeight = imgRect?.height ?? 800; 
+
+      const screenshotWidth = 1280;
+      const screenshotHeight = 800;
+      
+      // Scale coordinates
+      const scaledCropArea = {
+        startX: Math.round((currentCropArea.startX / displayWidth) * screenshotWidth),
+        startY: Math.round((currentCropArea.startY / displayHeight) * screenshotHeight),
+        endX: Math.round((currentCropArea.endX / displayWidth) * screenshotWidth),
+        endY: Math.round((currentCropArea.endY / displayHeight) * screenshotHeight)
+      };
+      
       const pixel = `ImageContext(
         sessionId="${sessionId}",
         tabId="${tabId}",
         engine="${selectedModel?.value}", 
         paramValues=[{
-          "startX": ${currentCropArea.startX}, 
-          "startY": ${currentCropArea.startY}, 
-          "endX": ${currentCropArea.endX}, 
-          "endY": ${currentCropArea.endY},
+          "startX": ${scaledCropArea.startX}, 
+          "startY": ${scaledCropArea.startY}, 
+          "endX": ${scaledCropArea.endX}, 
+          "endY": ${scaledCropArea.endY},
           "userPrompt": "${visionPopup.query}"
         }]
       )`;
@@ -61,7 +78,7 @@ export function VisionPopup(props : VisionPopupProps) {
   return (
     <div>
         {visionPopup && (
-            <Draggable>
+            <Draggable handle="strong">
               <div className="vision-popup-dialog" style={{
                 top: visionPopup.y,
                 left: visionPopup.x,
@@ -69,6 +86,7 @@ export function VisionPopup(props : VisionPopupProps) {
                 }}>
                 {!visionPopup.response ? (
                   <>
+                    <strong style={{ cursor: "move", display: "block", marginBottom: "8px", color: "black", borderBottom: "1px solid #e0e0e0" }}>Add Context</strong>
                     <TextField
                       label="Ask about this area"
                       size="small"
@@ -97,6 +115,7 @@ export function VisionPopup(props : VisionPopupProps) {
                   </>
                 ) : (
                   <>
+                    <strong style={{ cursor: "move", display: "block", marginBottom: "8px", color: "black"}}>Add Context</strong>
                     <TextField
                       fullWidth
                       multiline

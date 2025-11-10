@@ -66,7 +66,7 @@ export interface ScreenshotResponse {
   export interface ContextStep extends BaseStep {
     type: 'CONTEXT';
     multiCoords: Coords[];
-    prompt: String
+    prompt: string;
   }
   
   // Discriminated union for all step types
@@ -144,6 +144,7 @@ export interface ScreenshotResponse {
     currentCropArea: CropArea | null;
     setCurrentCropArea: React.Dispatch<React.SetStateAction<CropArea | null>>;
     setCrop: React.Dispatch<React.SetStateAction<Crop | undefined>>;
+    imgRef:  React.RefObject<HTMLImageElement | null>;
   }
   
   export type ModelOption = { label: string; value: string } ;

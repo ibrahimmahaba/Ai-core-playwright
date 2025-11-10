@@ -197,7 +197,8 @@ export type CropArea = {
     setVisionPopup: React.Dispatch<React.SetStateAction<VisionPopup | null>>;
     setCurrentCropArea: React.Dispatch<React.SetStateAction<CropArea | null>>;
     setMode: React.Dispatch<React.SetStateAction<string>>;
-    setCrop: React.Dispatch<React.SetStateAction<Crop| undefined>>
+    setCrop: React.Dispatch<React.SetStateAction<Crop| undefined>>;
+    imgRef: React.RefObject<HTMLImageElement | null>;
   }
 
   export interface VisionPopup {x: number; y: number; query: string; response: string | null;}
@@ -218,6 +219,7 @@ export type CropArea = {
     tabId: string;
     storedContexts: string[];
     setStoredContexts: React.Dispatch<React.SetStateAction<string[]>>;
+    imgRef: React.RefObject<HTMLImageElement | null>;
   }
 
 

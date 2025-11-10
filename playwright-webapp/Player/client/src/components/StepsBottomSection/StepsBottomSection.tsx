@@ -13,7 +13,7 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
         overlay, setOverlay, sessionId, selectedRecording, 
         setLoading, insightId, setEditedData, updatedData, setUpdatedData, setShot,
         setHighlight, steps, setSteps, shot, activeTabId, tabs, setTabs , setActiveTabId,
-        setCurrentCropArea, setVisionPopup, setMode, setCrop
+        setCurrentCropArea, setVisionPopup, setMode, setCrop, imgRef
     } = props
 
     const { sendStep } = useSendStep({
@@ -46,26 +46,54 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
           const coords = nextAction.CONTEXT.multiCoords;
           console.log("CONTEXT action detected - showing crop overlay");
           if (coords && coords.length >= 2) {
+
+            const imgRect = imgRef?.current?.getBoundingClientRect();
+
+            console.log("imgRect:",imgRect);
+      
+            const displayWidth = imgRect?.width ??  1280;
+            const displayHeight = imgRect?.height ?? 800; 
+
+            console.log("displayWidth", displayWidth);
+            console.log("displayHeight", displayHeight);
+
+            const screenshotWidth = 1280;
+            const screenshotHeight = 800;
+            
+            // Scale coordinates
+            const scaleX = displayWidth / screenshotWidth;   
+            const scaleY = displayHeight / screenshotHeight;
+            
+            const scaled = coords.map((c: any) => ({
+              x: Math.round(c.x * scaleX),  // 249 * 0.53 = 132
+              y: Math.round(c.y * scaleY)   // 123 * 0.53 = 65
+            }));
+
+            console.log('Screenshot size:', screenshotWidth, 'x', screenshotHeight);
+            console.log('Display size:', displayWidth, 'x', displayHeight);
+            console.log('Original coords (screenshot space):', coords);
+
             setCurrentCropArea({
-              startX: coords[0].x,
-              startY: coords[0].y,
-              endX: coords[1].x,
-              endY: coords[1].y
+              startX: scaled[0].x,
+              startY: scaled[0].y,
+              endX: scaled[1].x,
+              endY: scaled[1].y
             });
+            
             setVisionPopup({
-              x: coords[1].x,
-              y: coords[0].y,
+              x: scaled[1].x,
+              y: scaled[0].y,
               query: nextAction.CONTEXT.prompt,
               response: null
             });
             setMode("crop");
             
             setCrop({
-              unit: 'px',
-              x: coords[0].x,
-              y: coords[0].y,
-              width: coords[1].x - coords[0].x,
-              height: coords[1].y - coords[0].y
+                  unit: 'px',
+                  x: scaled[0].x,
+                  y: scaled[0].y,
+                  width: scaled[1].x - scaled[0].x,
+                  height: scaled[1].y - scaled[0].y
             });
           }
         }

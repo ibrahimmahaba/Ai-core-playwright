@@ -95,6 +95,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
   };
 
   async function setOverlayForType() {
+    setIsSessionExpired(isSessionExpired);
     const nextAction = editedData[0];
     if ("TYPE" in nextAction) {
       const typeAction = nextAction.TYPE;
@@ -1100,6 +1101,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
             tabId={activeTabId}
             storedContexts={storedContexts}
             setStoredContexts={setStoredContexts}
+            imgRef={imgRef}
           />
 
           {/* Permanent Step Labels */}
@@ -1139,6 +1141,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       setCurrentCropArea={setCurrentCropArea}
       setMode={setMode} 
       setCrop={setCrop} 
+      imgRef={imgRef}
     />
 
     </div>

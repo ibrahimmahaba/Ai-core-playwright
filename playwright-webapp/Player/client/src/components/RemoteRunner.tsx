@@ -829,6 +829,13 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
               return updatedData;
             });
           }
+          // Notify StepsPanel to sync its TextField
+          try {
+            const labelForEvent = (ol.draftLabel ?? probe.labelText ?? null);
+            window.dispatchEvent(new CustomEvent('stepTextDraftFromOverlay', {
+              detail: { label: labelForEvent, text: e.target.value }
+            }));
+          } catch {}
         },
         style: controlStyle,
       } as const;
@@ -889,6 +896,39 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
     );
   }
   
+  // Listen for edits coming from StepsPanel to update overlay and local editedData
+  useEffect(() => {
+    const handler = (ev: Event) => {
+      const ce = ev as CustomEvent<{ label: string | null; text: string }>;
+      const incoming = ce.detail;
+      // Update overlay draft if current overlay is an input
+      setOverlay(prev => {
+        if (!prev || prev.kind !== 'input') return prev;
+        const currentLabel = prev.draftLabel ?? prev.probe.labelText ?? null;
+        // If labels are comparable, or no label provided, still update to keep in sync
+        if (incoming.label == null || currentLabel == null || incoming.label === currentLabel) {
+          return { ...prev, draftValue: incoming.text };
+        }
+        return prev;
+      });
+      // Also update first TYPE in editedData if present
+      setEditedData(prev => {
+        if (!prev || prev.length === 0) return prev;
+        const first = prev[0];
+        if (!("TYPE" in first)) return prev;
+        const currentLabel = first.TYPE.label ?? null;
+        if (incoming.label == null || currentLabel == null || incoming.label === currentLabel) {
+          const updated = [...prev];
+          updated[0] = { TYPE: { ...first.TYPE, text: incoming.text } };
+          return updated;
+        }
+        return prev;
+      });
+    };
+    window.addEventListener('stepTextDraftFromPanel', handler as EventListener);
+    return () => window.removeEventListener('stepTextDraftFromPanel', handler as EventListener);
+  }, [setEditedData, setOverlay]);
+
   return (
     <div className="remote-runner-container">
       {/* toolbar */}

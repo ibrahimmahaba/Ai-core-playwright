@@ -148,6 +148,20 @@ function StepsPanel(props: StepsPanelProps) {
       return copy;
     });
 
+    // Broadcast to overlay that panel value changed (for TYPE text or other fields)
+    try {
+      const current = Object.keys(loadedStepsByTab).length > 0
+        ? (loadedStepsByTab[selectedTabId] || [])
+        : loadedSteps;
+      const step = current[index];
+      if (field === 'text' && step && step.type === 'TYPE') {
+        const label = step.label ?? null;
+        window.dispatchEvent(new CustomEvent('stepTextDraftFromPanel', {
+          detail: { label, text: value }
+        }));
+      }
+    } catch {}
+
     // Debounced refetch to sync from backend only when user edits
     if (refetchTimeoutRef.current) {
       clearTimeout(refetchTimeoutRef.current);
@@ -162,6 +176,34 @@ function StepsPanel(props: StepsPanelProps) {
       }
     }, 400);
   };
+
+  // Listen for overlay-driven text changes to keep panel in sync
+  useEffect(() => {
+    const handler = (ev: Event) => {
+      const ce = ev as CustomEvent<{ label: string | null; text: string }>;
+      const incoming = ce.detail;
+      const current = Object.keys(loadedStepsByTab).length > 0
+        ? (loadedStepsByTab[selectedTabId] || [])
+        : loadedSteps;
+
+      const targetIndex = current.findIndex(s => {
+        if (s.type !== 'TYPE') return false;
+        const lbl = s.label ?? null;
+        return incoming.label == null || lbl == null || lbl === incoming.label;
+      });
+      if (targetIndex >= 0) {
+        setEditedValues(prev => ({
+          ...prev,
+          [targetIndex]: {
+            ...(prev[targetIndex] || {}),
+            text: incoming.text
+          }
+        }));
+      }
+    };
+    window.addEventListener('stepTextDraftFromOverlay', handler as EventListener);
+    return () => window.removeEventListener('stepTextDraftFromOverlay', handler as EventListener);
+  }, [loadedSteps, loadedStepsByTab, selectedTabId]);
 
   const getValue = (index: number, field: string, defaultValue: string) => {
     return editedValues[index]?.[field] ?? defaultValue;

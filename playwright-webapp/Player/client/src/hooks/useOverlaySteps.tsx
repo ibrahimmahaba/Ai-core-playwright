@@ -1,5 +1,6 @@
 import { IconButton } from "@mui/material";
 import { Check, Close } from "@mui/icons-material";
+import { useEffect, useState } from "react";
 import type { Action, Coords, ScreenshotResponse } from "../types";
 
 interface UseOverlayStepsProps {
@@ -12,32 +13,27 @@ interface UseOverlayStepsProps {
   handleSkipStep: () => void;
 }
 
-// Extract action data from format: { CLICK: { coords: {...} }, tabId: "tab-1" }
-function extractActionData(action: any, index: number, shot: ScreenshotResponse): { type: string; coords: Coords | null; text: string } {
-  // Find the action type by looking for known action keys, ignoring 'tabId'
+function extractActionData(action: any, shot: ScreenshotResponse): { type: string; coords: Coords | null; text: string } {
   const allKeys = Object.keys(action);
-  console.log(`📋 Processing action: index=${index}, all keys:`, allKeys);
 
   const actionTypes = ['CLICK', 'TYPE', 'SCROLL', 'WAIT', 'NAVIGATE'];
   const type = allKeys.find(key => actionTypes.includes(key)) || allKeys[0];
 
-  console.log(`  🔍 Detected action type: ${type}`);
 
+  
   let coords: Coords | null = null;
   let text = "";
 
   if (type === "CLICK" && "CLICK" in action) {
     const clickData = action.CLICK as any;
-    console.log(`  📦 CLICK data:`, clickData);
 
+    
     // Backend sends CLICK as { x: number, y: number } directly, NOT { coords: {...} }
     if (clickData && typeof clickData === 'object') {
       if (clickData.x !== undefined && clickData.y !== undefined) {
         coords = { x: clickData.x, y: clickData.y };
-        console.log(`  ✅ CLICK coords extracted (direct x,y):`, coords);
       } else if (clickData.coords) {
         coords = clickData.coords;
-        console.log(`  ✅ CLICK coords extracted (nested coords):`, coords);
       }
     }
 
@@ -46,19 +42,17 @@ function extractActionData(action: any, index: number, shot: ScreenshotResponse)
     }
   } else if (type === "TYPE" && "TYPE" in action) {
     const typeData = action.TYPE as any;
-    console.log(`  📦 TYPE data:`, typeData);
 
+    
     text = typeData.text || "";
     if (typeData && typeData.coords) {
       coords = typeData.coords;
-      console.log(`  ✅ TYPE coords found:`, coords, `text="${text}"`);
     } else {
       console.warn(`  ⚠️ TYPE data exists but coords not found. typeData structure:`, JSON.stringify(typeData));
     }
   } else if (type === "SCROLL") {
     // SCROLL always goes to center by default
     coords = { x: shot.width / 2, y: shot.height / 2 };
-    console.log(`  ✅ SCROLL using center coords:`, coords);
   } else {
     console.warn(`  ⚠️ Unknown or unsupported action type: ${type}`);
   }
@@ -75,20 +69,27 @@ export function useOverlaySteps({
   handleNextStep,
   handleSkipStep,
 }: UseOverlayStepsProps) {
+  const [forceRender, setForceRender] = useState(0);
+
+  // TO BE UPDATED:  this will later be changed to loaded data from backend instead of editedData
+  useEffect(() => {
+    if (shot && editedData && editedData.length > 0 && imgRef?.current) {
+      console.log("force re-render", forceRender);
+      setForceRender(prev => prev + 1);
+    }
+  }, [shot, editedData, editedData.length, imgRef]);
+
   const renderStepLabels = () => {
     if (!shot || !editedData || editedData.length === 0 || !imgRef.current) {
-      console.log(`🎬 renderStepLabels: Early return - shot=${!!shot}, editedData=${!!editedData}, length=${editedData?.length}, imgRef=${!!imgRef.current}`);
       return null;
     }
 
-    console.log(`🎬 renderStepLabels called with ${editedData.length} actions`);
-    console.log(`🎬 showFutureSteps flag: ${showFutureSteps}`);
-    console.log(`🎬 Full editedData:`, JSON.stringify(editedData, null, 2));
-
+   
+    
     return (
       <>
         {editedData.map((action, index) => {
-          console.log(`\n🎯 Processing action at index ${index} of ${editedData.length}`);
+
 
           // Extract action data
           const { type, coords: extractedCoords, text } = extractActionData(action as any, index, shot);
@@ -106,20 +107,16 @@ export function useOverlaySteps({
           }
 
           if (!coords) {
-            console.log(`⚠️ Step ${index} (${type}) has no coords, skipping label`);
+
             return null;
           }
 
           // If this is not the first step and showNonCurrentStepIndicators is false, don't render
           if (index > 0 && !showFutureSteps) {
-            console.log(`🚫 Skipping future step ${index} because showFutureSteps=${showFutureSteps}`);
             return null;
           }
 
-          if (index > 0) {
-            console.log(`📍 Rendering future step ${index} as numbered indicator (showFutureSteps=${showFutureSteps})`);
-          }
-
+        
           // Calculate position on scaled image
           const imgElement = imgRef.current!;
           const imgRect = imgElement.getBoundingClientRect();
@@ -132,8 +129,8 @@ export function useOverlaySteps({
           const labelLeft = coords.x * scaleX;
           const labelTop = coords.y * scaleY;
 
-          console.log(`✅ Rendering label for Step ${stepNumber} (${type}) at coords (${coords.x}, ${coords.y}) => screen position (${labelLeft.toFixed(0)}, ${labelTop.toFixed(0)})`);
 
+          
           // For TYPE steps at index 0, don't show the indicator at all
           if (type === "TYPE" && index === 0) {
             return null;
@@ -217,7 +214,6 @@ export function useOverlaySteps({
                   <IconButton
                     size="small"
                     onClick={()=> {
-                      console.log("skip step")
                       handleSkipStep();
                     }}
                     disabled={loading}

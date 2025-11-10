@@ -535,6 +535,7 @@ export default function RemoteRunner()  {
             currentCropArea={currentCropArea}
             setCurrentCropArea={setCurrentCropArea}
             setCrop={setCrop}
+            imgRef={imgRef}
           />
           </div>
         </>

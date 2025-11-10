@@ -1,5 +1,4 @@
-
-import { CircularProgress, TextField } from "@mui/material";
+import { TextField } from "@mui/material";
 import Draggable from "react-draggable";
 import StyledPrimaryButton from "../StyledButtons/StyledPrimaryButton";
 import StyledButton from "../StyledButtons/StyledButtonRoot";
@@ -11,27 +10,43 @@ import './VisionPopup.css';
 import { useState } from "react";
 
 export function VisionPopup(props : VisionPopupProps) {
-    const {sessionId, insightId, insight, visionPopup , setVisionPopup,
-    currentCropArea, setCurrentCropArea,  setMode, setCrop, selectedModel, tabId} = props
+    const {sessionId, insightId, visionPopup , setVisionPopup,
+    currentCropArea, setCurrentCropArea,  setMode, setCrop, selectedModel, tabId, storedContexts, setStoredContexts, imgRef} = props;
     const [isLoading, setIsLoading] = useState(false);
-    const [isAddingToContext, setIsAddingToContext] = useState(false);
-  
-  async function handleLLMAnalysis() {
+
+    async function handleLLMAnalysis() {
 
     if (!visionPopup || !visionPopup.query.trim() || !currentCropArea) return;    
 
     setIsLoading(true);
 
     try {
+
+      const imgRect = imgRef?.current?.getBoundingClientRect();
+      
+      const displayWidth = imgRect?.width ??  1280;
+      const displayHeight = imgRect?.height ?? 800; 
+
+      const screenshotWidth = 1280;
+      const screenshotHeight = 800;
+      
+      // Scale coordinates
+      const scaledCropArea = {
+        startX: Math.round((currentCropArea.startX / displayWidth) * screenshotWidth),
+        startY: Math.round((currentCropArea.startY / displayHeight) * screenshotHeight),
+        endX: Math.round((currentCropArea.endX / displayWidth) * screenshotWidth),
+        endY: Math.round((currentCropArea.endY / displayHeight) * screenshotHeight)
+      };
+      
       const pixel = `ImageContext(
         sessionId="${sessionId}",
         tabId="${tabId}",
         engine="${selectedModel?.value}", 
         paramValues=[{
-          "startX": ${currentCropArea.startX}, 
-          "startY": ${currentCropArea.startY}, 
-          "endX": ${currentCropArea.endX}, 
-          "endY": ${currentCropArea.endY},
+          "startX": ${scaledCropArea.startX}, 
+          "startY": ${scaledCropArea.startY}, 
+          "endX": ${scaledCropArea.endX}, 
+          "endY": ${scaledCropArea.endY},
           "userPrompt": "${visionPopup.query}"
         }]
       )`;
@@ -51,79 +66,71 @@ export function VisionPopup(props : VisionPopupProps) {
     } catch (err) {
       console.error("LLM Vision error:", err);
     }
-  }
-
-  function removeSpecialCharacters(input: string): string {
-    return input.replace(/["'\\]/g, "");
-  }
-
-
-  async function handleAddToContext() {
-    if (!visionPopup || !visionPopup.response) return;
-
-    setIsAddingToContext(true);
-
-    try {
-
-      const sanitizedVisionAPIResponse = removeSpecialCharacters(visionPopup.response);
-
-      const { output } = await insight.actions.runMCPTool("AddVisionContext", {
-        visionContext: sanitizedVisionAPIResponse,
-        sessionId: sessionId
-      });
-
-      console.log('Vision context added successfully:', output);
-
-      setVisionPopup(null);
-      setCurrentCropArea(null);
-      setMode("click");
-      setCrop(undefined);
-
-    } catch (error) {
-      console.error("Error adding vision context:", error);
-      console.log("Failed to add to context. Error: ", error)
-    } finally {
-      setIsAddingToContext(false);
+    finally{
+      if(isLoading){          
+        setIsLoading(false);
+      }
     }
+  }
+
+  function handleAddToContextList() {
+    if (!visionPopup?.response) return;
+    
+    setStoredContexts([...storedContexts, visionPopup.response]);
+    setVisionPopup({ ...visionPopup, response: null });
   }
 
   
   return (
     <div>
         {visionPopup && (
-            <Draggable>
+            <Draggable handle="strong">
               <div className="vision-popup-dialog" style={{
                 top: visionPopup.y,
                 left: visionPopup.x,
                 transform: "translate(-50%, -100%)",
-              }}>
-                {!visionPopup.response && (
+                }}>
+                {!visionPopup.response ? (
                   <>
+                    <strong style={{ cursor: "move", display: "block", marginBottom: "8px", color: "black", borderBottom: "1px solid #e0e0e0" }}>Add Context</strong>
                     <TextField
                       label="Ask about this area"
                       size="small"
                       fullWidth
                       value={visionPopup.query}
-                      disabled={isLoading}
                       onChange={(e) =>
                         setVisionPopup({ ...visionPopup, query: e.target.value })
                       }
                     />
-                    <StyledPrimaryButton
-                      onClick={handleLLMAnalysis}
-                      fullWidth
-                      disabled={isLoading}
-                    >
-                      {isLoading ? "Processing..." : "Submit"}
-                    </StyledPrimaryButton>
-                    {isLoading && <CircularProgress size={24} />}
-                  </>
-                )}
-                {visionPopup.response && (
-                  <>
-                    <div className="vision-popup-response">
-                      {visionPopup.response}
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                      <StyledPrimaryButton
+                        onClick={handleLLMAnalysis}
+                        fullWidth
+                      >
+                        Submit
+                      </StyledPrimaryButton>
+                      <StyledButton onClick={() => {
+                        setVisionPopup(null);
+                        setCurrentCropArea(null);
+                        setMode("click");
+                        setCrop(undefined);
+                      }}>
+                        Close
+                      </StyledButton>
                     </div>
+                  </>
+                ) : (
+                  <>
+                    <strong style={{ cursor: "move", display: "block", marginBottom: "8px", color: "black"}}>Add Context</strong>
+                    <TextField
+                      fullWidth
+                      multiline
+                      rows={6}
+                      value={visionPopup.response}
+                      onChange={(e) => setVisionPopup({ ...visionPopup, response: e.target.value })}
+                      variant="outlined"
+                      placeholder="Edit the response..."
+                    />
                     <div className="vision-popup-buttons">
                       <StyledButton onClick={() => {
                         setVisionPopup(null);
@@ -133,17 +140,8 @@ export function VisionPopup(props : VisionPopupProps) {
                       }}>
                         Close
                       </StyledButton>
-                      {/* <StyledPrimaryButton onClick={() => {
-                        setVisionPopup(null);
-                        setCurrentCropArea(null);
-                        setMode("click");
-                        setCrop(undefined);
-                      }}>
+                      <StyledPrimaryButton onClick={handleAddToContextList}>
                         Add to Context
-                      </StyledPrimaryButton> */}
-                      <StyledPrimaryButton onClick={handleAddToContext} disabled={isAddingToContext}>
-                          {isAddingToContext && <CircularProgress size={24} />}
-                          {isAddingToContext ? "Adding..." : "Add to Context"}
                       </StyledPrimaryButton>
                       <StyledDangerButton onClick={async () => {
                         setVisionPopup({ ...visionPopup, response: null });

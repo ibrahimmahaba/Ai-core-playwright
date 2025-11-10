@@ -7,26 +7,45 @@ import { runPixel } from "@semoss/sdk";
 import { checkSessionExpired } from "../../utils/errorHandler";
 import { useSessionStore } from "../../store/useSessionStore";
 import './vision-popup.css';
-import type { VisionPopupProps } from "../../types";
+import type { Coords, VisionPopupProps } from "../../types";
+import { useSendStep } from "../../hooks/useSendStep";
+
 
 export function VisionPopup(props: VisionPopupProps) {
-  const { visionPopup, setVisionPopup, currentCropArea, setCurrentCropArea, setCrop } = props;
+  const { visionPopup, setVisionPopup, currentCropArea, setCurrentCropArea, setCrop, imgRef } = props;
 
   const { sessionId, insightId, selectedModel, activeTabId, setMode } = useSessionStore();
+  const { sendStep } = useSendStep();
 
   async function handleLLMAnalysis() {
     if (!visionPopup || !visionPopup.query.trim() || !currentCropArea) return;
     
     try {
+      const imgRect = imgRef?.current?.getBoundingClientRect();
+      
+      const displayWidth = imgRect?.width ??  1280;
+      const displayHeight = imgRect?.height ?? 800; 
+
+      const screenshotWidth = 1280;
+      const screenshotHeight = 800;
+      
+      // Scale coordinates
+      const scaledCropArea = {
+        startX: Math.round((currentCropArea.startX / displayWidth) * screenshotWidth),
+        startY: Math.round((currentCropArea.startY / displayHeight) * screenshotHeight),
+        endX: Math.round((currentCropArea.endX / displayWidth) * screenshotWidth),
+        endY: Math.round((currentCropArea.endY / displayHeight) * screenshotHeight)
+      };
+
       const pixel = `ImageContext(
         sessionId="${sessionId}",
         tabId="${activeTabId}",
         engine="${selectedModel?.value}", 
         paramValues=[{
-          "startX": ${currentCropArea.startX}, 
-          "startY": ${currentCropArea.startY}, 
-          "endX": ${currentCropArea.endX}, 
-          "endY": ${currentCropArea.endY},
+          "startX": ${scaledCropArea.startX}, 
+          "startY": ${scaledCropArea.startY}, 
+          "endX": ${scaledCropArea.endX}, 
+          "endY": ${scaledCropArea.endY},
           "userPrompt": "${visionPopup.query}"
         }]
       )`;
@@ -47,10 +66,53 @@ export function VisionPopup(props: VisionPopupProps) {
     }
   }
 
+  async function handleStoreStep() {
+    if (!visionPopup || !currentCropArea) return;
+    
+    try {
+      const imgRect = imgRef?.current?.getBoundingClientRect();
+      
+      const displayWidth = imgRect?.width ??  1280;
+      const displayHeight = imgRect?.height ?? 800; 
+
+      const screenshotWidth = 1280;
+      const screenshotHeight = 800;
+      
+      // Scale coordinates
+      const scaledCropArea = {
+        startX: Math.round((currentCropArea.startX / displayWidth) * screenshotWidth),
+        startY: Math.round((currentCropArea.startY / displayHeight) * screenshotHeight),
+        endX: Math.round((currentCropArea.endX / displayWidth) * screenshotWidth),
+        endY: Math.round((currentCropArea.endY / displayHeight) * screenshotHeight)
+      };
+
+      await sendStep({
+        type: "CONTEXT",
+        multiCoords: [
+          { x: scaledCropArea.startX, y: scaledCropArea.startY },
+          { x: scaledCropArea.endX, y: scaledCropArea.endY }
+        ]as Coords[],
+        prompt: visionPopup.query,
+        viewport: { width: 1280, height: 800, deviceScaleFactor: 1 },
+        timestamp: Date.now()
+      });
+
+      alert("Saved");
+      
+      setVisionPopup(null);
+      setCurrentCropArea(null);
+      setMode("click");
+      setCrop(undefined);
+      
+    } catch (err) {
+      console.error("Error storing context step:", err);
+    }
+  }
+
   return (
     <div>
         {visionPopup && (
-            <Draggable>
+            <Draggable handle="strong">
               <div className="vision-popup-container" 
               style={{ top: visionPopup.y,
                 left: visionPopup.x,
@@ -58,6 +120,7 @@ export function VisionPopup(props: VisionPopupProps) {
                 }}>
                 {!visionPopup.response ? (
                   <>
+                    <strong style={{ cursor: "move", display: "block", marginBottom: "8px", color: "black", borderBottom: "1px solid #e0e0e0" }}>Add Context</strong>
                     <TextField
                       label="Ask about this area"
                       size="small"
@@ -73,12 +136,27 @@ export function VisionPopup(props: VisionPopupProps) {
                     >
                       Submit
                     </StyledPrimaryButton>
+                     <StyledButton onClick={() => {
+                        setVisionPopup(null);
+                        setCurrentCropArea(null);
+                        setMode("click");
+                        setCrop(undefined);
+                      }}>
+                        Close
+                      </StyledButton>
                   </>
                 ) : (
                   <>
-                    <div className="vision-popup-response">
-                      {visionPopup.response}
-                    </div>
+                    <strong style={{ cursor: "move", display: "block", marginBottom: "8px", color: "black", borderBottom: "1px solid #e0e0e0" }}>Add Context</strong>
+                    <TextField
+                      fullWidth
+                      multiline
+                      rows={6}
+                      value={visionPopup.response}
+                      onChange={(e) => setVisionPopup({ ...visionPopup, response: e.target.value })}
+                      variant="outlined"
+                      placeholder="Edit the response..."
+                    />
                     <div className="vision-popup-button-group">
                       <StyledButton onClick={() => {
                         setVisionPopup(null);
@@ -88,13 +166,8 @@ export function VisionPopup(props: VisionPopupProps) {
                       }}>
                         Close
                       </StyledButton>
-                      <StyledPrimaryButton onClick={() => {
-                        setVisionPopup(null);
-                        setCurrentCropArea(null);
-                        setMode("click");
-                        setCrop(undefined);
-                      }}>
-                        Add to Context
+                      <StyledPrimaryButton onClick={handleStoreStep}>
+                        Store Step
                       </StyledPrimaryButton>
                       <StyledDangerButton onClick={async () => {
                         setVisionPopup({ ...visionPopup, response: null });

@@ -6,17 +6,22 @@ import {
     Sync as SyncIcon,
     CropFree as CropIcon, 
     AutoAwesome as AutoAwesomeIcon,
+    List as ListIcon,
   } from "@mui/icons-material";
-import { type JSX } from "react";
+import { type JSX, useState } from "react";
 import { runPixel } from "@semoss/sdk";
 import { checkSessionExpired } from "../../utils/errorHandler";
 import type { ToolbarProps, ScreenshotResponse, Step, Viewport } from "../../types";
 import {useSendStep} from"../../hooks/useSendStep"
 import './Toolbar.css';
+import StoredContextsSidebar from '../StoredContexts/StoredContextsSidebar';
 
 function Toolbar(props: ToolbarProps) {
   const { sessionId, insightId, shot, setShot, mode, setMode, steps, setSteps, setLoading,
-    generationUserPrompt, setGenerationUserPrompt, selectedModel, tabId, isSessionExpired } = props;
+    generationUserPrompt, setGenerationUserPrompt, selectedModel, tabId, isSessionExpired,
+    storedContexts, setStoredContexts } = props;
+
+  const [showContextsSidebar, setShowContextsSidebar] = useState(false);
 
     const viewport: Viewport = {
         width: shot?.width ?? 1280,
@@ -95,6 +100,7 @@ function Toolbar(props: ToolbarProps) {
     }
 
   return (
+    <>
     <div className="toolbar-container">
         {([
           { m: "click", icon: <MouseIcon />, label: "Click" },
@@ -103,12 +109,13 @@ function Toolbar(props: ToolbarProps) {
           { m: "delay", icon: <AccessTimeIcon />, label: "Delay" },
           { m: "fetch-screenshot", icon: <SyncIcon />, label: "Refresh" },
           { m: "crop", icon: <CropIcon />, label: "Add Context" },
-          { m: "generate-steps", icon: <AutoAwesomeIcon />, label: "Generate Steps" }
+          { m: "generate-steps", icon: <AutoAwesomeIcon />, label: "Generate Steps" },
+          { m: "show-contexts", icon: <ListIcon />, label: "Stored Contexts" }
 
 
         ] as { m: string; icon: JSX.Element; label: string }[]).map(({ m, icon, label }) => {
           const active = mode === m;
-          const isModelRequired = m === "crop" || m === "generate-steps";
+          const isModelRequired = m === "generate-steps";
           const disabled = isSessionExpired || (isModelRequired && !selectedModel);
 
           const hoverMessage =
@@ -148,6 +155,8 @@ function Toolbar(props: ToolbarProps) {
                   const prompt = window.prompt("Provide context for AI step generation:", generationUserPrompt);
                   if (prompt) setGenerationUserPrompt(prompt);
                   setMode("generate-steps");
+                } else if (m === "show-contexts") {
+                  setShowContextsSidebar(!showContextsSidebar);
                 } else {
                   setMode(m);
                 }
@@ -163,10 +172,26 @@ function Toolbar(props: ToolbarProps) {
               }}
             >
               {icon}
+              {m === "show-contexts" && storedContexts && storedContexts.length > 0 && (
+                <span className="toolbar-button-badge">
+                  {storedContexts.length > 9 ? '9+' : storedContexts.length}
+                </span>
+              )}
             </button>
           );
         })}
       </div>
+
+      {showContextsSidebar && (
+        <StoredContextsSidebar
+          storedContexts={storedContexts || []}
+          setStoredContexts={setStoredContexts || (() => {})}
+          sessionId={sessionId}
+          insightId={insightId}
+          onClose={() => setShowContextsSidebar(false)}
+        />
+      )}
+    </>
   )
 }
 

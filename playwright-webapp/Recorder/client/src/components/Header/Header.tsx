@@ -202,7 +202,7 @@ function Header() {
 
     async function updateMCP() {
         try {
-            const makePlaywrightPixel = `MakePlaywrightMCP(project="84ede0d8-6da3-4772-9968-e8554c538c8b")`;
+            const makePlaywrightPixel = `MakePlaywrightMCP(project="26ccbfc8-8488-4fee-87dd-19dd0561e5c1")`;
             const makePlaywrightRes = await runPixel(makePlaywrightPixel, insightId);
             
             if (checkSessionExpired(makePlaywrightRes.pixelReturn)) {

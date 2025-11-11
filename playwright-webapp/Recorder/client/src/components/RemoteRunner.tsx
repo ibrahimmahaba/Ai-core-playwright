@@ -506,7 +506,8 @@ export default function RemoteRunner()  {
                         storeValue: probe.type == "password" || probe.type == "email" ? false : draftStoreValue,   
                         viewport,
                         waitAfterMs: 300,
-                        timestamp: Date.now()
+                        timestamp: Date.now(),
+                        selector: preferSelectorFromProbe(probe) || { strategy: "css", value: "body" }
                       } as Step, activeTabId);
                     } else {
                       await sendStep({
@@ -514,7 +515,8 @@ export default function RemoteRunner()  {
                         coords,
                         viewport,
                         waitAfterMs: 300,
-                        timestamp: Date.now()
+                        timestamp: Date.now(),
+                        selector: preferSelectorFromProbe(probe) || { strategy: "css", value: "body" }
                       } as Step, activeTabId);
                     }
                     setOverlay(null);

@@ -56,6 +56,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
   const [selectedModel, setSelectedModel] = React.useState<ModelOption | null>(
     modelOptions[0] ?? null
   );
+  const overlaySubmitHandlerRef = useRef<(() => void) | null>(null);
 
   const [tabs, setTabs] = useState<TabData[]>([
     { id: "tab-1", title: "New Tab", actions: [] }
@@ -103,7 +104,6 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
   };
 
   async function setOverlayForType() {
-    setIsSessionExpired(isSessionExpired);
     const nextAction = editedData[0];
     if ("TYPE" in nextAction) {
       const typeAction = nextAction.TYPE;
@@ -827,9 +827,6 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     const { probe } = ol;
     const box = pageRectToImageCss(probe.rect, imgEl, shot);
   
-  
-    // Wrapper strictly matches the element's (scaled) rect
-
     // Wrapper strictly matches the element's (scaled) rect
     const wrapperStyle: React.CSSProperties = {
       position: "absolute",
@@ -1148,18 +1145,10 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       <StepsBottomSection 
       insightId={insightId}
       sessionId={sessionId}
-      showData={showData}
-      setShowData={setShowData}
-      lastPage={lastPage}
-      setIsLastPage={setIsLastPage}
-      editedData={editedData}
       overlay={overlay}
       setOverlay={setOverlay}
       selectedRecording={selectedRecording}
       setLoading={setLoading}
-      setEditedData={setEditedData}
-      updatedData={updatedData}
-      setUpdatedData={setUpdatedData}
       setShot={setShot}
       setHighlight={setHighlight}
       steps = {steps}

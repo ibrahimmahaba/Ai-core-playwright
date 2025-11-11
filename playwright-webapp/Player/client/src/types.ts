@@ -173,18 +173,10 @@ export type CropArea = {
   export interface StepsBottomSectionProps{
     insightId: string;
     sessionId: string;
-    showData: boolean;
-    setShowData: React.Dispatch<React.SetStateAction<boolean>>;
-    lastPage: boolean;
-    setIsLastPage: React.Dispatch<React.SetStateAction<boolean>>;
-    editedData: Action[];
     overlay: Overlay | null
     setOverlay: React.Dispatch<React.SetStateAction<Overlay | null>>;
     selectedRecording: string | null;
     setLoading: React.Dispatch<React.SetStateAction<boolean>>;
-    setEditedData: React.Dispatch<React.SetStateAction<Action[]>>;
-    updatedData: Action[];
-    setUpdatedData: React.Dispatch<React.SetStateAction<Action[]>>;
     setShot: React.Dispatch<React.SetStateAction<ScreenshotResponse | undefined>>;
     setHighlight: React.Dispatch<React.SetStateAction<Coords | null>>;
     steps: Step[] ;
@@ -295,4 +287,29 @@ export type CropArea = {
     sessionId: string;
     insightId: string;
     onClose: () => void;
+  }
+
+  export interface StepData {
+    id: number;
+    type: string;
+    url?: string;
+    coords?: { x: number; y: number };
+    text?: string;
+    label?: string;
+    isPassword?: boolean;
+    storeValue?: boolean;
+    deltaY?: number;
+  }
+
+  export interface PageData {
+    pageIndex: number;
+    steps: StepData[];
+  }
+
+  export interface StepsListProps {
+    sessionId: string;
+    insightId: string;
+    fileName: string;
+    tabId: string;
+    onStepExecuted: (screenshot: any) => void;
   }

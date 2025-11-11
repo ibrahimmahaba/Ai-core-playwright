@@ -2,6 +2,7 @@ import { Autocomplete, Box, TextField, Typography } from "@mui/material"
 import { useEffect, useMemo ,useState } from "react";
 import type { HeaderProps, ModelOption, ReplayPixelOutput } from "../../types";
 import {runPixel } from "@semoss/sdk";
+import { checkSessionExpired } from "../../utils/errorHandler";
 import {Insight}  from 'https://cdn.jsdelivr.net/npm/@semoss/sdk@1.0.0-beta.29/+esm';
 
 import './Header.css';
@@ -100,6 +101,11 @@ function Header(props : HeaderProps) {
     try {
     let pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${name}", executeAll=false);`;
     const res = await runPixel(pixel, insightId);
+    
+    if (checkSessionExpired(res.pixelReturn)) {
+      return;
+    }
+    
     const { output } = res.pixelReturn[0] as { output: ReplayPixelOutput };
 
     setLoading(false);

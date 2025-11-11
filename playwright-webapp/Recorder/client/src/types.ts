@@ -62,9 +62,15 @@ export interface ScreenshotResponse {
     type: 'WAIT';
     waitAfterMs: number;
   }
+
+  export interface ContextStep extends BaseStep {
+    type: 'CONTEXT';
+    multiCoords: Coords[];
+    prompt: string;
+  }
   
   // Discriminated union for all step types
-  export type Step = NavigateStep | ClickStep | TypeStep | ScrollStep | WaitStep;
+  export type Step = NavigateStep | ClickStep | TypeStep | ScrollStep | WaitStep | ContextStep;
   
   export interface VariableRecord {
     label: string;
@@ -138,6 +144,7 @@ export interface ScreenshotResponse {
     currentCropArea: CropArea | null;
     setCurrentCropArea: React.Dispatch<React.SetStateAction<CropArea | null>>;
     setCrop: React.Dispatch<React.SetStateAction<Crop | undefined>>;
+    imgRef:  React.RefObject<HTMLImageElement | null>;
   }
   
   export type ModelOption = { label: string; value: string } ;

@@ -1,4 +1,5 @@
 import { runPixel } from "@semoss/sdk";
+import { checkSessionExpired } from "../utils/errorHandler";
 
 interface ReplayPixelOutput {
 actions: any;
@@ -37,6 +38,13 @@ async function handleSkipStep() {
 
     let pixel = `SkipStep (sessionId = "${sessionId}", fileName = "${selectedRecording}", tabId = "${currentTabId}");`;
     const res = await runPixel(pixel, insightId);
+    
+    if (checkSessionExpired(res.pixelReturn)) {
+      setLoading(false);
+      setOverlay(null);
+      return;
+    }
+    
     const { output } = res.pixelReturn[0] as { output: ReplayPixelOutput };
 
     setEditedData(output.actions);

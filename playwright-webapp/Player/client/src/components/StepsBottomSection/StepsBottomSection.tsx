@@ -12,7 +12,8 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
         showData, setShowData, setIsLastPage, editedData,
         overlay, setOverlay, sessionId, selectedRecording, 
         setLoading, insightId, setEditedData, updatedData, setUpdatedData, setShot,
-        setHighlight, steps, setSteps, shot, activeTabId, tabs, setTabs , setActiveTabId
+        setHighlight, steps, setSteps, shot, activeTabId, tabs, setTabs , setActiveTabId,
+        setCurrentCropArea, setVisionPopup, setMode, setCrop, imgRef
     } = props
 
     const { sendStep } = useSendStep({
@@ -41,7 +42,62 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
         console.log("Selected recording:", selectedRecording);
         
         const actionTabId = (nextAction as any).tabId || activeTabId || "tab-1";
-    
+        if ("CONTEXT" in nextAction) {
+          const coords = nextAction.CONTEXT.multiCoords;
+          console.log("CONTEXT action detected - showing crop overlay");
+          if (coords && coords.length >= 2) {
+
+            const imgRect = imgRef?.current?.getBoundingClientRect();
+
+            console.log("imgRect:",imgRect);
+      
+            const displayWidth = imgRect?.width ??  1280;
+            const displayHeight = imgRect?.height ?? 800; 
+
+            console.log("displayWidth", displayWidth);
+            console.log("displayHeight", displayHeight);
+
+            const screenshotWidth = 1280;
+            const screenshotHeight = 800;
+            
+            // Scale coordinates
+            const scaleX = displayWidth / screenshotWidth;   
+            const scaleY = displayHeight / screenshotHeight;
+            
+            const scaled = coords.map((c: any) => ({
+              x: Math.round(c.x * scaleX),  // 249 * 0.53 = 132
+              y: Math.round(c.y * scaleY)   // 123 * 0.53 = 65
+            }));
+
+            console.log('Screenshot size:', screenshotWidth, 'x', screenshotHeight);
+            console.log('Display size:', displayWidth, 'x', displayHeight);
+            console.log('Original coords (screenshot space):', coords);
+
+            setCurrentCropArea({
+              startX: scaled[0].x,
+              startY: scaled[0].y,
+              endX: scaled[1].x,
+              endY: scaled[1].y
+            });
+            
+            setVisionPopup({
+              x: scaled[1].x,
+              y: scaled[0].y,
+              query: nextAction.CONTEXT.prompt,
+              response: null
+            });
+            setMode("crop");
+            
+            setCrop({
+                  unit: 'px',
+                  x: scaled[0].x,
+                  y: scaled[0].y,
+                  width: scaled[1].x - scaled[0].x,
+                  height: scaled[1].y - scaled[0].y
+            });
+          }
+        }
+
         if (!selectedRecording) {
           console.log("Executing step directly via sendStep");
           setLoading(true);
@@ -374,10 +430,13 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
                                     const type = Object.keys(action).find(key => key !== 'tabId') as keyof Action;
                                     const details = action[type] as any;
                                     const detailCoords = details?.coords
-                                        ? { x: details.coords.x, y: details.coords.y }
-                                        : details.x
-                                            ? { x: details.x, y: details.y }
-                                            : { x: 0, y: 0 };
+                                        ? [{ x: details.coords.x, y: details.coords.y }]
+                                        : 
+                                        details?.multiCoords
+                                        ? [{x:details.multiCoords[0].x, y:details.multiCoords[0].y}, {x:details.multiCoords[1].x, y:details.multiCoords[1].y}]
+                                        : details?.x
+                                            ? [{ x: details.x, y: details.y }]
+                                            : [{ x: 0, y: 0 }];
 
                                     switch (type) {
                                         case "TYPE":
@@ -399,8 +458,8 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
                                                 <tr key={index}>
                                                     <td>Click</td>
                                                     <td>
-                                                        ({detailCoords.x}, {detailCoords.y})
-                                                        <button onClick={() => showHighlight(detailCoords.x, detailCoords.y)}>
+                                                        ({detailCoords[0].x}, {detailCoords[0].y})
+                                                        <button onClick={() => showHighlight(detailCoords[0].x, detailCoords[0].y)}>
                                                             ℹ️
                                                         </button>
                                                     </td>
@@ -454,7 +513,25 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
                                                     )}
                                                 </tr>
                                             );
-
+                                        case "CONTEXT":
+                                            return (
+                                                <tr key={index}>
+                                                    <td>
+                                                        <strong>Context</strong>
+                                                        <div style={{ fontSize: '0.9em', color: '#666' }}>{details.prompt}</div>
+                                                    </td>
+                                                    <td>
+                                                        <div style={{ maxWidth: '400px', maxHeight: '100px', overflow: 'auto' }}>
+                                                            Crop Area: [{details.multiCoords?.map((c: any) => `(${c.x},${c.y})`).join(' → ')}]
+                                                        </div>
+                                                    </td>
+                                                    {index === 0 && (
+                                                        <td>
+                                                            <button onClick={handleNextStep}>Next →</button>
+                                                        </td>
+                                                    )}
+                                                </tr>
+                                            );
                                         default:
                                             return null;
                                     }

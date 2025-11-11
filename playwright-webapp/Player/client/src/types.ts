@@ -77,7 +77,8 @@ export type CropArea = {
     | { CLICK: { coords: Coords } }
     | { SCROLL: { deltaY: number } }
     | { WAIT: number } // waitAfterMilliseconds
-    | { NAVIGATE: string }; // url
+    | { NAVIGATE: string } // url
+    | { CONTEXT: { multiCoords: Coords[], prompt: string}};
   
   export type RemoteRunnerProps = {
     sessionId: string;
@@ -139,6 +140,9 @@ export interface ToolbarProps {
   selectedRecording?: string | null;
   tabs?: TabData[];
   setActiveTabId?: React.Dispatch<React.SetStateAction<string>>;
+  isSessionExpired?: boolean;
+  storedContexts?: string[];
+  setStoredContexts?: React.Dispatch<React.SetStateAction<string[]>>;
 }
 
 
@@ -197,6 +201,11 @@ export interface ToolbarProps {
     tabs?: TabData[];     
     setTabs?: React.Dispatch<React.SetStateAction<TabData[]>>; 
     setActiveTabId?: React.Dispatch<React.SetStateAction<string>>;
+    setVisionPopup: React.Dispatch<React.SetStateAction<VisionPopup | null>>;
+    setCurrentCropArea: React.Dispatch<React.SetStateAction<CropArea | null>>;
+    setMode: React.Dispatch<React.SetStateAction<string>>;
+    setCrop: React.Dispatch<React.SetStateAction<Crop| undefined>>;
+    imgRef: React.RefObject<HTMLImageElement | null>;
   }
 
   export interface VisionPopup {x: number; y: number; query: string; response: string | null;}
@@ -204,7 +213,7 @@ export interface ToolbarProps {
   export interface VisionPopupProps {
     sessionId: string;
     insightId: string;
-    insight: Insight;
+    insight?: Insight;
     visionPopup  :  VisionPopup | null;
     setVisionPopup: React.Dispatch<React.SetStateAction<VisionPopup | null>>;
     currentCropArea: CropArea | null;
@@ -215,6 +224,9 @@ export interface ToolbarProps {
     setCrop: React.Dispatch<React.SetStateAction<Crop| undefined>>
     selectedModel: ModelOption | null;
     tabId: string;
+    storedContexts: string[];
+    setStoredContexts: React.Dispatch<React.SetStateAction<string[]>>;
+    imgRef: React.RefObject<HTMLImageElement | null>;
   }
 
 
@@ -283,4 +295,12 @@ export interface ToolbarProps {
     id: string;
     title: string;
     actions: Action[];
+  }
+
+  export interface StoredContextsSidebarProps {
+    storedContexts: string[];
+    setStoredContexts: React.Dispatch<React.SetStateAction<string[]>>;
+    sessionId: string;
+    insightId: string;
+    onClose: () => void;
   }

@@ -1,5 +1,6 @@
 import React, { useRef, useState } from "react";
 import { runPixel } from "@semoss/sdk";
+import { checkSessionExpired } from "../utils/errorHandler";
 import { CircularProgress, FormControlLabel, Checkbox } from "@mui/material";
 import { IconButton, Tabs, Tab, Box } from "@mui/material";
 import { Check, Close } from "@mui/icons-material";
@@ -177,6 +178,11 @@ export default function RemoteRunner()  {
 
     let pixel = `ProbeElement (sessionId = "${sessionId}" , coords = "${pendingCoords?.x}, ${pendingCoords?.y}", tabId = "${activeTabId}");`
     const res = await runPixel(pixel, insightId);
+    
+    if (checkSessionExpired(res.pixelReturn)) {
+      return;
+    }
+    
     const { output } = res.pixelReturn[0] as { output: Probe };
     return output;
 
@@ -616,6 +622,7 @@ export default function RemoteRunner()  {
             currentCropArea={currentCropArea}
             setCurrentCropArea={setCurrentCropArea}
             setCrop={setCrop}
+            imgRef={imgRef}
           />
           </div>
         </>

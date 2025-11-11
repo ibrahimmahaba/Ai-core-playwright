@@ -1,0 +1,153 @@
+/* Overlay */
+.expanded-contexts-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+/* Container */
+.expanded-contexts-container {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  width: 100%;
+  max-width: 900px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+/* Header */
+.expanded-contexts-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #f8f9fa;
+}
+
+.expanded-contexts-header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+}
+
+.expanded-contexts-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.expanded-contexts-close {
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: background 0.2s ease;
+}
+
+.expanded-contexts-close:hover {
+  background: #e0e0e0;
+  color: #333;
+}
+
+/* Rest of the CSS remains the same */
+/* Body */
+.expanded-contexts-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.expanded-contexts-empty {
+  text-align: center;
+  color: #999;
+  padding: 48px 16px;
+  font-size: 16px;
+  font-style: italic;
+}
+
+/* Grid */
+.expanded-contexts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+/* Context Items */
+.expanded-context-item {
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.expanded-context-item:hover {
+  background: #f0f0f0;
+  border-color: #ccc;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.expanded-context-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.expanded-context-number {
+  font-weight: 600;
+  color: #007bff;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.expanded-context-header-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.expanded-context-text {
+  color: #555;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  flex: 1;
+  max-height: 150px;
+  overflow-y: auto;
+  padding: 8px;
+  background: #fff;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+}
+
+.expanded-context-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}

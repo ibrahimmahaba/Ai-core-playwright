@@ -14,9 +14,14 @@ function InputsPanel(props: InputsPanelProps) {
   const [editedText, setEditedText] = useState<string>("");
 
   // Get all TYPE actions (inputs)
+  // const inputActions = editedData
+  //   .map((action, index) => ("TYPE" in action ? { action, index } : null))
+  //   .filter((item): item is { action: Action; index: number } => item !== null);
+
   const inputActions = editedData
-    .map((action, index) => ("TYPE" in action ? { action, index } : null))
-    .filter((item): item is { action: Action; index: number } => item !== null);
+  .map((action, index) => ("TYPE" in action ? { action, index } : null))
+  .filter((item) => item !== null) as { action: Action & { TYPE: any }; index: number }[];
+  
 
   const handleEdit = (index: number, label: string, text: string) => {
     setEditingIndex(index);
@@ -24,27 +29,51 @@ function InputsPanel(props: InputsPanelProps) {
     setEditedText(text);
   };
 
+  // const handleSave = () => {
+  //   if (editingIndex === null) return;
+
+  //   const actualIndex = inputActions[editingIndex].index;
+  //   const updatedData = [...editedData];
+    
+  //   if ("TYPE" in updatedData[actualIndex]) {
+  //     updatedData[actualIndex] = {
+  //       TYPE: {
+  //         ...updatedData[actualIndex].TYPE,
+  //         label: editedLabel,
+  //         text: editedText,
+  //       }
+  //     };
+  //     setEditedData(updatedData);
+  //   }
+
+  //   setEditingIndex(null);
+  //   setEditedLabel("");
+  //   setEditedText("");
+  // };
+
   const handleSave = () => {
     if (editingIndex === null) return;
-
+  
     const actualIndex = inputActions[editingIndex].index;
     const updatedData = [...editedData];
-    
-    if ("TYPE" in updatedData[actualIndex]) {
+    const action = updatedData[actualIndex];
+  
+    if ("TYPE" in action) {
       updatedData[actualIndex] = {
         TYPE: {
-          ...updatedData[actualIndex].TYPE,
+          ...action.TYPE,
           label: editedLabel,
           text: editedText,
         }
       };
       setEditedData(updatedData);
     }
-
+  
     setEditingIndex(null);
     setEditedLabel("");
     setEditedText("");
   };
+  
 
   const handleCancel = () => {
     setEditingIndex(null);

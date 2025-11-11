@@ -15,7 +15,7 @@ import InputsPanel from "../InputsPanel/InputsPanel";
 import ToolsPanel from "../ToolsPanel/ToolsPanel";
 import GenerateStepsPanel from "../GenerateStepsPanel/GenerateStepsPanel";
 import './Toolbar.css';
-import StoredContextsSidebar from '../StoredContexts/StoredContextsSidebar';
+// import StoredContextsSidebar from '../StoredContexts/StoredContextsSidebar';
 
 function Toolbar(props: ToolbarProps) {
   const { sessionId, insightId, shot, setShot, mode, setMode, steps, setSteps, setLoading,

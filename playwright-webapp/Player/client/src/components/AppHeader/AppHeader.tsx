@@ -1,4 +1,4 @@
-import { type JSX } from "react";
+// import { type JSX } from "react";
 import './AppHeader.css';
 
 function AppHeader() {
@@ -9,7 +9,8 @@ function AppHeader() {
       <div className={`app-label ${appType === "player" ? "app-label-active" : ""}`}>
         Player
       </div>
-      <div className={`app-label ${appType === "recorder" ? "app-label-active" : ""}`}>
+      {/* <div className={`app-label ${appType === "recorder" ? "app-label-active" : ""}`}> */}
+      <div className={`app-label-active`}>
         Recorder
       </div>
     </div>

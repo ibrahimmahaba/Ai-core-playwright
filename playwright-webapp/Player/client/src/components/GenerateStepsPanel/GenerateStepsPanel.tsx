@@ -16,8 +16,8 @@ function GenerateStepsPanel(props: GenerateStepsPanelProps) {
     modelOptions,
     selectedModel,
     setSelectedModel,
-    generationUserPrompt,
-    setGenerationUserPrompt,
+    // generationUserPrompt,
+    // setGenerationUserPrompt,
     onGenerate
   } = props;
 

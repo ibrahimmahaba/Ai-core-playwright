@@ -2,7 +2,8 @@ import type { Action, Step, TabData } from "../../types";
 import './StepsPanel.css';
 import TextField from '@mui/material/TextField';
 import Checkbox from '@mui/material/Checkbox';
-import { Info as InfoIcon, Mouse as ClickIcon } from "@mui/icons-material";
+import { Info as InfoIcon } from "@mui/icons-material";
+// import { Info as InfoIcon, Mouse as ClickIcon } from "@mui/icons-material";
 import { useState, useEffect } from 'react';
 import { useRef, useCallback } from 'react';
 import { runPixel } from "@semoss/sdk";
@@ -21,7 +22,7 @@ interface StepsPanelProps {
 }
 
 function StepsPanel(props: StepsPanelProps) {
-  const { steps, editedData, sessionId, insightId, selectedRecording, tabs, activeTabId, setActiveTabId } = props;
+  const { steps, /*editedData,*/ sessionId, insightId, selectedRecording, tabs, activeTabId, setActiveTabId } = props;
   const [editedValues, setEditedValues] = useState<Record<number, { [key: string]: string }>>({});
   const [loadedSteps, setLoadedSteps] = useState<Step[]>([]);
   const [loadedStepsByTab, setLoadedStepsByTab] = useState<Record<string, Step[]>>({});
@@ -58,7 +59,8 @@ function StepsPanel(props: StepsPanelProps) {
       let stepsByTab: Record<string, Step[]> = {};
 
       const pixelReturn = res?.pixelReturn?.[0];
-      const output = pixelReturn?.output;
+      // const output = pixelReturn?.output;
+      const output = pixelReturn?.output as { steps?: Record<string, any> } | undefined;
       if (output && typeof output === 'object' && output.steps && typeof output.steps === 'object' && !Array.isArray(output.steps)) {
         const stepsObj = output.steps;
         for (const tabId in stepsObj) {
@@ -337,147 +339,147 @@ function StepsPanel(props: StepsPanelProps) {
     }
   };
 
-  const renderAction = (action: Action, index: number) => {
-    const stepNumber = index + 1;
+  // const renderAction = (action: Action, index: number) => {
+  //   const stepNumber = index + 1;
     
-    if ("TYPE" in action) {
-      const currentText = getValue(index, 'text', action.TYPE.isPassword ? "••••••••" : action.TYPE.text);
+  //   if ("TYPE" in action) {
+  //     const currentText = getValue(index, 'text', action.TYPE.isPassword ? "••••••••" : action.TYPE.text);
       
-      return (
-        <div key={index} className="step-item step-item-type">
-          <div className="step-checkbox">
-            <Checkbox defaultChecked />
-          </div>
-          <div className="step-number">Step: {stepNumber}</div>
-          <div className="step-content">
-            <div className="step-title">{action.TYPE.label || 'Input'}</div>
-            <TextField
-              id={`type-field-${index}`}
-              value={currentText}
-              onChange={(e) => handleValueChange(index, 'text', e.target.value)}
-              disabled={action.TYPE.isPassword}
-              size="small"
-              sx={{
-                width: '100%',
-                marginTop: '4px',
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '18px', // Rounded border
-                },
-              }}
-            />
-          </div>
-        </div>
-      );
-    }
+  //     return (
+  //       <div key={index} className="step-item step-item-type">
+  //         <div className="step-checkbox">
+  //           <Checkbox defaultChecked />
+  //         </div>
+  //         <div className="step-number">Step: {stepNumber}</div>
+  //         <div className="step-content">
+  //           <div className="step-title">{action.TYPE.label || 'Input'}</div>
+  //           <TextField
+  //             id={`type-field-${index}`}
+  //             value={currentText}
+  //             onChange={(e) => handleValueChange(index, 'text', e.target.value)}
+  //             disabled={action.TYPE.isPassword}
+  //             size="small"
+  //             sx={{
+  //               width: '100%',
+  //               marginTop: '4px',
+  //               '& .MuiOutlinedInput-root': {
+  //                 borderRadius: '18px', // Rounded border
+  //               },
+  //             }}
+  //           />
+  //         </div>
+  //       </div>
+  //     );
+  //   }
     
-    if ("CLICK" in action) {
-      return (
-        <div key={index} className="step-item step-item-click">
-          <div className="step-checkbox">
-            <Checkbox defaultChecked disabled/>
-          </div>
-          <div className="step-number">Step: {stepNumber}</div>
-          <div className="step-content step-content-click ">
-            <div className="step-type-label step-content-click-info">
-              CLICK
-            <InfoIcon className="step-info-icon" />
-            </div>
-            <div className="step-click-icons">
-              <AdsClickIcon className="step-click-icon" />
-            </div>
-          </div>
-        </div>
-      );
-    }
+  //   if ("CLICK" in action) {
+  //     return (
+  //       <div key={index} className="step-item step-item-click">
+  //         <div className="step-checkbox">
+  //           <Checkbox defaultChecked disabled/>
+  //         </div>
+  //         <div className="step-number">Step: {stepNumber}</div>
+  //         <div className="step-content step-content-click ">
+  //           <div className="step-type-label step-content-click-info">
+  //             CLICK
+  //           <InfoIcon className="step-info-icon" />
+  //           </div>
+  //           <div className="step-click-icons">
+  //             <AdsClickIcon className="step-click-icon" />
+  //           </div>
+  //         </div>
+  //       </div>
+  //     );
+  //   }
     
-    if ("SCROLL" in action) {
-      const currentDeltaY = getValue(index, 'deltaY', String(action.SCROLL.deltaY));
+  //   if ("SCROLL" in action) {
+  //     const currentDeltaY = getValue(index, 'deltaY', String(action.SCROLL.deltaY));
       
-      return (
-        <div key={index} className="step-item step-item-type">
-          <div className="step-checkbox">
-            <Checkbox defaultChecked />
-          </div>
-          <div className="step-number">Step: {stepNumber}</div>
-          <div className="step-content">
-            <div className="step-title">SCROLL</div>
-            <TextField
-              id={`scroll-field-${index}`}
-              value={currentDeltaY}
-              onChange={(e) => handleValueChange(index, 'deltaY', e.target.value)}
-              label="Delta Y"
-              size="small"
-              type="number"
-              sx={{
-                width: '100%',
-                marginTop: '4px',
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '18px', // Rounded border
-                },
-              }}
-            />
-          </div>
-        </div>
-      );
-    }
+  //     return (
+  //       <div key={index} className="step-item step-item-type">
+  //         <div className="step-checkbox">
+  //           <Checkbox defaultChecked />
+  //         </div>
+  //         <div className="step-number">Step: {stepNumber}</div>
+  //         <div className="step-content">
+  //           <div className="step-title">SCROLL</div>
+  //           <TextField
+  //             id={`scroll-field-${index}`}
+  //             value={currentDeltaY}
+  //             onChange={(e) => handleValueChange(index, 'deltaY', e.target.value)}
+  //             label="Delta Y"
+  //             size="small"
+  //             type="number"
+  //             sx={{
+  //               width: '100%',
+  //               marginTop: '4px',
+  //               '& .MuiOutlinedInput-root': {
+  //                 borderRadius: '18px', // Rounded border
+  //               },
+  //             }}
+  //           />
+  //         </div>
+  //       </div>
+  //     );
+  //   }
     
-    if ("WAIT" in action) {
-      const currentWait = getValue(index, 'wait', String(action.WAIT));
+  //   if ("WAIT" in action) {
+  //     const currentWait = getValue(index, 'wait', String(action.WAIT));
       
-      return (
-        <div key={index} className="step-item step-item-type">
-          <div className="step-checkbox">
-            <Checkbox defaultChecked />
-          </div>
-          <div className="step-number">Step: {stepNumber}</div>
-          <div className="step-content">
-            <div className="step-title">WAIT</div>
-            <TextField
-              id={`wait-field-${index}`}
-              value={currentWait}
-              onChange={(e) => handleValueChange(index, 'wait', e.target.value)}
-              label="Duration (ms)"
-              size="small"
-              type="number"
-              sx={{
-                width: '100%',
-                marginTop: '4px',
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '18px', // Rounded border
-                },
-              }}
-            />
-          </div>
-        </div>
-      );
-    }
+  //     return (
+  //       <div key={index} className="step-item step-item-type">
+  //         <div className="step-checkbox">
+  //           <Checkbox defaultChecked />
+  //         </div>
+  //         <div className="step-number">Step: {stepNumber}</div>
+  //         <div className="step-content">
+  //           <div className="step-title">WAIT</div>
+  //           <TextField
+  //             id={`wait-field-${index}`}
+  //             value={currentWait}
+  //             onChange={(e) => handleValueChange(index, 'wait', e.target.value)}
+  //             label="Duration (ms)"
+  //             size="small"
+  //             type="number"
+  //             sx={{
+  //               width: '100%',
+  //               marginTop: '4px',
+  //               '& .MuiOutlinedInput-root': {
+  //                 borderRadius: '18px', // Rounded border
+  //               },
+  //             }}
+  //           />
+  //         </div>
+  //       </div>
+  //     );
+  //   }
     
-    if ("NAVIGATE" in action) {
-      const currentUrl = getValue(index, 'url', action.NAVIGATE);
+  //   if ("NAVIGATE" in action) {
+  //     const currentUrl = getValue(index, 'url', action.NAVIGATE);
       
-      return (
-        <div key={index} className="step-item step-item-type">
-          <div className="step-checkbox">
-            <Checkbox defaultChecked />
-          </div>
-          <div className="step-number">Step: {stepNumber}</div>
-          <div className="step-content">
-            <div className="step-title">NAVIGATE</div>
-            <TextField
-              id={`navigate-field-${index}`}
-              value={currentUrl}
-              onChange={(e) => handleValueChange(index, 'url', e.target.value)}
-              label="URL"
-              size="small"
-              sx={{ width: '100%', marginTop: '4px' }}
-            />
-          </div>
-        </div>
-      );
-    }
+  //     return (
+  //       <div key={index} className="step-item step-item-type">
+  //         <div className="step-checkbox">
+  //           <Checkbox defaultChecked />
+  //         </div>
+  //         <div className="step-number">Step: {stepNumber}</div>
+  //         <div className="step-content">
+  //           <div className="step-title">NAVIGATE</div>
+  //           <TextField
+  //             id={`navigate-field-${index}`}
+  //             value={currentUrl}
+  //             onChange={(e) => handleValueChange(index, 'url', e.target.value)}
+  //             label="URL"
+  //             size="small"
+  //             sx={{ width: '100%', marginTop: '4px' }}
+  //           />
+  //         </div>
+  //       </div>
+  //     );
+  //   }
     
-    return null;
-  };
+  //   return null;
+  // };
 
   // Determine which steps to display (current tab only if tabbed steps are available)
   const hasLoadedSteps = loadedSteps.length > 0;

@@ -680,7 +680,7 @@ export default function RemoteRunner()  {
       <Dialog open={showCloseTabDialog} onClose={() => setShowCloseTabDialog(false)}>
         <DialogTitle>Save Steps in This Tab Before Closing?</DialogTitle>
         <DialogContent>
-          WARNING: Any further steps depend on this tab might be affected if not saved. Would you like to save steps before closing? 
+          WARNING: Steps in this tap will be lost. Would you like to save steps before closing? 
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setShowCloseTabDialog(false)} color="error" disabled={loading}>

@@ -2,8 +2,9 @@ import React, { useRef, useState, useEffect } from "react";
 import { runPixel } from "@semoss/sdk";
 import { checkSessionExpired, setSessionExpiredCallback } from "../utils/errorHandler";
 import {
-  Check, Close, Sync as SyncIcon, StopCircleOutline as StopCircleOutlineIcon
+  Check, Close, Sync as SyncIcon
 } from "@mui/icons-material";
+import StopCircleOutlinedIcon from '@mui/icons-material/StopCircleOutlined';
 import {
   CircularProgress, IconButton
 } from "@mui/material";
@@ -1078,64 +1079,64 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
               <SyncIcon />
             </IconButton>
             <IconButton onClick={() => setLive(false)} disabled={!live} title="Stop">
-              <StopCircleOutlineIcon />
+              <StopCircleOutlinedIcon />
             </IconButton>
           </div>
         </div>
 
         {/* Middle row: Screenshot display */}
         <div className="remote-runner-middle-row">
-          {!shot && loading && (
-            <div
-              style={{
-                width: "100%",
-                height: "100%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                background: "#f5f6fa",
-                borderRadius: "8px",
-              }}
-            >
-              {loading && <CircularProgress />}
-            </div>
+          {shot && tabs.length > 0 && (
+            <div className="remote-runner-tab-bar">
+              <Tabs 
+              value={activeTabId}
+              onChange={handleTabChange}
+              variant="scrollable"
+              scrollButtons="auto"
+              >
+                {tabs.map((tab) => (
+                  <Tab
+                    key={tab.id}
+                    value={tab.id}
+                    label={
+                      <Box display="flex" alignItems="center">
+                        {tab.title}
+                        {tabs.length > 1 && (
+                          <IconButton
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCloseTab(tab.id);
+                            }}
+                          >
+                            <Close fontSize="small" />
+                          </IconButton>
+                        )}
+                      </Box>
+                    }
+                  />
+                ))}
+              </Tabs>
+              </div>
           )}
 
-          {shot && (
-            <>
-              {tabs.length > 1 && (
-                <div style={{ position: "absolute", top: "16px", left: "16px", zIndex: 10 }}>
-                  <Tabs
-                    value={activeTabId}
-                    onChange={handleTabChange}
-                    variant="scrollable"
-                    scrollButtons="auto"
-                  >
-                    {tabs.map((tab) => (
-                      <Tab
-                        key={tab.id}
-                        value={tab.id}
-                        label={
-                          <Box display="flex" alignItems="center">
-                            {tab.title}
-                            {tabs.length > 1 && (
-                              <IconButton
-                                size="small"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleCloseTab(tab.id);
-                                }}
-                              >
-                                <Close fontSize="small" />
-                              </IconButton>
-                            )}
-                          </Box>
-                        }
-                      />
-                    ))}
-                  </Tabs>
+          <div className="remote-runner-screenshot-area">
+            {!shot && loading && (
+              <div 
+              style={{
+                width: '100%', 
+                height: '100%', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                background: "#f5f6fa",
+                borderRadius: "8px"
+                }}
+              >
+                {loading && <CircularProgress/>}
                 </div>
               )}
+              { shot && (
               <div className="screenshot-container">
                 {mode === "crop" || mode === "generate-steps" ? (
                   <ReactCrop
@@ -1232,8 +1233,8 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
                 {/* Permanent Step Labels */}
                 {renderStepLabels()}
               </div>
-            </>
           )}
+          </div>
         </div>
 
         {/* Bottom row: Control bar */}

@@ -51,13 +51,29 @@
 .remote-runner-middle-row {
   flex: 1;
   display: flex;
+  overflow: hidden;
+  flex-direction: column;
+  padding: 16px;
+  min-height: 0;
+}
+
+.remote-runner-tab-bar{
+  flex: 0 0 auto;
+  padding: 0 16px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #fff;
+}
+
+.remote-runner-screenshot-area {
+  flex: 1;
+  position: relative;
+  display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
   padding: 16px;
   min-height: 0;
-}
-
+} 
 .remote-runner-bottom-row {
   flex: 0 0 auto;
   padding: 16px;
@@ -111,6 +127,7 @@
   width: 100%;
   height: 100%;
   overflow: hidden;
+  padding-top: 14px;
 }
 
 .screenshot-placeholder {

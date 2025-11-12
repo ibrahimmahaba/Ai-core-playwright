@@ -454,7 +454,7 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
                 </div>
             </div>
 
-            {showData && (
+            {/* {showData && (
                 <div className="steps-container">
                     <div className="steps-header">
                         <h4>Edit Replay Variables</h4>
@@ -595,7 +595,7 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
                         <button onClick={() => setShowData(false)}>Cancel</button>
                     </div>
                 </div>
-            )}
+            )} */}
         </>
     );
 }

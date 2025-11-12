@@ -879,7 +879,23 @@ function StepsPanel(props: StepsPanelProps) {
                 >
                   {tab.title || tab.id} ({tabSteps.length})
                 </Typography>
-
+                <Switch
+                  checked={allStepsSelected}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setSelectedSteps(prev => {
+                      const next = { ...prev };
+                      if (checked) {
+                        next[tabKey] = new Set(tabSteps.map((_, idx) => idx));
+                      } else {
+                        next[tabKey] = new Set();
+                      }
+                      return next;
+                    });
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="accordion-checkbox"
+                />
               </Box>
             </AccordionSummary>
             <AccordionDetails>
@@ -949,7 +965,7 @@ function StepsPanel(props: StepsPanelProps) {
                     });
                   }}
                   onClick={(e) => e.stopPropagation()}
-                  className="accordion-toggle"
+                  className="accordion-checkbox"
                 />
               </Box>
             </AccordionSummary>

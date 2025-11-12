@@ -188,6 +188,11 @@ function Header() {
           if (checkSessionExpired(res.pixelReturn)) {
             return false;
           }
+
+          if (res.pixelReturn[0].operationType && res.pixelReturn[0].operationType.includes("ERROR")) {
+            showToast(`Failed to make save session: ${res.pixelReturn[0].output}`, "error")
+            return false;
+          }
           
           console.log("SaveAll success:", res.pixelReturn[0].output);
           showToast("File saved successfully!", "success");
@@ -202,15 +207,27 @@ function Header() {
 
     async function updateMCP() {
         try {
-            const makePlaywrightPixel = `MakePlaywrightMCP(project="26ccbfc8-8488-4fee-87dd-19dd0561e5c1")`;
-            const makePlaywrightRes = await runPixel(makePlaywrightPixel, insightId);
+
+            const replayerProjectId = '26ccbfc8-8488-4fee-87dd-19dd0561e5c1';
+            // const replayerProjectId = '26ccbfc8-8488-4fee-87dd-19dd0561e5c1';
+
+            const makePlaywrightPixel = `MakePlaywrightMCP(project="${replayerProjectId}")`;
+
+            const res = await runPixel(makePlaywrightPixel, insightId);
             
-            if (checkSessionExpired(makePlaywrightRes.pixelReturn)) {
+            if (checkSessionExpired(res.pixelReturn)) {
+              return;
+            }
+
+            if (res.pixelReturn[0].operationType && res.pixelReturn[0].operationType.includes("ERROR")) {
+              showToast(`Failed to make playwright MCP: ${res.pixelReturn[0].output}`, "error")
               return;
             }
             
-            console.log("MakePlaywrightMCP success:", makePlaywrightRes.pixelReturn[0].output);
+            console.log("MakePlaywrightMCP success:", res.pixelReturn[0].output);
+
             showToast("MCP updated successfully!", "success");
+
         } catch (makePlaywrightErr) {
             console.error("Error running MakePlaywrightMCP:", makePlaywrightErr);
         }

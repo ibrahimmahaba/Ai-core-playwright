@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { runPixel } from "@semoss/sdk";
+import { setSessionExpiredCallback } from "../utils/errorHandler";
 import type { ModelOption, ScreenshotResponse, TabData } from "../types";
 
 
@@ -37,9 +38,17 @@ interface SessionStore {
   description: string;
   setDescription: (description: string) => void;
 
+  isSessionExpired: boolean;
+  setIsSessionExpired: (expired: boolean) => void;
+
   initSession: (insightId: string, isInitialized: boolean) => Promise<void>;
   resetSession: () => void;
 }
+
+// Set up the session expired callback when the store is created
+setSessionExpiredCallback(() => {
+  useSessionStore.getState().setIsSessionExpired(true);
+});
 
 export const useSessionStore = create<SessionStore>((set) => ({
   insightId: "",
@@ -55,6 +64,8 @@ export const useSessionStore = create<SessionStore>((set) => ({
 
   title: "",
   description: "",
+
+  isSessionExpired: false,
 
   setInsightId: (id) => set({ insightId: id }),
   setSessionId: (id) => set({ sessionId: id }),
@@ -79,6 +90,7 @@ export const useSessionStore = create<SessionStore>((set) => ({
   // MEDIUM PRIORITY Setters
   setTitle: (title) => set({ title }),
   setDescription: (description) => set({ description }),
+  setIsSessionExpired: (expired) => set({ isSessionExpired: expired }),
 
   initSession: async (insightId, isInitialized) => {
     try {

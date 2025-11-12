@@ -4,9 +4,12 @@ import {
     ListAlt as ListAltIcon,
     Edit as EditIcon,
     Sync as SyncIcon,
+    List as ListIcon,
+    CropFree as CropIcon, 
   } from "@mui/icons-material";
 import { type JSX, useState, useEffect } from "react";
 import { runPixel } from "@semoss/sdk";
+import { checkSessionExpired } from "../../utils/errorHandler";
 import type { ToolbarProps, ScreenshotResponse, Step, Viewport } from "../../types";
 import {useSendStep} from"../../hooks/useSendStep"
 import StepsPanel from "../StepsPanel/StepsPanel";
@@ -14,10 +17,14 @@ import InputsPanel from "../InputsPanel/InputsPanel";
 import ToolsPanel from "../ToolsPanel/ToolsPanel";
 import GenerateStepsPanel from "../GenerateStepsPanel/GenerateStepsPanel";
 import './Toolbar.css';
+import StoredContextsSidebar from '../StoredContexts/StoredContextsSidebar';
 
 function Toolbar(props: ToolbarProps) {
   const { sessionId, insightId, shot, setShot, mode, setMode, steps, setSteps, setLoading,
-    generationUserPrompt, setGenerationUserPrompt, selectedModel, setSelectedModel, modelOptions, tabId, editedData, setEditedData, selectedRecording, tabs, setActiveTabId} = props;
+    generationUserPrompt, setGenerationUserPrompt, selectedModel, setSelectedModel, modelOptions, tabId, editedData, setEditedData, selectedRecording, tabs, setActiveTabId, isSessionExpired,
+    storedContexts, setStoredContexts } = props;
+
+  const [showContextsSidebar, setShowContextsSidebar] = useState(false);
   
   const [showPanel, setShowPanel] = useState(false);
 
@@ -42,6 +49,11 @@ function Toolbar(props: ToolbarProps) {
         try {
             let pixel = `Screenshot ( sessionId = "${sessionId}", tabId = "${tabId}" )`;
             const res = await runPixel(pixel, insightId);
+            
+            if (checkSessionExpired(res.pixelReturn)) {
+              return;
+            }
+            
             const { output } = res.pixelReturn[0];
             const snap = normalizeShot(output);
             if (snap) setShot(snap);
@@ -129,10 +141,14 @@ function Toolbar(props: ToolbarProps) {
 
   return (
     <>
-      <div className="toolbar-container">
-        {/* Action buttons */}
+    <div className="toolbar-container">
         {([
           { m: "fetch-screenshot", icon: <SyncIcon />, label: "Refresh" },
+          { m: "crop", icon: <CropIcon />, label: "Add Context" },
+          { m: "generate-steps", icon: <AutoAwesomeIcon />, label: "Generate Steps" },
+          { m: "show-contexts", icon: <ListIcon />, label: "Stored Contexts" }
+
+
         ] as { m: string; icon: JSX.Element; label: string }[]).map(({ m, icon, label }) => {
           return (
             <button
@@ -154,10 +170,14 @@ function Toolbar(props: ToolbarProps) {
         {toolbarItems.map(({ m, icon, label }) => {
           const active = mode === m;
           const isModelRequired = m === "generate-steps";
-          const disabled = isModelRequired && !selectedModel;
+          const disabled = isSessionExpired || (isModelRequired && !selectedModel);
 
           const hoverMessage =
-            disabled && m === "generate-steps"
+            isSessionExpired
+              ? "Session expired. Please refresh the page."
+              : disabled && m === "crop"
+              ? "Add context: Please add a model to your model catalog to activate"
+              : disabled && m === "generate-steps"
               ? "Generate steps: Please add a model to your model catalog to activate"
               : label;
 
@@ -183,6 +203,8 @@ function Toolbar(props: ToolbarProps) {
                     return;
                   }
                   setMode("generate-steps");
+                } else if (m === "show-contexts") {
+                  setShowContextsSidebar(!showContextsSidebar);
                 } else if (m === "show-steps") {
                   setMode("show-steps");
                 } else if (m === "edit-inputs") {
@@ -196,6 +218,11 @@ function Toolbar(props: ToolbarProps) {
               }`}
             >
               {icon}
+              {m === "show-contexts" && storedContexts && storedContexts.length > 0 && (
+                <span className="toolbar-button-badge">
+                  {storedContexts.length > 9 ? '9+' : storedContexts.length}
+                </span>
+              )}
             </button>
           );
         })}
@@ -272,6 +299,17 @@ function Toolbar(props: ToolbarProps) {
             )}
           </div>
         </div>
+      )}
+
+
+      {showContextsSidebar && (
+        <StoredContextsSidebar
+          storedContexts={storedContexts || []}
+          setStoredContexts={setStoredContexts || (() => {})}
+          sessionId={sessionId}
+          insightId={insightId}
+          onClose={() => setShowContextsSidebar(false)}
+        />
       )}
     </>
   )

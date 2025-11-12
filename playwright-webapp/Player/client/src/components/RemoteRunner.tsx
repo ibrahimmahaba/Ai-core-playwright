@@ -1,6 +1,6 @@
-
 import React, { useRef, useState, useEffect } from "react";
 import { runPixel } from "@semoss/sdk";
+import { checkSessionExpired, setSessionExpiredCallback } from "../utils/errorHandler";
 import {
   Check, Close
 } from "@mui/icons-material";
@@ -26,7 +26,7 @@ import { Tabs, Tab, Box } from "@mui/material";
 import {Insight}  from 'https://cdn.jsdelivr.net/npm/@semoss/sdk@1.0.0-beta.29/+esm';
 
 
-export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRunnerProps) {
+export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps) {
 
   const [loading, setLoading] = useState(false);
   const [shot, setShot] = useState<ScreenshotResponse>();
@@ -47,6 +47,8 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
   const [mode, setMode] = useState<string>("click");
   const [generationUserPrompt, setGenerationUserPrompt] = useState(" ");
   const [currUserModels, setCurrUserModels] = useState<Record<string, string>>({});
+  const [isSessionExpired, setIsSessionExpired] = useState(false);
+  const [storedContexts, setStoredContexts] = useState<string[]>([]);
   const modelOptions: ModelOption[] = Object.entries(currUserModels).map(([name, id]) => ({
     label: name,
     value: id,
@@ -61,6 +63,13 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
   const [activeTabId, setActiveTabId] = useState<string>("tab-1");
   // const [showFutureSteps, setShowFutureSteps] = useState<boolean>(true);
   const showFutureSteps = true;
+
+  // Set up session expired callback
+  useEffect(() => {
+    setSessionExpiredCallback(() => {
+      setIsSessionExpired(true);
+    });
+  }, []);
 
   useEffect(() => {
     if (!sessionId || !live) return;
@@ -78,13 +87,13 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
 
     useEffect(() => {
     // Auto-show input overlay for TYPE steps
-    if (editedData && editedData.length > 0 && !overlay && !loading && showData && shot) {
+    if (editedData && editedData.length > 0 && !overlay && !loading && showData && shot && !isSessionExpired) {
       const handleSetOverlayForType = async () => {
         await setOverlayForType();
       };
       handleSetOverlayForType();
     }
-  }, [editedData, overlay, loading, showData, shot]);
+  }, [editedData, overlay, loading, showData, shot, isSessionExpired]);
 
 
   const viewport: Viewport = {
@@ -94,6 +103,7 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
   };
 
   async function setOverlayForType() {
+    setIsSessionExpired(isSessionExpired);
     const nextAction = editedData[0];
     if ("TYPE" in nextAction) {
       const typeAction = nextAction.TYPE;
@@ -242,6 +252,11 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
     try {
       let pixel = `Screenshot ( sessionId = "${sessionId}", tabId="${targetTabId}" )`;
       const res = await runPixel(pixel, insightId);
+      
+      if (checkSessionExpired(res.pixelReturn)) {
+        return;
+      }
+      
       const { output } = res.pixelReturn[0];
       const snap = normalizeShot(output);
       if (snap) {
@@ -316,6 +331,35 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
     }
         
     const actionTabId = (nextAction as any).tabId || activeTabId || "tab-1";
+
+      if ("CONTEXT" in nextAction) {
+      const coords = nextAction.CONTEXT.multiCoords;
+      console.log("CONTEXT action detected - showing crop overlay");
+      if (coords && coords.length >= 2) {
+        setCurrentCropArea({
+          startX: coords[0].x,
+          startY: coords[0].y,
+          endX: coords[1].x,
+          endY: coords[1].y
+        });
+        setVisionPopup({
+          x: coords[1].x,
+          y: coords[0].y,
+          query: nextAction.CONTEXT.prompt,
+          response: null
+        });
+        setMode("crop");
+        
+        setCrop({
+          unit: 'px',
+          x: coords[0].x,
+          y: coords[0].y,
+          width: coords[1].x - coords[0].x,
+          height: coords[1].y - coords[0].y
+        });
+      }
+    }
+    
     
     if (!selectedRecording) {
       setLoading(true);
@@ -381,6 +425,13 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
     
     setLoading(true);
     const res = await runPixel(pixel, insightId);
+    
+    if (checkSessionExpired(res.pixelReturn)) {
+      setLoading(false);
+      setOverlay(null);
+      return;
+    }
+    
     const { output } = res.pixelReturn[0] as { output: ReplayPixelOutput };
   
     console.log("ReplayStep output:", output);
@@ -531,6 +582,12 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
       )`;
       
       const extractRes = await runPixel(extractPixel, insightId);
+      
+      if (checkSessionExpired(extractRes.pixelReturn)) {
+        setLoading(false);
+        return;
+      }
+      
       const extractionData = extractRes.pixelReturn[0].output as ExtractionData;
       
       console.log("Extracted HTML data:", extractionData);
@@ -545,6 +602,12 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
       )`;
       
       const generateRes = await runPixel(generatePixel, insightId);
+      
+      if (checkSessionExpired(generateRes.pixelReturn)) {
+        setLoading(false);
+        return;
+      }
+      
       const aiResult = generateRes.pixelReturn[0].output as modelGeneratedSteps;
       
       console.log("AI Result:", aiResult);
@@ -765,9 +828,9 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
     const box = pageRectToImageCss(probe.rect, imgEl, shot);
   
   
-    // Wrapper strictly matches the element’s (scaled) rect
+    // Wrapper strictly matches the element's (scaled) rect
 
-    // Wrapper strictly matches the element’s (scaled) rect
+    // Wrapper strictly matches the element's (scaled) rect
     const wrapperStyle: React.CSSProperties = {
       position: "absolute",
       left: box.left,
@@ -955,6 +1018,9 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
         setEditedData={setEditedData}
         selectedRecording={selectedRecording}
         tabs={tabs}
+        isSessionExpired={isSessionExpired}
+        storedContexts={storedContexts}
+        setStoredContexts={setStoredContexts}
       />
 
       {/* header */}
@@ -1116,7 +1182,6 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
           {/* VisionPopup */}
           <VisionPopup 
             sessionId={sessionId} 
-            insight={insight}
             insightId={insightId}
             visionPopup={visionPopup} 
             setVisionPopup={setVisionPopup}
@@ -1128,6 +1193,9 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
             setCrop={setCrop} 
             selectedModel={selectedModel}
             tabId={activeTabId}
+            storedContexts={storedContexts}
+            setStoredContexts={setStoredContexts}
+            imgRef={imgRef}
           />
 
           {/* Permanent Step Labels */}
@@ -1163,6 +1231,11 @@ export default function RemoteRunner({ sessionId, insightId, insight }: RemoteRu
       tabs={tabs}  
       setTabs={setTabs} 
       setActiveTabId={setActiveTabId}
+      setVisionPopup={setVisionPopup}
+      setCurrentCropArea={setCurrentCropArea}
+      setMode={setMode} 
+      setCrop={setCrop} 
+      imgRef={imgRef}
     />
 
     </div>

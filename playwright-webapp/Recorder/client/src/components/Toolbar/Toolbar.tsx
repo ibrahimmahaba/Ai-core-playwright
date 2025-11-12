@@ -28,9 +28,23 @@ function Toolbar() {
     setMode,
     activeTabId,
     selectedModel,
-    tabs
-  } = useSessionStore();
+    selectedModel,
+    isSessionExpired,
+    tabs, setTabs} = useSessionStore();
   const [showPanel, setShowPanel] = useState(false);
+  const [showInputsMenu, setShowInputsMenu] = useState(false);
+  const [showExpandedView, setShowExpandedView] = useState(false);
+  const [selectedTabId, setSelectedTabId] = useState<string | null>(null);
+  const [editingInput, setEditingInput] = useState<{tabId: string; stepIndex: number} | null>(null);
+  const [editedLabel, setEditedLabel] = useState<string>("");
+  const [editedValue, setEditedValue] = useState<string>("");
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
+  const [editedSteps, setEditedSteps] = useState<Map<string, {tabId: string; stepIndex: number; label: string; text: string; storeValue: boolean; stepId?: number}>>(new Map());
+  const [originalSteps, setOriginalSteps] = useState<Map<string, {storeValue: boolean}>>(new Map());
+  
+  const editingRef = useRef<HTMLDivElement>(null);
+  const saveActionsRef = useRef<HTMLDivElement>(null);
 
   const viewport: Viewport = {
     width: shot?.width ?? 1280,
@@ -112,9 +126,13 @@ function Toolbar() {
         ] as { m: string; icon: JSX.Element; label: string }[]).map(({ m, icon, label }) => {
           const active = mode === m;
           const isModelRequired = m === "crop" || m === "generate-steps";
-          const disabled = isModelRequired && !selectedModel;
+          const disabled = isSessionExpired || (isModelRequired && !selectedModel);
 
-          const hoverMessage = disabled && m === "crop" ? "Add context: Please add a model to your model catalog to activate" : label;
+          const hoverMessage = isSessionExpired 
+            ? "Session expired. Please refresh the page or start a new flow by clicking open url."
+            : (disabled && m === "crop" 
+              ? "Add context: Please add a model to your model catalog to activate" 
+              : label);
 
           return (
             <button

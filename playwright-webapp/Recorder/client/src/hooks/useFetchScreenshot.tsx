@@ -1,5 +1,6 @@
 import type { ScreenshotResponse } from "../types";
 import { runPixel } from "@semoss/sdk";
+import { checkSessionExpired } from "../utils/errorHandler";
 
 
 export async function fetchScreenshot(sessionId: string, insightId: string, activeTabId: string, setShot: React.Dispatch<React.SetStateAction<ScreenshotResponse | undefined>>) {
@@ -7,6 +8,11 @@ export async function fetchScreenshot(sessionId: string, insightId: string, acti
     try {
         let pixel = `Screenshot ( sessionId = "${sessionId}", tabId="${activeTabId}" )`;
         const res = await runPixel(pixel, insightId);
+        
+        if (checkSessionExpired(res.pixelReturn)) {
+          return;
+        }
+        
         const { output } = res.pixelReturn[0];
         const snap = normalizeShot(output);
         if (snap) setShot(snap);

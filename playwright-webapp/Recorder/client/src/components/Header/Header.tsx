@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSendStep } from '../../hooks/useSendStep';
 import type { ModelOption, Viewport } from '../../types';
 import { runPixel } from "@semoss/sdk";
+import { checkSessionExpired } from "../../utils/errorHandler";
 import { Autocomplete, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, TextField, Typography } from '@mui/material';
 import './header.css';
 import { useSessionStore } from '../../store/useSessionStore';
@@ -27,6 +28,7 @@ function Header() {
     loading,
     setLoading,
     resetSession,
+    setIsSessionExpired,
   } = useSessionStore();
 
   const { showToast } = useToastNotificationStore();
@@ -54,6 +56,11 @@ function Header() {
         try {
           const pixel = `MyEngineProject(metaKeys = [], metaFilters=[{}], filterWord=[""], type=[["MODEL"]]);`;
           const res = await runPixel(pixel, insightId);
+          
+          if (checkSessionExpired(res.pixelReturn)) {
+            return;
+          }
+          
           const output = res.pixelReturn[0].output;
   
           if (Array.isArray(output)) {
@@ -146,6 +153,7 @@ function Header() {
       resetSession();
       
       await initSession(insightId, isInitialized);
+      setIsSessionExpired(false);
       await new Promise(resolve => setTimeout(resolve, 500));
       await proceedToNavigate("tab-1");
     } catch (error) {
@@ -176,6 +184,11 @@ function Header() {
       
 
           const res = await runPixel(pixel, insightId);
+          
+          if (checkSessionExpired(res.pixelReturn)) {
+            return false;
+          }
+          
           console.log("SaveAll success:", res.pixelReturn[0].output);
           showToast("File saved successfully!", "success");
           await updateMCP();
@@ -189,8 +202,13 @@ function Header() {
 
     async function updateMCP() {
         try {
-            const makePlaywrightPixel = `MakePlaywrightMCP(project="84ede0d8-6da3-4772-9968-e8554c538c8b")`;
+            const makePlaywrightPixel = `MakePlaywrightMCP(project="26ccbfc8-8488-4fee-87dd-19dd0561e5c1")`;
             const makePlaywrightRes = await runPixel(makePlaywrightPixel, insightId);
+            
+            if (checkSessionExpired(makePlaywrightRes.pixelReturn)) {
+              return;
+            }
+            
             console.log("MakePlaywrightMCP success:", makePlaywrightRes.pixelReturn[0].output);
             showToast("MCP updated successfully!", "success");
         } catch (makePlaywrightErr) {

@@ -2,7 +2,7 @@ import type { Action, Step, TabData } from "../../types";
 import './StepsPanel.css';
 import TextField from '@mui/material/TextField';
 import Checkbox from '@mui/material/Checkbox';
-import { Info as InfoIcon } from "@mui/icons-material";
+import { PlayArrow as PlayIcon, Star as RequiredIcon } from "@mui/icons-material";
 import type { SyntheticEvent } from 'react';
 import { useState, useEffect, useCallback } from 'react';
 import { useRef } from 'react';
@@ -14,9 +14,8 @@ import {
   Box,
   Button,
   Typography,
+  Chip,
 } from "@mui/material";
-import AdsClickIcon from '@mui/icons-material/AdsClick';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 interface StepsPanelProps {
   steps: Step[];
@@ -325,24 +324,32 @@ function StepsPanel(props: StepsPanelProps) {
     const stepNumber = index + 1;
     const isSelected = isStepSelected(tabKey, index);
     
+    // Determine if step is required (for TYPE steps, check if label exists or storeValue is true)
+    const isRequired = step.type === "TYPE" && (step.label || step.storeValue);
+    
     switch (step.type) {
       case "CLICK":
         return (
           <div key={index} className="step-item step-item-click">
-            <div className="step-checkbox">
+            <div className="step-checkbox step-checkbox-absolute">
               <Checkbox 
                 checked={isSelected} 
                 onChange={(e) => handleStepSelection(tabKey, index, e.target.checked)}
                 disabled 
               />
             </div>
-            <div className="step-content step-content-click">
-              <div className="step-number">Step: {stepNumber}</div>
-              <div className="step-type-label">CLICK</div>
-              <InfoIcon className="step-info-icon" />
-              <div className="step-click-icons">
-                <AdsClickIcon className="step-click-icon" />
+            <div className="step-content step-content-full">
+              {/* Row 1: Play icon - Step number - Required icon */}
+              <div className="step-row-1">
+                <PlayIcon className="play-icon" />
+                <span className="step-number-text">Step {stepNumber}</span>
+                {isRequired && <RequiredIcon className="required-icon" />}
               </div>
+              {/* Row 2: Label at left, stored tag at right */}
+              <div className="step-row-2">
+                <span className="step-label">CLICK</span>
+              </div>
+              {/* Row 3: Full width (empty for CLICK) */}
             </div>
           </div>
         );
@@ -350,28 +357,35 @@ function StepsPanel(props: StepsPanelProps) {
         const currentText = getValue(tabKey, index, 'text', step.isPassword ? "••••••••" : step.text);
         return (
           <div key={index} className="step-item step-item-type">
-            <div className="step-checkbox">
+            <div className="step-checkbox step-checkbox-absolute">
               <Checkbox 
                 checked={isSelected}
                 onChange={(e) => handleStepSelection(tabKey, index, e.target.checked)}
               />
             </div>
-            <div className="step-content">
-              <div className="step-number">Step: {stepNumber}</div>
-              <div className="step-title">{step.label || 'Input'}</div>
+            <div className="step-content step-content-full">
+              {/* Row 1: Play icon - Step number - Required icon */}
+              <div className="step-row-1">
+                <PlayIcon className="play-icon" />
+                <span className="step-number-text">Step {stepNumber}</span>
+                {isRequired && <RequiredIcon className="required-icon" />}
+              </div>
+              {/* Row 2: Label at left, stored tag at right */}
+              <div className="step-row-2">
+                <span className="step-label">{step.label || 'Input'}</span>
+                {step.storeValue && (
+                  <Chip label="Stored" size="small" sx={{ height: 20, fontSize: '0.7rem' }} />
+                )}
+              </div>
+              {/* Row 3: Full width text field */}
               <TextField
                 id={`type-field-${tabKey}-${index}`}
                 value={currentText}
                 onChange={(e) => handleValueChange(tabKey, index, 'text', e.target.value)}
                 disabled={step.isPassword}
                 size="small"
-                sx={{
-                  width: '100%',
-                  marginTop: '4px',
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: '18px',
-                  },
-                }}
+                fullWidth
+                className="step-text-field-rounded"
               />
             </div>
           </div>
@@ -381,15 +395,24 @@ function StepsPanel(props: StepsPanelProps) {
         const currentDeltaY = getValue(tabKey, index, 'deltaY', String(step.deltaY ?? 0));
         return (
           <div key={index} className="step-item step-item-type">
-            <div className="step-checkbox">
+            <div className="step-checkbox step-checkbox-absolute">
               <Checkbox 
                 checked={isSelected}
                 onChange={(e) => handleStepSelection(tabKey, index, e.target.checked)}
               />
             </div>
-            <div className="step-content">
-              <div className="step-number">Step: {stepNumber}</div>
-              <div className="step-title">SCROLL</div>
+            <div className="step-content step-content-full">
+              {/* Row 1: Play icon - Step number - Required icon */}
+              <div className="step-row-1">
+                <PlayIcon className="play-icon" />
+                <span className="step-number-text">Step {stepNumber}</span>
+                {isRequired && <RequiredIcon className="required-icon" />}
+              </div>
+              {/* Row 2: Label at left, stored tag at right */}
+              <div className="step-row-2">
+                <span className="step-label">SCROLL</span>
+              </div>
+              {/* Row 3: Full width text field */}
               <TextField
                 id={`scroll-field-${tabKey}-${index}`}
                 value={currentDeltaY}
@@ -397,7 +420,7 @@ function StepsPanel(props: StepsPanelProps) {
                 label="Delta Y"
                 size="small"
                 type="number"
-                sx={{ width: '100%', marginTop: '4px' }}
+                fullWidth
               />
             </div>
           </div>
@@ -407,15 +430,24 @@ function StepsPanel(props: StepsPanelProps) {
         const currentWait = getValue(tabKey, index, 'wait', String(step.waitAfterMs ?? 0));
         return (
           <div key={index} className="step-item step-item-type">
-            <div className="step-checkbox">
+            <div className="step-checkbox step-checkbox-absolute">
               <Checkbox 
                 checked={isSelected}
                 onChange={(e) => handleStepSelection(tabKey, index, e.target.checked)}
               />
             </div>
-            <div className="step-content">
-              <div className="step-number">Step: {stepNumber}</div>
-              <div className="step-title">WAIT</div>
+            <div className="step-content step-content-full">
+              {/* Row 1: Play icon - Step number - Required icon */}
+              <div className="step-row-1">
+                <PlayIcon className="play-icon" />
+                <span className="step-number-text">Step {stepNumber}</span>
+                {isRequired && <RequiredIcon className="required-icon" />}
+              </div>
+              {/* Row 2: Label at left, stored tag at right */}
+              <div className="step-row-2">
+                <span className="step-label">WAIT</span>
+              </div>
+              {/* Row 3: Full width text field */}
               <TextField
                 id={`wait-field-${tabKey}-${index}`}
                 value={currentWait}
@@ -423,7 +455,7 @@ function StepsPanel(props: StepsPanelProps) {
                 label="Duration (ms)"
                 size="small"
                 type="number"
-                sx={{ width: '100%', marginTop: '4px' }}
+                fullWidth
               />
             </div>
           </div>
@@ -433,28 +465,32 @@ function StepsPanel(props: StepsPanelProps) {
         const currentUrl = getValue(tabKey, index, 'url', step.url);
         return (
           <div key={index} className="step-item step-item-type">
-            <div className="step-checkbox">
+            <div className="step-checkbox step-checkbox-absolute">
               <Checkbox 
                 checked={isSelected}
                 onChange={(e) => handleStepSelection(tabKey, index, e.target.checked)}
               />
             </div>
-            <div className="step-content">
-              <div className="step-number">Step: {stepNumber}</div>
-              <div className="step-title">NAVIGATE</div>
+            <div className="step-content step-content-full">
+              {/* Row 1: Play icon - Step number - Required icon */}
+              <div className="step-row-1">
+                <PlayIcon className="play-icon" />
+                <span className="step-number-text">Step {stepNumber}</span>
+                {isRequired && <RequiredIcon className="required-icon" />}
+              </div>
+              {/* Row 2: Label at left, stored tag at right */}
+              <div className="step-row-2">
+                <span className="step-label">NAVIGATE</span>
+              </div>
+              {/* Row 3: Full width text field */}
               <TextField
                 id={`navigate-field-${tabKey}-${index}`}
                 value={currentUrl}
                 onChange={(e) => handleValueChange(tabKey, index, 'url', e.target.value)}
                 label="URL"
                 size="small"
-                sx={{
-                  width: '100%',
-                  marginTop: '4px',
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: '18px',
-                  },
-                }}
+                fullWidth
+                className="step-text-field-rounded"
                 InputProps={{
                   readOnly: true,
                 }}
@@ -820,6 +856,8 @@ function StepsPanel(props: StepsPanelProps) {
         const tabKey = ensureTabKey(tab.id);
         const tabSteps = stepsByTabForRender[tabKey] || [];
         const isExpanded = expandedTabIds.has(tabKey);
+        const allStepsSelected = tabSteps.length > 0 && 
+          (selectedSteps[tabKey]?.size ?? 0) === tabSteps.length;
 
         return (
           <Accordion
@@ -827,11 +865,38 @@ function StepsPanel(props: StepsPanelProps) {
             expanded={isExpanded}
             onChange={handleAccordionToggle(tabKey, tab.id)}
             disableGutters
+            className="steps-accordion"
           >
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography variant="subtitle2" fontWeight={600}>
-                {tab.title || tab.id} ({tabSteps.length})
-              </Typography>
+            <AccordionSummary>
+              <Box className="accordion-summary-container">
+                <Box
+                  className={`accordion-indicator-line ${isExpanded ? 'accordion-indicator-line-expanded' : 'accordion-indicator-line-collapsed'}`}
+                />
+                <Typography 
+                  variant="subtitle2" 
+                  fontWeight={600}
+                  className="accordion-title-right"
+                >
+                  {tab.title || tab.id} ({tabSteps.length})
+                </Typography>
+                <Checkbox
+                  checked={allStepsSelected}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setSelectedSteps(prev => {
+                      const next = { ...prev };
+                      if (checked) {
+                        next[tabKey] = new Set(tabSteps.map((_, idx) => idx));
+                      } else {
+                        next[tabKey] = new Set();
+                      }
+                      return next;
+                    });
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="accordion-checkbox"
+                />
+              </Box>
             </AccordionSummary>
             <AccordionDetails>
               {tabSteps.length > 0 ? (
@@ -859,47 +924,80 @@ function StepsPanel(props: StepsPanelProps) {
   const hasDefaultSteps = defaultSteps.length > 0;
   const showEditedActions = !hasDefaultSteps && hasEditedActions;
 
-  const renderSingleAccordion = () => (
-    <>
-      {(hasDefaultSteps || showEditedActions) ? (
-        <Accordion
-          expanded={expandedTabIds.has(defaultTabKey)}
-          onChange={handleAccordionToggle(defaultTabKey)}
-          disableGutters
-        >
-          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Typography variant="subtitle2" fontWeight={600}>
-              Steps ({(hasDefaultSteps ? defaultSteps.length : editedData.length)})
-            </Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            {hasDefaultSteps ? (
-              <div className="steps-list">
-                {defaultSteps.map((step, index) => renderStep(defaultTabKey, step, index))}
-              </div>
-            ) : (
-              <div className="steps-list">
-                {editedData.map((action, index) => {
-                  // Convert Action to Step for rendering if needed
-                  return null; // Placeholder - you may need to implement renderAction
-                })}
-              </div>
-            )}
-            {renderButtons(defaultTabKey)}
-          </AccordionDetails>
-        </Accordion>
-      ) : (
-        <div className="steps-panel-empty">
-          <p>No steps available</p>
-          <p className="steps-panel-empty-hint">
-            {selectedRecording
-              ? `Select a recording file to view steps`
-              : `Steps will appear here when actions are added`}
-          </p>
-        </div>
-      )}
-    </>
-  );
+  const renderSingleAccordion = () => {
+    const isExpanded = expandedTabIds.has(defaultTabKey);
+    const allStepsSelected = defaultSteps.length > 0 && 
+      (selectedSteps[defaultTabKey]?.size ?? 0) === defaultSteps.length;
+
+    return (
+      <>
+        {(hasDefaultSteps || showEditedActions) ? (
+          <Accordion
+            expanded={isExpanded}
+            onChange={handleAccordionToggle(defaultTabKey)}
+            disableGutters
+            className="steps-accordion"
+          >
+            <AccordionSummary>
+              <Box className="accordion-summary-container">
+                <Box
+                  className={`accordion-indicator-line ${isExpanded ? 'accordion-indicator-line-expanded' : 'accordion-indicator-line-collapsed'}`}
+                />
+                <Typography 
+                  variant="subtitle2" 
+                  fontWeight={600}
+                  className="accordion-title-right"
+                >
+                  Steps ({(hasDefaultSteps ? defaultSteps.length : editedData.length)})
+                </Typography>
+                <Checkbox
+                  checked={allStepsSelected}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setSelectedSteps(prev => {
+                      const next = { ...prev };
+                      if (checked) {
+                        next[defaultTabKey] = new Set(defaultSteps.map((_, idx) => idx));
+                      } else {
+                        next[defaultTabKey] = new Set();
+                      }
+                      return next;
+                    });
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="accordion-checkbox"
+                />
+              </Box>
+            </AccordionSummary>
+            <AccordionDetails>
+              {hasDefaultSteps ? (
+                <div className="steps-list">
+                  {defaultSteps.map((step, index) => renderStep(defaultTabKey, step, index))}
+                </div>
+              ) : (
+                <div className="steps-list">
+                  {editedData.map((action, index) => {
+                    // Convert Action to Step for rendering if needed
+                    return null; // Placeholder - you may need to implement renderAction
+                  })}
+                </div>
+              )}
+              {renderButtons(defaultTabKey)}
+            </AccordionDetails>
+          </Accordion>
+        ) : (
+          <div className="steps-panel-empty">
+            <p>No steps available</p>
+            <p className="steps-panel-empty-hint">
+              {selectedRecording
+                ? `Select a recording file to view steps`
+                : `Steps will appear here when actions are added`}
+            </p>
+          </div>
+        )}
+      </>
+    );
+  };
 
   return (
     <div className="steps-panel">

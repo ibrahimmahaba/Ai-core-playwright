@@ -47,6 +47,7 @@
   display: flex;
   align-items: flex-start;
   gap: 8px;
+  position: relative;
   /* border-radius: 8px; */
   /* border: 1px solid #e0e0e0; */
   border-bottom: 1px solid #e0e0e0;
@@ -205,3 +206,126 @@
   border-bottom: 1px solid #e0e0e0;
 }
 
+/* Step checkbox positioning */
+.step-checkbox-absolute {
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+
+/* Step content full width */
+.step-content-full {
+  width: 100%;
+  padding-right: 48px;
+}
+
+/* Step row 1: Play icon - Step number - Required icon */
+.step-row-1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.step-number-text {
+  font-weight: 600;
+}
+
+.play-icon {
+  font-size: 20px;
+  color: #666;
+}
+
+.required-icon {
+  font-size: 16px;
+  color: #ff9800;
+  margin-left: auto;
+}
+
+/* Step row 2: Label at left, stored tag at right */
+.step-row-2 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.step-label {
+  font-weight: 600;
+}
+
+/* Accordion styling */
+.accordion-summary-container {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  justify-content: flex-end;
+  position: relative;
+  padding-right: 48px;
+}
+
+.accordion-indicator-line {
+  position: absolute;
+  right: 40px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 24px;
+  border-radius: 2px;
+}
+
+.accordion-indicator-line-expanded {
+  background-color: #ffc107;
+}
+
+.accordion-indicator-line-collapsed {
+  background-color: #4caf50;
+}
+
+.accordion-title-right {
+  text-align: right;
+  margin-right: 12px;
+}
+
+.accordion-checkbox {
+  position: absolute;
+  right: 0;
+}
+
+/* Text field rounded border */
+.step-text-field-rounded .MuiOutlinedInput-root {
+  border-radius: 18px;
+}
+
+.steps-tab-accordion-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.steps-accordion {
+  border-radius: 12px;
+  border: 1px solid #e0e0e0;
+  box-shadow: none;
+}
+
+.steps-accordion::before {
+  display: none;
+}
+
+.steps-accordion .MuiAccordionSummary-root {
+  padding: 0 16px;
+  flex-direction: row-reverse;
+}
+
+.steps-accordion .MuiAccordionSummary-content {
+  margin: 0;
+  justify-content: flex-end;
+  align-items: center;
+  position: relative;
+  padding-right: 48px;
+}
+
+.steps-accordion .MuiAccordionDetails-root {
+  padding: 16px;
+}

@@ -1,7 +1,7 @@
 import type { Action, Step, TabData } from "../../types";
 import './StepsPanel.css';
 import TextField from '@mui/material/TextField';
-import { PlayArrow as PlayIcon, Star as RequiredIcon } from "@mui/icons-material";
+import { PlayArrow as PlayIcon, Star as RequiredIcon, ExpandMore as ExpandMoreIcon } from "@mui/icons-material";
 import type { SyntheticEvent } from 'react';
 import { useState, useEffect, useCallback } from 'react';
 import { useRef } from 'react';
@@ -867,7 +867,7 @@ function StepsPanel(props: StepsPanelProps) {
             disableGutters
             className="steps-accordion"
           >
-            <AccordionSummary>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
               <Box className="accordion-summary-container">
                 <Box
                   className={`accordion-indicator-line ${isExpanded ? 'accordion-indicator-line-expanded' : 'accordion-indicator-line-collapsed'}`}
@@ -879,7 +879,7 @@ function StepsPanel(props: StepsPanelProps) {
                 >
                   {tab.title || tab.id} ({tabSteps.length})
                 </Typography>
-                <Switch
+                {/* <Switch
                   checked={allStepsSelected}
                   onChange={(e) => {
                     const checked = e.target.checked;
@@ -895,7 +895,7 @@ function StepsPanel(props: StepsPanelProps) {
                   }}
                   onClick={(e) => e.stopPropagation()}
                   className="accordion-checkbox"
-                />
+                /> */}
               </Box>
             </AccordionSummary>
             <AccordionDetails>
@@ -938,7 +938,7 @@ function StepsPanel(props: StepsPanelProps) {
             disableGutters
             className="steps-accordion"
           >
-            <AccordionSummary>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
               <Box className="accordion-summary-container">
                 <Box
                   className={`accordion-indicator-line ${isExpanded ? 'accordion-indicator-line-expanded' : 'accordion-indicator-line-collapsed'}`}

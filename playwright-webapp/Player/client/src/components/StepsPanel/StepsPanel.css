@@ -261,7 +261,7 @@
   width: 100%;
   justify-content: flex-start;
   position: relative;
-  padding-left: 48px;
+  padding-left: 0;
 }
 
 .accordion-indicator-line {
@@ -271,7 +271,7 @@
   transform: translateY(-50%);
   width: 4px;
   height: 24px;
-  border-radius: 2px;
+  /* border-radius: 2px; */
 }
 
 .accordion-indicator-line-expanded {
@@ -289,7 +289,7 @@
 
 .accordion-checkbox {
   position: absolute;
-  right: 0;
+  right: 40px;
 }
 
 /* Text field rounded border */
@@ -300,13 +300,14 @@
 .steps-tab-accordion-group {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0;
 }
 
 .steps-accordion {
-  border-radius: 12px;
-  border: 1px solid #e0e0e0;
+  border-radius: 0;
+  border: none;
   box-shadow: none;
+  border-bottom: 2px solid #e0e0e0;
 }
 
 .steps-accordion::before {
@@ -314,8 +315,21 @@
 }
 
 .steps-accordion .MuiAccordionSummary-root {
-  padding: 0 16px;
+  padding: 0 48px 0 0;
   flex-direction: row;
+  min-height: 48px;
+}
+
+.steps-accordion .MuiAccordionSummary-expandIconWrapper {
+  position: absolute;
+  right: 0;
+  margin-right: 0;
+  margin-left: auto;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.steps-accordion .Mui-expanded .MuiAccordionSummary-expandIconWrapper {
+  transform: rotate(180deg);
 }
 
 .steps-accordion .MuiAccordionSummary-content {
@@ -323,7 +337,7 @@
   justify-content: flex-start;
   align-items: center;
   position: relative;
-  padding-left: 48px;
+  padding-left: 0;
 }
 
 .steps-accordion .MuiAccordionDetails-root {

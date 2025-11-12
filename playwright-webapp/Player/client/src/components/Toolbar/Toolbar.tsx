@@ -118,17 +118,6 @@ function Toolbar(props: ToolbarProps) {
   useEffect(() => {
     const shouldShowPanel = mode !== undefined && mode !== "" && (mode === "tools" || mode === "show-steps" || mode === "edit-inputs" || mode === "generate-steps");
     setShowPanel(shouldShowPanel);
-    
-    // Add/remove class to body to adjust main content layout
-    if (shouldShowPanel && activeItem) {
-      document.body.classList.add('toolbar-panel-open');
-    } else {
-      document.body.classList.remove('toolbar-panel-open');
-    }
-    
-    return () => {
-      document.body.classList.remove('toolbar-panel-open');
-    };
   }, [mode, activeItem]);
 
   // Listen for requests to open Steps panel (e.g., after loading a JSON file)
@@ -140,6 +129,7 @@ function Toolbar(props: ToolbarProps) {
 
   return (
     <>
+      {/* First column: Sidebar icons */}
       <div className="toolbar-container">
         {/* Action buttons */}
         {([
@@ -219,6 +209,7 @@ function Toolbar(props: ToolbarProps) {
         })}
       </div>
       
+      {/* Second column: Sidebar content (conditional) */}
       {showPanel && needsPanel && activeItem && (
         <div className="toolbar-panel">
           {/* <div className="toolbar-panel-header">

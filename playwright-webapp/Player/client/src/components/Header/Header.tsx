@@ -141,111 +141,103 @@ function Header(props : HeaderProps) {
   }
 
   return (
-    <>
-      <div className="header-controls">
+    <div className="header-controls">
+      <Autocomplete
+        options={Array.isArray(allRecordings) ? allRecordings : []}
+        value={selectedRecording}
+        onChange={(_, newValue) => setSelectedRecording(newValue)}
+        renderInput={(params) => (
+          <TextField {...params} label="Select Recording" placeholder="Search recordings..." />
+        )}
+        sx={{ minWidth: 250 }}
+      />
 
-        <Autocomplete
-          options={Array.isArray(allRecordings) ? allRecordings : []}
-          value={selectedRecording}
-          onChange={(_, newValue) => setSelectedRecording(newValue)}
-          renderInput={(params) => (
-            <TextField {...params} label="Select Recording" placeholder="Search recordings..." />
-          )}
-          sx={{ minWidth: 250 }}
-        />
+      <button onClick={editRecording}>
+        Load Recording
+      </button>
 
-        <button onClick={editRecording}>
-          Load Recording (Edit)
-        </button>
+      {/* Load from local JSON */}
+      <input
+        id="load-json-input"
+        type="file"
+        accept=".json,application/json"
+        style={{ display: "none" }}
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          try {
+            const text = await file.text();
+            const parsed = JSON.parse(text);
 
-        {/* Load from local JSON */}
-        <input
-          id="load-json-input"
-          type="file"
-          accept=".json,application/json"
-          style={{ display: "none" }}
-          onChange={async (e) => {
-            const file = e.target.files?.[0];
-            if (!file) return;
-            try {
-              const text = await file.text();
-              const parsed = JSON.parse(text);
+            // Normalize into Action[]
+            const normalizeToActions = (raw: any): any[] => {
+              if (Array.isArray(raw)) {
+                // Detect Action[] form (keys like TYPE/CLICK/WAIT/NAVIGATE/SCROLL)
+                const looksLikeAction =
+                  raw.length === 0 ||
+                  typeof raw[0] === "object" &&
+                  raw[0] !== null &&
+                  (("TYPE" in raw[0]) || ("CLICK" in raw[0]) || ("WAIT" in raw[0]) || ("NAVIGATE" in raw[0]) || ("SCROLL" in raw[0]));
+                if (looksLikeAction) return raw;
 
-              // Normalize into Action[]
-              const normalizeToActions = (raw: any): any[] => {
-                if (Array.isArray(raw)) {
-                  // Detect Action[] form (keys like TYPE/CLICK/WAIT/NAVIGATE/SCROLL)
-                  const looksLikeAction =
-                    raw.length === 0 ||
-                    typeof raw[0] === "object" &&
-                    raw[0] !== null &&
-                    (("TYPE" in raw[0]) || ("CLICK" in raw[0]) || ("WAIT" in raw[0]) || ("NAVIGATE" in raw[0]) || ("SCROLL" in raw[0]));
-                  if (looksLikeAction) return raw;
-
-                  // Detect Step[] form (has 'type')
-                  const looksLikeStep =
-                    raw.length === 0 ||
-                    (raw[0] && typeof raw[0] === "object" && "type" in raw[0]);
-                  if (looksLikeStep) {
-                    return raw.map((s: any) => {
-                      switch (s.type) {
-                        case "TYPE":
-                          return { TYPE: { label: s.label ?? "", text: s.text ?? "", isPassword: !!s.isPassword, coords: s.coords } };
-                        case "CLICK":
-                          return { CLICK: { coords: s.coords } };
-                        case "WAIT":
-                          return { WAIT: s.waitAfterMs || s.wait || 0 };
-                        case "NAVIGATE":
-                          return { NAVIGATE: s.url || "" };
-                        case "SCROLL":
-                          return { SCROLL: { deltaY: s.deltaY ?? 0 } };
-                        default:
-                          return null;
-                      }
-                    }).filter(Boolean);
-                  }
+                // Detect Step[] form (has 'type')
+                const looksLikeStep =
+                  raw.length === 0 ||
+                  (raw[0] && typeof raw[0] === "object" && "type" in raw[0]);
+                if (looksLikeStep) {
+                  return raw.map((s: any) => {
+                    switch (s.type) {
+                      case "TYPE":
+                        return { TYPE: { label: s.label ?? "", text: s.text ?? "", isPassword: !!s.isPassword, coords: s.coords } };
+                      case "CLICK":
+                        return { CLICK: { coords: s.coords } };
+                      case "WAIT":
+                        return { WAIT: s.waitAfterMs || s.wait || 0 };
+                      case "NAVIGATE":
+                        return { NAVIGATE: s.url || "" };
+                      case "SCROLL":
+                        return { SCROLL: { deltaY: s.deltaY ?? 0 } };
+                      default:
+                        return null;
+                    }
+                  }).filter(Boolean);
                 }
-                // Fallback
-                return [];
-              };
-
-              const actions = normalizeToActions(parsed);
-              if (!Array.isArray(actions)) throw new Error("Invalid JSON format for steps/actions");
-
-              // Load into a single tab and primaries
-              if (props.setTabs) {
-                props.setTabs([{ id: "tab-1", title: file.name.replace(/\.json$/i, "") || "Tab 1", actions }]);
               }
-              if (props.setActiveTabId) {
-                props.setActiveTabId("tab-1");
-              }
-              setEditedData(actions);
-              setUpdatedData(actions);
-              setShowData(true);
-              // Clear any server-selected recording since we are using a local file
-              setSelectedRecording(null);
+              // Fallback
+              return [];
+            };
 
-              // Ask toolbar to open Steps panel
-              try { window.dispatchEvent(new CustomEvent('openShowStepsPanel')); } catch {}
-            } catch (err) {
-              console.error("Failed to load JSON:", err);
-              alert("Failed to load JSON: " + err);
-            } finally {
-              // reset input to allow re-selecting the same file
-              (e.target as HTMLInputElement).value = "";
+            const actions = normalizeToActions(parsed);
+            if (!Array.isArray(actions)) throw new Error("Invalid JSON format for steps/actions");
+
+            // Load into a single tab and primaries
+            if (props.setTabs) {
+              props.setTabs([{ id: "tab-1", title: file.name.replace(/\.json$/i, "") || "Tab 1", actions }]);
             }
-          }}
-        />
-        <button onClick={() => document.getElementById("load-json-input")?.click()}>
-          Load from JSON
-        </button>
+            if (props.setActiveTabId) {
+              props.setActiveTabId("tab-1");
+            }
+            setEditedData(actions);
+            setUpdatedData(actions);
+            setShowData(true);
+            // Clear any server-selected recording since we are using a local file
+            setSelectedRecording(null);
 
-        <button onClick={startLiveReplay}>
-          Start Live Replay
-        </button>
-        <button onClick={() => setLive(false)} disabled={!live}>Stop Live</button>
-      </div>
-    </>
+            // Ask toolbar to open Steps panel
+            try { window.dispatchEvent(new CustomEvent('openShowStepsPanel')); } catch {}
+          } catch (err) {
+            console.error("Failed to load JSON:", err);
+            alert("Failed to load JSON: " + err);
+          } finally {
+            // reset input to allow re-selecting the same file
+            (e.target as HTMLInputElement).value = "";
+          }
+        }}
+      />
+      <button onClick={() => document.getElementById("load-json-input")?.click()}>
+        Load from JSON
+      </button>
+    </div>
   )
 }
 

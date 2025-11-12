@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect } from "react";
 import { runPixel } from "@semoss/sdk";
 import { checkSessionExpired, setSessionExpiredCallback } from "../utils/errorHandler";
 import {
-  Check, Close
+  Check, Close, Sync as SyncIcon, StopCircleOutline as StopCircleOutlineIcon
 } from "@mui/icons-material";
 import {
   CircularProgress, IconButton
@@ -994,8 +994,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
 
   return (
     <div className="remote-runner-container">
-      {/* toolbar */}
-
+      {/* First column: Sidebar icons */}
       <Toolbar 
         sessionId={sessionId}
         insightId={insightId}
@@ -1023,221 +1022,254 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
         setStoredContexts={setStoredContexts}
       />
 
-      {/* header */}
-
-      <Header
-      insightId={insightId} 
-      sessionId={sessionId}
-      steps={steps}
-      selectedRecording={selectedRecording}
-      setSelectedRecording={setSelectedRecording}
-      setLoading={setLoading}
-      setEditedData={setEditedData}
-      setUpdatedData={setUpdatedData}
-      setShowData={setShowData}
-      setShot={setShot} 
-      setIsLastPage={setIsLastPage}
-      live={live}
-      setLive={setLive}
-      currUserModels={currUserModels}
-      setCurrUserModels={setCurrUserModels}
-      selectedModel={selectedModel}
-      setSelectedModel={setSelectedModel}
-      tabs={tabs}
-      setTabs={setTabs}
-      activeTabId={activeTabId}
-      setActiveTabId={setActiveTabId}
-      />
-
-
-      {!shot && loading && (
-        <div
-        style={{
-          width: "100%",
-          height: "500px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "#f5f6fa",
-          padding: "16px",
-          boxSizing: "border-box",
-          marginBottom: "12px",
-          borderRadius: "8px",
-        }}
-        >{loading && <CircularProgress />}
-        </div>
-      )}
-
-      {shot && (
-        <div style={{ borderBottom: 1, borderColor: 'divider', marginBottom: '12px' }}>
-          <Tabs
-            value={activeTabId}
-            onChange={handleTabChange}
-            variant="scrollable"
-            scrollButtons="auto"
-          >
-            {tabs.map((tab) => (
-              <Tab
-                key={tab.id}
-                value={tab.id}
-                label={
-                  <Box display="flex" alignItems="center">
-                    {tab.title}
-                    {tabs.length > 1 && (
-                      <IconButton
-                        size="small"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleCloseTab(tab.id);
-                        }}
-                      >
-                        <Close fontSize="small" />
-                      </IconButton>
-                    )}
-                  </Box>
-                }
-              />
-            ))}
-          </Tabs>
-        </div>
-      )}
-      {shot && (
-        <>
-          <div className="screenshot-container">
-          {mode === "crop" || mode === "generate-steps" ? (
-              <ReactCrop
-                crop={crop}
-                onChange={(c) => setCrop(c)} 
-                onComplete={(c) => {
-                  if (c.width && c.height) {
-                    const cropArea: CropArea = {
-                      startX: c.x,
-                      startY: c.y,
-                      endX: c.x + c.width,
-                      endY: c.y + c.height,
-                    };
-                    if (mode === "generate-steps") {
-                      handleAiStepGeneration(cropArea);
-                    } else {
-                      handleVisionPopup(cropArea);
-                    }
-                    //setMode("click");
-                    //setCrop(undefined);
+      {/* Third column: Main content area */}
+      <div className="remote-runner-main-content">
+        {/* Top row: Header with controls */}
+        <div className="remote-runner-top-row">
+          <div className="remote-runner-top-row-left">
+            <Header
+              insightId={insightId} 
+              sessionId={sessionId}
+              steps={steps}
+              selectedRecording={selectedRecording}
+              setSelectedRecording={setSelectedRecording}
+              setLoading={setLoading}
+              setEditedData={setEditedData}
+              setUpdatedData={setUpdatedData}
+              setShowData={setShowData}
+              setShot={setShot} 
+              setIsLastPage={setIsLastPage}
+              live={live}
+              setLive={setLive}
+              currUserModels={currUserModels}
+              setCurrUserModels={setCurrUserModels}
+              selectedModel={selectedModel}
+              setSelectedModel={setSelectedModel}
+              tabs={tabs}
+              setTabs={setTabs}
+              activeTabId={activeTabId}
+              setActiveTabId={setActiveTabId}
+            />
+          </div>
+          <div className="remote-runner-top-row-right">
+            <IconButton onClick={async () => {
+              if (!sessionId || !activeTabId) return;
+              setLoading(true);
+              try {
+                const pixel = `Screenshot ( sessionId = "${sessionId}", tabId = "${activeTabId}" )`;
+                const res = await runPixel(pixel, insightId);
+                if (res?.pixelReturn?.[0]?.output) {
+                  const snap = {
+                    base64Png: res.pixelReturn[0].output.base64Png ?? res.pixelReturn[0].output.base64 ?? "",
+                    width: res.pixelReturn[0].output.width ?? 1280,
+                    height: res.pixelReturn[0].output.height ?? 800,
+                    deviceScaleFactor: res.pixelReturn[0].output.deviceScaleFactor ?? 1,
+                  };
+                  if (snap.base64Png) {
+                    setShot(snap);
                   }
-                }}
-                aspect={undefined}
-              >
-                <img
-                  ref={imgRef}
-                  src={`data:image/png;base64,${shot.base64Png}`}
-                  alt="remote"
-                  className="screenshot-image"
-                  onLoad={() => setLoading(false)}
-                />
-              </ReactCrop>
-            ) : (
-              <img
-                ref={imgRef}
-                onClick={handleClick}
-                src={`data:image/png;base64,${shot.base64Png}`}
-                alt="remote"
-                className={`screenshot-image ${mode === "scroll" ? "screenshot-image-scroll" : "screenshot-image-click"}`}
-                onLoad={() => setLoading(false)}
-              />
-            )}
+                }
+              } catch (err) {
+                console.error("Refresh error:", err);
+              } finally {
+                setLoading(false);
+              }
+            }} title="Refresh">
+              <SyncIcon />
+            </IconButton>
+            <IconButton onClick={() => setLive(false)} disabled={!live} title="Stop">
+              <StopCircleOutlineIcon />
+            </IconButton>
+          </div>
+        </div>
 
-            {highlight && (
-              <div
-                className="highlight-indicator"
-                style={{
-                  top: (highlight.y * imgRef.current!.height) / shot.height - 15,
-                  left: (highlight.x * imgRef.current!.width) / shot.width - 15,
-                  width: 30,
-                  height: 30,
-                }}
-              ></div>)}
-              
+        {/* Middle row: Screenshot display */}
+        <div className="remote-runner-middle-row">
+          {!shot && loading && (
+            <div
+              style={{
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "#f5f6fa",
+                borderRadius: "8px",
+              }}
+            >
+              {loading && <CircularProgress />}
+            </div>
+          )}
 
-            {loading && (
-              <div className="loading-overlay">
-                <CircularProgress color="inherit" />
-              </div>
-            )}
+          {shot && (
+            <>
+              {tabs.length > 1 && (
+                <div style={{ position: "absolute", top: "16px", left: "16px", zIndex: 10 }}>
+                  <Tabs
+                    value={activeTabId}
+                    onChange={handleTabChange}
+                    variant="scrollable"
+                    scrollButtons="auto"
+                  >
+                    {tabs.map((tab) => (
+                      <Tab
+                        key={tab.id}
+                        value={tab.id}
+                        label={
+                          <Box display="flex" alignItems="center">
+                            {tab.title}
+                            {tabs.length > 1 && (
+                              <IconButton
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCloseTab(tab.id);
+                                }}
+                              >
+                                <Close fontSize="small" />
+                              </IconButton>
+                            )}
+                          </Box>
+                        }
+                      />
+                    ))}
+                  </Tabs>
+                </div>
+              )}
+              <div className="screenshot-container">
+                {mode === "crop" || mode === "generate-steps" ? (
+                  <ReactCrop
+                    crop={crop}
+                    onChange={(c) => setCrop(c)} 
+                    onComplete={(c) => {
+                      if (c.width && c.height) {
+                        const cropArea: CropArea = {
+                          startX: c.x,
+                          startY: c.y,
+                          endX: c.x + c.width,
+                          endY: c.y + c.height,
+                        };
+                        if (mode === "generate-steps") {
+                          handleAiStepGeneration(cropArea);
+                        } else {
+                          handleVisionPopup(cropArea);
+                        }
+                      }
+                    }}
+                    aspect={undefined}
+                  >
+                    <img
+                      ref={imgRef}
+                      src={`data:image/png;base64,${shot.base64Png}`}
+                      alt="remote"
+                      className="screenshot-image"
+                      onLoad={() => setLoading(false)}
+                    />
+                  </ReactCrop>
+                ) : (
+                  <img
+                    ref={imgRef}
+                    onClick={handleClick}
+                    src={`data:image/png;base64,${shot.base64Png}`}
+                    alt="remote"
+                    className={`screenshot-image ${mode === "scroll" ? "screenshot-image-scroll" : "screenshot-image-click"}`}
+                    onLoad={() => setLoading(false)}
+                  />
+                )}
 
-            {overlay && shot && (
-              <>
-                <Overlay
-                  ol={overlay}
-                  shot={shot}
+                {highlight && (
+                  <div
+                    className="highlight-indicator"
+                    style={{
+                      top: (highlight.y * imgRef.current!.height) / shot.height - 15,
+                      left: (highlight.x * imgRef.current!.width) / shot.width - 15,
+                      width: 30,
+                      height: 30,
+                    }}
+                  ></div>
+                )}
+
+                {loading && (
+                  <div className="loading-overlay">
+                    <CircularProgress color="inherit" />
+                  </div>
+                )}
+
+                {overlay && shot && (
+                  <>
+                    <Overlay
+                      ol={overlay}
+                      shot={shot}
+                      imgRef={imgRef}
+                      onCancel={handleSkipStep}
+                      onSubmit={async () => {
+                        await handleNextStep();
+                        setOverlay(null);
+                      }}
+                    />
+                  </>
+                )}
+
+                {/* VisionPopup */}
+                <VisionPopup 
+                  sessionId={sessionId} 
+                  insightId={insightId}
+                  visionPopup={visionPopup} 
+                  setVisionPopup={setVisionPopup}
+                  currentCropArea={currentCropArea}
+                  setCurrentCropArea={setCurrentCropArea}
+                  mode={mode}
+                  setMode={setMode} 
+                  crop={crop}
+                  setCrop={setCrop} 
+                  selectedModel={selectedModel}
+                  tabId={activeTabId}
+                  storedContexts={storedContexts}
+                  setStoredContexts={setStoredContexts}
                   imgRef={imgRef}
-                  onCancel={handleSkipStep}
-                  onSubmit={async () => {
-                    await handleNextStep();
-                    setOverlay(null);
-                  }}
                 />
-              </>
-            )}
 
-          {/* VisionPopup */}
-          <VisionPopup 
-            sessionId={sessionId} 
+                {/* Permanent Step Labels */}
+                {renderStepLabels()}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Bottom row: Control bar */}
+        <div className="remote-runner-bottom-row">
+          <StepsBottomSection 
             insightId={insightId}
-            visionPopup={visionPopup} 
+            sessionId={sessionId}
+            showData={showData}
+            setShowData={setShowData}
+            lastPage={lastPage}
+            setIsLastPage={setIsLastPage}
+            editedData={editedData}
+            overlay={overlay}
+            setOverlay={setOverlay}
+            selectedRecording={selectedRecording}
+            setLoading={setLoading}
+            setEditedData={setEditedData}
+            updatedData={updatedData}
+            setUpdatedData={setUpdatedData}
+            setShot={setShot}
+            setHighlight={setHighlight}
+            steps={steps}
+            setSteps={setSteps}
+            shot={shot}
+            activeTabId={activeTabId}  
+            tabs={tabs}  
+            setTabs={setTabs} 
+            setActiveTabId={setActiveTabId}
             setVisionPopup={setVisionPopup}
-            currentCropArea={currentCropArea}
             setCurrentCropArea={setCurrentCropArea}
-            mode={mode}
             setMode={setMode} 
-            crop={crop}
             setCrop={setCrop} 
-            selectedModel={selectedModel}
-            tabId={activeTabId}
-            storedContexts={storedContexts}
-            setStoredContexts={setStoredContexts}
             imgRef={imgRef}
           />
-
-          {/* Permanent Step Labels */}
-          {renderStepLabels()}
-
-          </div>
-        </>
-      )}
-
-      {/* steps / buttom section */}
-
-      <StepsBottomSection 
-      insightId={insightId}
-      sessionId={sessionId}
-      showData={showData}
-      setShowData={setShowData}
-      lastPage={lastPage}
-      setIsLastPage={setIsLastPage}
-      editedData={editedData}
-      overlay={overlay}
-      setOverlay={setOverlay}
-      selectedRecording={selectedRecording}
-      setLoading={setLoading}
-      setEditedData={setEditedData}
-      updatedData={updatedData}
-      setUpdatedData={setUpdatedData}
-      setShot={setShot}
-      setHighlight={setHighlight}
-      steps = {steps}
-      setSteps = {setSteps}
-      shot={shot}
-      activeTabId={activeTabId}  
-      tabs={tabs}  
-      setTabs={setTabs} 
-      setActiveTabId={setActiveTabId}
-      setVisionPopup={setVisionPopup}
-      setCurrentCropArea={setCurrentCropArea}
-      setMode={setMode} 
-      setCrop={setCrop} 
-      imgRef={imgRef}
-    />
-
+        </div>
+      </div>
     </div>
   );
 }

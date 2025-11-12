@@ -1,16 +1,13 @@
 .toolbar-container {
-  position: fixed;
-  top: 48px;
-  left: 0;
-  height: calc(100vh - 48px);
-  width: 56px;
+  position: relative;
+  flex: 0 0 56px;
+  height: 100%;
   z-index: 1000;
   display: flex;
   flex-direction: column;
   gap: 8px;
   padding: 12px 8px;
   background: #fff;
-  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
   align-items: center;
   justify-content: flex-start;
   border-right: 1px solid #e0e0e0;
@@ -64,16 +61,13 @@
   color: #fff !important;
 }
 
-/* Side Panel */
+/* Side Panel - Second column (conditional) */
 .toolbar-panel {
-  position: fixed;
-  top: 48px;
-  left: 56px;
-  height: calc(100vh - 48px);
-  width: 450px;
+  position: relative;
+  flex: 0 0 450px;
+  height: 100%;
   z-index: 999;
   background: #fff;
-  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
   border-right: 1px solid #e0e0e0;
@@ -103,6 +97,8 @@
   flex-direction: column;
   gap: 12px;
   overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
 }
 
 .toolbar-panel-action {
@@ -132,12 +128,4 @@
   font-size: 20px;
 }
 
-/* Adjust main content when panel is open */
-body.toolbar-panel-open .remote-runner-container {
-  margin-left: 506px; /* 56px sidebar + 450px panel */
-  transition: margin-left 0.3s ease;
-}
-
-body.toolbar-panel-open .screenshot-container {
-  max-width: calc(100% - 506px);
-}
+/* No need for body class adjustments - layout is handled by flexbox */

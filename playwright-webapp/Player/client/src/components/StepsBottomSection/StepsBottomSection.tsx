@@ -5,6 +5,9 @@ import { useSendStep } from "../../hooks/useSendStep";
 import { preferSelectorFromProbe } from "../../hooks/usePreferSelector";
 import { useProbeAt } from "../../hooks/useProbeAt";
 import { useSkipStep } from "../../hooks/useSkipStep";
+import { IconButton } from "@mui/material";
+import { SkipPrevious as SkipPreviousIcon, Pause as PauseIcon, SkipNext as SkipNextIcon } from "@mui/icons-material";
+import { useState } from "react";
 
 
 function StepsBottomSection(props : StepsBottomSectionProps) {
@@ -406,8 +409,51 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
         setOverlay(null);
     }
 
+    const [isPaused, setIsPaused] = useState(false);
+    const totalSteps = editedData?.length || 0;
+    const currentStep = totalSteps > 0 ? totalSteps - (editedData?.length || 0) + 1 : 0;
+    const progressPercentage = totalSteps > 0 ? ((currentStep / totalSteps) * 100) : 0;
+
+    function handlePreviousStep() {
+        // Go to previous step - this would need to be implemented based on your step history
+        console.log("Previous step");
+    }
+
+    function handlePause() {
+        setIsPaused(!isPaused);
+        // Implement pause logic if needed
+    }
+
+    function handleNextStepControl() {
+        handleNextStep();
+    }
+
     return (
         <>
+            {/* Control bar with playback controls and progress bar */}
+            <div className="remote-runner-control-bar">
+                <IconButton onClick={handlePreviousStep} disabled={currentStep <= 1} title="Previous Step">
+                    <SkipPreviousIcon />
+                </IconButton>
+                <IconButton onClick={handlePause} title={isPaused ? "Resume" : "Pause"}>
+                    <PauseIcon />
+                </IconButton>
+                <IconButton onClick={handleNextStepControl} disabled={!editedData || editedData.length === 0} title="Next Step">
+                    <SkipNextIcon />
+                </IconButton>
+            </div>
+            <div className="remote-runner-progress-bar">
+                <div className="remote-runner-progress-bar-track">
+                    <div 
+                        className="remote-runner-progress-bar-fill" 
+                        style={{ width: `${progressPercentage}%` }}
+                    />
+                </div>
+                <div className="remote-runner-progress-text">
+                    Step {currentStep} of {totalSteps}
+                </div>
+            </div>
+
             {showData && (
                 <div className="steps-container">
                     <div className="steps-header">

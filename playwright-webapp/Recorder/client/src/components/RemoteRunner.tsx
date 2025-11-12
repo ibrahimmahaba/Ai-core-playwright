@@ -1,7 +1,7 @@
 import React, { useRef, useState } from "react";
 import { runPixel } from "@semoss/sdk";
 import { checkSessionExpired } from "../utils/errorHandler";
-import { CircularProgress, FormControlLabel, Checkbox } from "@mui/material";
+import { CircularProgress, FormControlLabel, Checkbox, Button, Dialog, DialogActions, DialogContent, DialogTitle } from "@mui/material";
 import { IconButton, Tabs, Tab, Box } from "@mui/material";
 import { Check, Close } from "@mui/icons-material";
 import ReactCrop, { type Crop } from 'react-image-crop';
@@ -47,6 +47,8 @@ export default function RemoteRunner()  {
   const [crop, setCrop] = useState<Crop>();
   const [visionPopup, setVisionPopup] = useState<{x: number; y: number; query: string; response: string | null; } | null>(null);
   const [currentCropArea, setCurrentCropArea] = useState<CropArea | null>(null);
+  const [showCloseTabDialog, setShowCloseTabDialog] = useState(false);
+  const [tabToClose, setTabToClose] = useState<string | null>(null);
 
   const ENGINE_ID = import.meta.env.VITE_LLM_ENGINE_ID;
   const modelOptions: ModelOption[] = Object.entries({"Default Dev Model": ENGINE_ID}).map(([name, id]) => ({
@@ -72,8 +74,14 @@ export default function RemoteRunner()  {
   };
 
   const handleCloseTab = (tabId: string) => {
+    setTabToClose(tabId);
+    setShowCloseTabDialog(true);
+  };
+
+  const proceedToCloseTab = (tabId: string) => {
     const updatedTabs = tabs.filter((tab) => tab.id !== tabId);
     setTabs(updatedTabs);
+    console.log("Closing tab")
   
     if (activeTabId === tabId && updatedTabs.length > 0) {
       setActiveTabId(updatedTabs[0].id);
@@ -82,6 +90,47 @@ export default function RemoteRunner()  {
       }, 100);
     }
   
+  };
+
+  const deleteTab = async (tabId: string) => {
+    if (!sessionId) return;
+
+    try {
+      const pixel = `DeleteTab(sessionId="${sessionId}", tabId="${tabId}");`;
+      const res = await runPixel(pixel, insightId);
+
+      if (checkSessionExpired(res.pixelReturn)) {
+        return;
+      }
+
+      const pixelReturn = res.pixelReturn[0];
+      if (pixelReturn.operationType && pixelReturn.operationType.includes("ERROR")) {
+        showToast(`Failed to delete tab: ${pixelReturn.output}`, "error");
+        return;
+      }
+
+      showToast("Tab deleted successfully!", "success");
+      proceedToCloseTab(tabId);
+    } catch (err) {
+      console.error("Error deleting tab:", err);
+      showToast("Failed to delete tab", "error");
+    }
+  };
+
+  const handleSaveAndCloseTab = () => {
+    setShowCloseTabDialog(false);
+    if (tabToClose) {
+      proceedToCloseTab(tabToClose);
+      setTabToClose(null);
+    }
+  };
+
+  const handleDeleteAndCloseTab = async () => {
+    setShowCloseTabDialog(false);
+    if (tabToClose) {
+      await deleteTab(tabToClose);
+      setTabToClose(null);
+    }
   };
 
 
@@ -627,6 +676,24 @@ export default function RemoteRunner()  {
           </div>
         </>
       )}
+
+      <Dialog open={showCloseTabDialog} onClose={() => setShowCloseTabDialog(false)}>
+        <DialogTitle>Save Steps in This Tab Before Closing?</DialogTitle>
+        <DialogContent>
+          WARNING: Any further steps depend on this tab might be affected if not saved. Would you like to save steps before closing? 
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowCloseTabDialog(false)} color="error" disabled={loading}>
+            Cancel
+          </Button>
+          <Button onClick={handleDeleteAndCloseTab} disabled={loading}>
+            No
+          </Button>
+          <Button onClick={handleSaveAndCloseTab} color="primary" variant="contained" disabled={loading}>
+            Yes
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 }

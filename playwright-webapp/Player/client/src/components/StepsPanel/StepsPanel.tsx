@@ -3,12 +3,20 @@ import './StepsPanel.css';
 import TextField from '@mui/material/TextField';
 import Checkbox from '@mui/material/Checkbox';
 import { Info as InfoIcon } from "@mui/icons-material";
-// import { Info as InfoIcon, Mouse as ClickIcon } from "@mui/icons-material";
-import { useState, useEffect } from 'react';
-import { useRef, useCallback } from 'react';
+import type { SyntheticEvent } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useRef } from 'react';
 import { runPixel } from "@semoss/sdk";
-import { Box, Button, FormControl, InputLabel, Select, MenuItem } from "@mui/material";
+import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
+  Box,
+  Button,
+  Typography,
+} from "@mui/material";
 import AdsClickIcon from '@mui/icons-material/AdsClick';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 interface StepsPanelProps {
   steps: Step[];
@@ -22,24 +30,39 @@ interface StepsPanelProps {
 }
 
 function StepsPanel(props: StepsPanelProps) {
-  const { steps, /*editedData,*/ sessionId, insightId, selectedRecording, tabs, activeTabId, setActiveTabId } = props;
-  const [editedValues, setEditedValues] = useState<Record<number, { [key: string]: string }>>({});
+  const { steps, editedData, sessionId, insightId, selectedRecording, tabs, activeTabId, setActiveTabId } = props;
+  const [editedValues, setEditedValues] = useState<Record<string, Record<number, { [key: string]: string }>>>({});
   const [loadedSteps, setLoadedSteps] = useState<Step[]>([]);
   const [loadedStepsByTab, setLoadedStepsByTab] = useState<Record<string, Step[]>>({});
   const [loading, setLoading] = useState(false);
-  const [dirtyFields, setDirtyFields] = useState<Record<number, Set<string>>>({});
+  const [dirtyFields, setDirtyFields] = useState<Record<string, Record<number, Set<string>>>>({});
+  const [selectedSteps, setSelectedSteps] = useState<Record<string, Set<number>>>({});
   const isFetchingRef = useRef(false);
-  const [selectedTabId, setSelectedTabId] = useState<string>(() => activeTabId || tabs?.[0]?.id || "");
+  const defaultTabKey = "__default__";
+  const [expandedTabIds, setExpandedTabIds] = useState<Set<string>>(() => {
+    const initial = new Set<string>();
+    const initialId = activeTabId || tabs?.[0]?.id;
+    initial.add(initialId ?? defaultTabKey);
+    return initial;
+  });
 
-  // Keep local selection in sync with external activeTabId (screen tabs)
+  // Keep accordion expansion in sync with external activeTabId (screen tabs)
   useEffect(() => {
-    if (activeTabId && activeTabId !== selectedTabId) {
-      setSelectedTabId(activeTabId);
-      // Reset local edit caches when switching tabs
-      setEditedValues({});
-      setDirtyFields({});
-    }
+    if (!activeTabId) return;
+    setExpandedTabIds(prev => {
+      if (prev.has(activeTabId)) {
+        return prev;
+      }
+      const next = new Set(prev);
+      next.add(activeTabId);
+      return next;
+    });
   }, [activeTabId]);
+
+  const ensureTabKey = useCallback(
+    (tabId?: string) => (tabId && tabId.length > 0 ? tabId : defaultTabKey),
+    [defaultTabKey]
+  );
 
   // Remove editedData sync to avoid cursor jumps and always rely on GetAllSteps
 
@@ -102,58 +125,117 @@ function StepsPanel(props: StepsPanelProps) {
   // (e.g., typing in text fields or switching tabs)
   const refetchTimeoutRef = useRef<number | null>(null);
 
-  // Seed editedValues from currently displayed steps without overwriting fields user is actively editing
+  // Initialize selected steps when steps are loaded (default all selected)
   useEffect(() => {
-    const current = Object.keys(loadedStepsByTab).length > 0
-      ? (loadedStepsByTab[selectedTabId] || [])
-      : loadedSteps;
-    if (!current || current.length === 0) return;
+    const hasTabs = Object.keys(loadedStepsByTab).length > 0;
+    const tabsToProcess = hasTabs
+      ? loadedStepsByTab
+      : { [defaultTabKey]: loadedSteps };
 
-    setEditedValues(prev => {
+    setSelectedSteps(prev => {
       const next = { ...prev };
-      current.forEach((step, index) => {
-        const dirty = dirtyFields[index] || new Set<string>();
-        if (step.type === 'TYPE') {
-          if (!dirty.has('text')) {
-            next[index] = { ...(next[index] || {}), text: step.isPassword ? '••••••••' : step.text };
-          }
-        } else if (step.type === 'SCROLL') {
-          if (!dirty.has('deltaY')) {
-            next[index] = { ...(next[index] || {}), deltaY: String(step.deltaY ?? 0) };
-          }
-        } else if (step.type === 'WAIT') {
-          if (!dirty.has('wait')) {
-            next[index] = { ...(next[index] || {}), wait: String(step.waitAfterMs ?? 0) };
-          }
-        } else if (step.type === 'NAVIGATE') {
-          if (!dirty.has('url')) {
-            next[index] = { ...(next[index] || {}), url: step.url };
-          }
+      Object.entries(tabsToProcess).forEach(([tabKey, tabSteps]) => {
+        if (!next[tabKey] && tabSteps && tabSteps.length > 0) {
+          // Initialize all steps as selected by default
+          next[tabKey] = new Set(tabSteps.map((_, index) => index));
         }
       });
       return next;
     });
-  }, [loadedSteps, loadedStepsByTab, selectedTabId]);
+  }, [loadedSteps, loadedStepsByTab, defaultTabKey]);
 
-  const handleValueChange = (index: number, field: string, value: string) => {
-    setEditedValues(prev => ({
-      ...prev,
-      [index]: {
-        ...(prev[index] || {}),
-        [field]: value
+  // Seed editedValues from currently displayed steps without overwriting fields user is actively editing
+  useEffect(() => {
+    const hasTabs = Object.keys(loadedStepsByTab).length > 0;
+    const tabsToProcess = hasTabs
+      ? loadedStepsByTab
+      : { [defaultTabKey]: loadedSteps };
+
+    setEditedValues(prev => {
+      let updated = false;
+      const next: typeof prev = { ...prev };
+
+      Object.entries(tabsToProcess).forEach(([tabKey, tabSteps]) => {
+        if (!tabSteps || tabSteps.length === 0) return;
+        const tabDirty = dirtyFields[tabKey] || {};
+        const tabValues = { ...(next[tabKey] || {}) };
+
+        tabSteps.forEach((step, index) => {
+          const dirty = tabDirty[index] || new Set<string>();
+          if (step.type === 'TYPE' && !dirty.has('text')) {
+            const value = step.isPassword ? '••••••••' : step.text;
+            const existing = tabValues[index] || {};
+            if (existing.text !== value) {
+              tabValues[index] = { ...existing, text: value };
+              updated = true;
+            }
+          } else if (step.type === 'SCROLL' && !dirty.has('deltaY')) {
+            const value = String(step.deltaY ?? 0);
+            const existing = tabValues[index] || {};
+            if (existing.deltaY !== value) {
+              tabValues[index] = { ...existing, deltaY: value };
+              updated = true;
+            }
+          } else if (step.type === 'WAIT' && !dirty.has('wait')) {
+            const value = String(step.waitAfterMs ?? 0);
+            const existing = tabValues[index] || {};
+            if (existing.wait !== value) {
+              tabValues[index] = { ...existing, wait: value };
+              updated = true;
+            }
+          } else if (step.type === 'NAVIGATE' && !dirty.has('url')) {
+            const value = step.url;
+            const existing = tabValues[index] || {};
+            if (existing.url !== value) {
+              tabValues[index] = { ...existing, url: value };
+              updated = true;
+            }
+          }
+        });
+
+        if (Object.keys(tabValues).length > 0) {
+          next[tabKey] = tabValues;
+        }
+      });
+
+      return updated ? next : prev;
+    });
+  }, [loadedSteps, loadedStepsByTab, dirtyFields, defaultTabKey]);
+
+  const handleValueChange = (tabId: string, index: number, field: string, value: string) => {
+    const tabKey = ensureTabKey(tabId);
+
+    setEditedValues(prev => {
+      const next = { ...prev };
+      const tabValues = { ...(next[tabKey] || {}) };
+      const fieldValues = { ...(tabValues[index] || {}) };
+
+      if (fieldValues[field] === value) {
+        return prev;
       }
-    }));
+
+      fieldValues[field] = value;
+      tabValues[index] = fieldValues;
+      next[tabKey] = tabValues;
+
+      return next;
+    });
+
     setDirtyFields(prev => {
-      const copy = { ...prev };
-      copy[index] = new Set(copy[index] || []);
-      copy[index].add(field);
-      return copy;
+      const next = { ...prev };
+      const tabDirty = { ...(next[tabKey] || {}) };
+      const existing = tabDirty[index] ? new Set(Array.from(tabDirty[index])) : new Set<string>();
+      existing.add(field);
+      tabDirty[index] = existing;
+      next[tabKey] = tabDirty;
+      return next;
     });
 
     // Broadcast to overlay that panel value changed (for TYPE text or other fields)
     try {
-      const current = Object.keys(loadedStepsByTab).length > 0
-        ? (loadedStepsByTab[selectedTabId] || [])
+      const hasTabs = Object.keys(loadedStepsByTab).length > 0;
+      const current = hasTabs
+        ? (loadedStepsByTab[tabKey] || [])
         : loadedSteps;
       const step = current[index];
       if (field === 'text' && step && step.type === 'TYPE') {
@@ -184,46 +266,78 @@ function StepsPanel(props: StepsPanelProps) {
     const handler = (ev: Event) => {
       const ce = ev as CustomEvent<{ label: string | null; text: string }>;
       const incoming = ce.detail;
-      const current = Object.keys(loadedStepsByTab).length > 0
-        ? (loadedStepsByTab[selectedTabId] || [])
-        : loadedSteps;
+      if (!incoming) return;
 
-      const targetIndex = current.findIndex(s => {
-        if (s.type !== 'TYPE') return false;
-        const lbl = s.label ?? null;
-        return incoming.label == null || lbl == null || lbl === incoming.label;
-      });
-      if (targetIndex >= 0) {
-        setEditedValues(prev => ({
-          ...prev,
-          [targetIndex]: {
-            ...(prev[targetIndex] || {}),
-            text: incoming.text
-          }
-        }));
+      const hasTabs = Object.keys(loadedStepsByTab).length > 0;
+      const tabsToProcess = hasTabs
+        ? loadedStepsByTab
+        : { [defaultTabKey]: loadedSteps };
+
+      for (const [tabKey, tabSteps] of Object.entries(tabsToProcess)) {
+        const targetIndex = tabSteps.findIndex(s => {
+          if (s.type !== 'TYPE') return false;
+          const lbl = s.label ?? null;
+          return incoming.label == null || lbl == null || lbl === incoming.label;
+        });
+        if (targetIndex >= 0) {
+          setEditedValues(prev => {
+            const next = { ...prev };
+            const tabValues = { ...(next[tabKey] || {}) };
+            tabValues[targetIndex] = { ...(tabValues[targetIndex] || {}), text: incoming.text };
+            next[tabKey] = tabValues;
+            return next;
+          });
+          break;
+        }
       }
     };
     window.addEventListener('stepTextDraftFromOverlay', handler as EventListener);
     return () => window.removeEventListener('stepTextDraftFromOverlay', handler as EventListener);
-  }, [loadedSteps, loadedStepsByTab, selectedTabId]);
+  }, [loadedSteps, loadedStepsByTab, defaultTabKey]);
 
-  const getValue = (index: number, field: string, defaultValue: string) => {
-    return editedValues[index]?.[field] ?? defaultValue;
+  const getValue = (tabId: string, index: number, field: string, defaultValue: string) => {
+    const tabKey = ensureTabKey(tabId);
+    return editedValues[tabKey]?.[index]?.[field] ?? defaultValue;
   };
 
-  const renderStep = (step: Step, index: number) => {
+  const handleStepSelection = (tabId: string, index: number, checked: boolean) => {
+    const tabKey = ensureTabKey(tabId);
+    setSelectedSteps(prev => {
+      const next = { ...prev };
+      const tabSelections = new Set(next[tabKey] || []);
+      if (checked) {
+        tabSelections.add(index);
+      } else {
+        tabSelections.delete(index);
+      }
+      next[tabKey] = tabSelections;
+      return next;
+    });
+  };
+
+  const isStepSelected = (tabId: string, index: number): boolean => {
+    const tabKey = ensureTabKey(tabId);
+    return selectedSteps[tabKey]?.has(index) ?? true; // Default to selected
+  };
+
+  const renderStep = (tabId: string, step: Step, index: number) => {
+    const tabKey = ensureTabKey(tabId);
     const stepNumber = index + 1;
+    const isSelected = isStepSelected(tabKey, index);
     
     switch (step.type) {
       case "CLICK":
         return (
           <div key={index} className="step-item step-item-click">
-          <div className="step-checkbox">
-              <Checkbox defaultChecked disabled />
+            <div className="step-checkbox">
+              <Checkbox 
+                checked={isSelected} 
+                onChange={(e) => handleStepSelection(tabKey, index, e.target.checked)}
+                disabled 
+              />
             </div>
-            
             <div className="step-content step-content-click">
-            <div className="step-number">Step: {stepNumber}</div>
+              <div className="step-number">Step: {stepNumber}</div>
               <div className="step-type-label">CLICK</div>
               <InfoIcon className="step-info-icon" />
               <div className="step-click-icons">
@@ -232,47 +346,54 @@ function StepsPanel(props: StepsPanelProps) {
             </div>
           </div>
         );
-      case "TYPE":
-        const currentText = getValue(index, 'text', step.isPassword ? "••••••••" : step.text);
+      case "TYPE": {
+        const currentText = getValue(tabKey, index, 'text', step.isPassword ? "••••••••" : step.text);
         return (
           <div key={index} className="step-item step-item-type">
             <div className="step-checkbox">
-              <Checkbox defaultChecked />
+              <Checkbox 
+                checked={isSelected}
+                onChange={(e) => handleStepSelection(tabKey, index, e.target.checked)}
+              />
             </div>
             <div className="step-content">
-            <div className="step-number">Step: {stepNumber}</div>
+              <div className="step-number">Step: {stepNumber}</div>
               <div className="step-title">{step.label || 'Input'}</div>
               <TextField
-                id={`type-field-${index}`}
+                id={`type-field-${tabKey}-${index}`}
                 value={currentText}
-                onChange={(e) => handleValueChange(index, 'text', e.target.value)}
+                onChange={(e) => handleValueChange(tabKey, index, 'text', e.target.value)}
                 disabled={step.isPassword}
                 size="small"
                 sx={{
                   width: '100%',
                   marginTop: '4px',
                   '& .MuiOutlinedInput-root': {
-                    borderRadius: '18px', // Rounded border
+                    borderRadius: '18px',
                   },
                 }}
               />
             </div>
           </div>
         );
-      case "SCROLL":
-        const currentDeltaY = getValue(index, 'deltaY', String(step.deltaY ?? 0));
+      }
+      case "SCROLL": {
+        const currentDeltaY = getValue(tabKey, index, 'deltaY', String(step.deltaY ?? 0));
         return (
           <div key={index} className="step-item step-item-type">
-              <div className="step-content">
-              <div className="step-checkbox">
-                <Checkbox defaultChecked />
-                <div className="step-number">Step: {stepNumber}</div>
-              </div>
+            <div className="step-checkbox">
+              <Checkbox 
+                checked={isSelected}
+                onChange={(e) => handleStepSelection(tabKey, index, e.target.checked)}
+              />
+            </div>
+            <div className="step-content">
+              <div className="step-number">Step: {stepNumber}</div>
               <div className="step-title">SCROLL</div>
               <TextField
-                id={`scroll-field-${index}`}
+                id={`scroll-field-${tabKey}-${index}`}
                 value={currentDeltaY}
-                onChange={(e) => handleValueChange(index, 'deltaY', e.target.value)}
+                onChange={(e) => handleValueChange(tabKey, index, 'deltaY', e.target.value)}
                 label="Delta Y"
                 size="small"
                 type="number"
@@ -281,21 +402,24 @@ function StepsPanel(props: StepsPanelProps) {
             </div>
           </div>
         );
-      case "WAIT":
-        const currentWait = getValue(index, 'wait', String(step.waitAfterMs ?? 0));
+      }
+      case "WAIT": {
+        const currentWait = getValue(tabKey, index, 'wait', String(step.waitAfterMs ?? 0));
         return (
           <div key={index} className="step-item step-item-type">
             <div className="step-checkbox">
-              <Checkbox defaultChecked />
+              <Checkbox 
+                checked={isSelected}
+                onChange={(e) => handleStepSelection(tabKey, index, e.target.checked)}
+              />
             </div>
-
             <div className="step-content">
-            <div className="step-number">Step: {stepNumber}</div>
+              <div className="step-number">Step: {stepNumber}</div>
               <div className="step-title">WAIT</div>
               <TextField
-                id={`wait-field-${index}`}
+                id={`wait-field-${tabKey}-${index}`}
                 value={currentWait}
-                onChange={(e) => handleValueChange(index, 'wait', e.target.value)}
+                onChange={(e) => handleValueChange(tabKey, index, 'wait', e.target.value)}
                 label="Duration (ms)"
                 size="small"
                 type="number"
@@ -304,36 +428,41 @@ function StepsPanel(props: StepsPanelProps) {
             </div>
           </div>
         );
-      case "NAVIGATE":
-        const currentUrl = getValue(index, 'url', step.url);
+      }
+      case "NAVIGATE": {
+        const currentUrl = getValue(tabKey, index, 'url', step.url);
         return (
           <div key={index} className="step-item step-item-type">
             <div className="step-checkbox">
-              <Checkbox defaultChecked />
+              <Checkbox 
+                checked={isSelected}
+                onChange={(e) => handleStepSelection(tabKey, index, e.target.checked)}
+              />
             </div>
             <div className="step-content">
-            <div className="step-number">Step: {stepNumber}</div>
+              <div className="step-number">Step: {stepNumber}</div>
               <div className="step-title">NAVIGATE</div>
               <TextField
-                id={`navigate-field-${index}`}
+                id={`navigate-field-${tabKey}-${index}`}
                 value={currentUrl}
-                onChange={(e) => handleValueChange(index, 'url', e.target.value)}
-                label=""
+                onChange={(e) => handleValueChange(tabKey, index, 'url', e.target.value)}
+                label="URL"
                 size="small"
                 sx={{
                   width: '100%',
                   marginTop: '4px',
                   '& .MuiOutlinedInput-root': {
-                    borderRadius: '18px', // Rounded border
+                    borderRadius: '18px',
                   },
                 }}
                 InputProps={{
-                  readOnly: true, // Make the field uneditable
+                  readOnly: true,
                 }}
               />
             </div>
           </div>
         );
+      }
       default:
         return null;
     }
@@ -481,114 +610,310 @@ function StepsPanel(props: StepsPanelProps) {
   //   return null;
   // };
 
-  // Determine which steps to display (current tab only if tabbed steps are available)
+  // Determine which steps to display
   const hasLoadedSteps = loadedSteps.length > 0;
   const hasLoadedStepsByTab = Object.keys(loadedStepsByTab).length > 0;
   const hasSteps = steps && steps.length > 0;
-  const currentSteps: Step[] = hasLoadedStepsByTab
-    ? (loadedStepsByTab[selectedTabId] || [])
-    : loadedSteps;
+  const hasEditedActions = editedData && editedData.length > 0;
+  const stepsByTabForRender: Record<string, Step[]> = hasLoadedStepsByTab
+    ? loadedStepsByTab
+    : { [defaultTabKey]: loadedSteps };
 
-  const handleTabChange = (value: string) => {
-    setSelectedTabId(value);
-    if (setActiveTabId) setActiveTabId(value);
-    // Reset local edit caches when switching tabs
-    setEditedValues({});
-    setDirtyFields({});
-    // Refetch steps for the newly selected tab
-    (async () => {
-      if (isFetchingRef.current) return;
-      isFetchingRef.current = true;
-      try {
-        await fetchSteps();
-      } finally {
-        isFetchingRef.current = false;
+  const handleAccordionToggle = (tabId: string, externalId?: string) => (_: SyntheticEvent, expanded: boolean) => {
+    setExpandedTabIds(prev => {
+      const next = new Set(prev);
+      if (expanded) {
+        next.add(tabId);
+        if (setActiveTabId && externalId) setActiveTabId(externalId);
+      } else {
+        next.delete(tabId);
       }
-    })();
+      return next;
+    });
   };
+
+  const handleRunSelectedSteps = async (tabId: string) => {
+    const tabKey = ensureTabKey(tabId);
+    const hasLoadedStepsByTab = Object.keys(loadedStepsByTab).length > 0;
+    const stepsByTabForRender: Record<string, Step[]> = hasLoadedStepsByTab
+      ? loadedStepsByTab
+      : { [defaultTabKey]: loadedSteps };
+    const tabSteps = stepsByTabForRender[tabKey] || [];
+    const selectedIndices = selectedSteps[tabKey] || new Set<number>();
+    
+    if (selectedIndices.size === 0) {
+      alert("Please select at least one step to run");
+      return;
+    }
+
+    if (!sessionId || !selectedRecording) {
+      alert("Session or recording not available");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const stepsToRun = Array.from(selectedIndices)
+        .sort((a: number, b: number) => a - b)
+        .map((index: number) => ({ step: tabSteps[index], originalIndex: index }))
+        .filter((item: { step: Step | undefined; originalIndex: number }) => item.step);
+
+      for (let i = 0; i < stepsToRun.length; i++) {
+        const { step, originalIndex } = stepsToRun[i];
+        let pixel: string;
+
+        if (step.type === "TYPE" && step.label) {
+          const tabKeyForValue = ensureTabKey(tabId);
+          const textValue = editedValues[tabKeyForValue]?.[originalIndex]?.text ?? step.text;
+          const stepParamValues = { [step.label]: textValue };
+          pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${selectedRecording}", tabId="${tabId}", paramValues=[${JSON.stringify(stepParamValues)}], executeAll=false);`;
+        } else {
+          pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${selectedRecording}", tabId="${tabId}", executeAll=false);`;
+        }
+
+        const res = await runPixel(pixel, insightId);
+        const { output } = res.pixelReturn[0] as any;
+        
+        if (output?.screenshot) {
+          window.dispatchEvent(new CustomEvent('stepsExecuted', { detail: { screenshot: output.screenshot } }));
+        }
+      }
+
+      alert(`Successfully executed ${stepsToRun.length} selected step(s)`);
+      await fetchSteps();
+    } catch (err) {
+      console.error("Error running selected steps:", err);
+      alert("Error running selected steps: " + (err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLetAIExecute = async (tabId: string) => {
+    const tabKey = ensureTabKey(tabId);
+    const hasLoadedStepsByTab = Object.keys(loadedStepsByTab).length > 0;
+    const stepsByTabForRender: Record<string, Step[]> = hasLoadedStepsByTab
+      ? loadedStepsByTab
+      : { [defaultTabKey]: loadedSteps };
+    const tabSteps = stepsByTabForRender[tabKey] || [];
+    const selectedIndices = selectedSteps[tabKey] || new Set<number>();
+    
+    if (selectedIndices.size === 0) {
+      alert("Please select at least one step for AI execution");
+      return;
+    }
+
+    if (!sessionId) {
+      alert("Session not available");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const stepsToExecute = Array.from(selectedIndices)
+        .sort((a: number, b: number) => a - b)
+        .map((index: number) => ({ step: tabSteps[index], originalIndex: index }))
+        .filter((item: { step: Step | undefined; originalIndex: number }) => item.step);
+
+      const stepsDescription = stepsToExecute.map((item, idx) => {
+        const step = item.step;
+        switch (step.type) {
+          case "CLICK":
+            return `${idx + 1}. Click at coordinates (${step.coords.x}, ${step.coords.y})`;
+          case "TYPE":
+            return `${idx + 1}. Type "${step.text}" into ${step.label || 'input field'}`;
+          case "SCROLL":
+            return `${idx + 1}. Scroll by ${step.deltaY || 0} pixels`;
+          case "WAIT":
+            return `${idx + 1}. Wait for ${step.waitAfterMs || 0}ms`;
+          case "NAVIGATE":
+            return `${idx + 1}. Navigate to ${step.url}`;
+          default:
+            return `${idx + 1}. Execute step`;
+        }
+      }).join("\n");
+
+      const userPrompt = window.prompt(
+        `AI will execute the following steps:\n\n${stepsDescription}\n\nProvide additional context (optional):`,
+        ""
+      );
+
+      if (userPrompt === null) {
+        setLoading(false);
+        return;
+      }
+
+      for (let i = 0; i < stepsToExecute.length; i++) {
+        const { step, originalIndex } = stepsToExecute[i];
+        let pixel: string;
+
+        if (step.type === "TYPE" && step.label && selectedRecording) {
+          const tabKeyForValue = ensureTabKey(tabId);
+          const textValue = editedValues[tabKeyForValue]?.[originalIndex]?.text ?? step.text;
+          const stepParamValues = { [step.label]: textValue };
+          pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${selectedRecording}", tabId="${tabId}", paramValues=[${JSON.stringify(stepParamValues)}], executeAll=false);`;
+        } else if (selectedRecording) {
+          pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${selectedRecording}", tabId="${tabId}", executeAll=false);`;
+        } else {
+          continue;
+        }
+
+        const res = await runPixel(pixel, insightId);
+        const { output } = res.pixelReturn[0] as any;
+        
+        if (output?.screenshot) {
+          window.dispatchEvent(new CustomEvent('stepsExecuted', { detail: { screenshot: output.screenshot } }));
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      alert(`AI executed ${stepsToExecute.length} step(s)`);
+      await fetchSteps();
+    } catch (err) {
+      console.error("Error in AI execution:", err);
+      alert("Error in AI execution: " + (err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderButtons = (tabId: string) => (
+    <Box
+      sx={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: '16px',
+        gap: '8px',
+      }}
+    >
+      <Button
+        variant="contained"
+        onClick={() => handleRunSelectedSteps(tabId)}
+        disabled={loading}
+        sx={{
+          borderRadius: '18px',
+          marginRight: '8px',
+          flexGrow: 1,
+        }}
+      >
+        Run Selected Steps
+      </Button>
+      <Button
+        variant="outlined"
+        onClick={() => handleLetAIExecute(tabId)}
+        disabled={loading}
+        sx={{
+          borderRadius: '18px',
+          flex: 1,
+        }}
+      >
+        Let AI Execute
+      </Button>
+    </Box>
+  );
+
+  const renderTabsAccordion = () => (
+    <div className="steps-tab-accordion-group">
+      {tabs?.map(tab => {
+        const tabKey = ensureTabKey(tab.id);
+        const tabSteps = stepsByTabForRender[tabKey] || [];
+        const isExpanded = expandedTabIds.has(tabKey);
+
+        return (
+          <Accordion
+            key={tabKey}
+            expanded={isExpanded}
+            onChange={handleAccordionToggle(tabKey, tab.id)}
+            disableGutters
+          >
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography variant="subtitle2" fontWeight={600}>
+                {tab.title || tab.id} ({tabSteps.length})
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              {tabSteps.length > 0 ? (
+                <div className="steps-list">
+                  {tabSteps.map((step, index) => renderStep(tabKey, step, index))}
+                </div>
+              ) : (
+                <div className="steps-panel-empty">
+                  <p>No steps available for this tab</p>
+                </div>
+              )}
+              {renderButtons(tab.id)}
+            </AccordionDetails>
+          </Accordion>
+        );
+      })}
+    </div>
+  );
+
+  const defaultSteps = hasLoadedSteps
+    ? loadedSteps
+    : hasSteps
+      ? steps
+      : [];
+  const hasDefaultSteps = defaultSteps.length > 0;
+  const showEditedActions = !hasDefaultSteps && hasEditedActions;
+
+  const renderSingleAccordion = () => (
+    <>
+      {(hasDefaultSteps || showEditedActions) ? (
+        <Accordion
+          expanded={expandedTabIds.has(defaultTabKey)}
+          onChange={handleAccordionToggle(defaultTabKey)}
+          disableGutters
+        >
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Typography variant="subtitle2" fontWeight={600}>
+              Steps ({(hasDefaultSteps ? defaultSteps.length : editedData.length)})
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            {hasDefaultSteps ? (
+              <div className="steps-list">
+                {defaultSteps.map((step, index) => renderStep(defaultTabKey, step, index))}
+              </div>
+            ) : (
+              <div className="steps-list">
+                {editedData.map((action, index) => {
+                  // Convert Action to Step for rendering if needed
+                  return null; // Placeholder - you may need to implement renderAction
+                })}
+              </div>
+            )}
+            {renderButtons(defaultTabKey)}
+          </AccordionDetails>
+        </Accordion>
+      ) : (
+        <div className="steps-panel-empty">
+          <p>No steps available</p>
+          <p className="steps-panel-empty-hint">
+            {selectedRecording
+              ? `Select a recording file to view steps`
+              : `Steps will appear here when actions are added`}
+          </p>
+        </div>
+      )}
+    </>
+  );
 
   return (
     <div className="steps-panel">
       <div className="steps-panel-content">
         <a className="tools-header-tag">STEPS</a>
-        {tabs && tabs.length > 0 && (
-          <div style={{ marginBottom: 12 }}>
-            <FormControl size="small" fullWidth>
-              <InputLabel id="steps-tab-select">Tab</InputLabel>
-              <Select
-                labelId="steps-tab-select"
-                label="Tab"
-                value={selectedTabId || ""}
-                onChange={(e) => handleTabChange(e.target.value as string)}
-              >
-                {tabs.map(t => (
-                  <MenuItem key={t.id} value={t.id}>{t.title || t.id}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </div>
-        )}
         {loading ? (
           <div className="steps-panel-empty">
             <p>Loading steps...</p>
           </div>
-        ) : (hasLoadedSteps || hasLoadedStepsByTab) ? (
-          <>
-            <h3 className="steps-panel-section-title">
-              {tabs && tabs.length > 0
-                ? `${(tabs.find(t => t.id === selectedTabId)?.title || selectedTabId)} (${currentSteps.length})`
-                : `Steps (${currentSteps.length})`}
-            </h3>
-            <div className="steps-list">
-              {currentSteps.map((step, index) => renderStep(step, index))}
-            </div>
-          </>
-        ) : hasSteps ? (
-          <>
-            <h3 className="steps-panel-section-title">Steps ({steps.length})</h3>
-            <div className="steps-list">
-              {steps.map((step, index) => renderStep(step, index))}
-            </div>
-          </>
+        ) : tabs && tabs.length > 0 ? (
+          renderTabsAccordion()
         ) : (
-          <div className="steps-panel-empty">
-            <p>No steps available</p>
-            <p className="steps-panel-empty-hint">
-              {selectedRecording 
-                ? `Select a recording file to view steps` 
-                : `Steps will appear here when actions are added`}
-            </p>
-          </div>
+          renderSingleAccordion()
         )}
-        <Box
-           sx={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginTop: '16px', // Adjust spacing as needed
-            gap: '8px', // Add spacing between buttons
-          }}
-        >
-          <Button
-            variant="contained"
-            sx={{
-              borderRadius: '18px', // Rounded button
-              marginRight: '8px', // Spacing between buttons
-              flexGrow: 1, // Make button take available space
-            }}
-          >
-            Run Steps
-          </Button>
-          <Button
-            variant="outlined"
-            sx={{
-              borderRadius: '18px', // Rounded button
-              flex: 1, // Make button take available space
-            }}
-          >
-            Let AI Execute
-          </Button>
-        </Box>
       </div>
     </div>
   );

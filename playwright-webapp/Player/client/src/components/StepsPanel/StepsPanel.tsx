@@ -1,7 +1,7 @@
 import type { Action, Step, TabData } from "../../types";
 import './StepsPanel.css';
 import TextField from '@mui/material/TextField';
-import { PlayArrow as PlayIcon, Star as RequiredIcon, ExpandMore as ExpandMoreIcon } from "@mui/icons-material";
+import { PlayArrow as PlayIcon, ExpandMore as ExpandMoreIcon, InfoOutlined, AdsClick, InsertDriveFile } from "@mui/icons-material";
 import type { SyntheticEvent } from 'react';
 import { useState, useEffect, useCallback } from 'react';
 import { useRef } from 'react';
@@ -341,13 +341,17 @@ function StepsPanel(props: StepsPanelProps) {
             <div className="step-content step-content-full">
               {/* Row 1: Play icon - Step number - Required icon */}
               <div className="step-row-1">
-                <PlayIcon className="play-icon" />
-                <span className="step-number-text">Step {stepNumber}</span>
-                {isRequired && <RequiredIcon className="required-icon" />}
+                {/* <PlayIcon className="play-icon" /> */}
+                <span className="step-number-text">Step {stepNumber}*</span>
+                {isRequired}
               </div>
               {/* Row 2: Label at left, stored tag at right */}
               <div className="step-row-2">
-                <span className="step-label">CLICK</span>
+                <div className="step-type-with-icon">
+                  <span className="step-label">CLICK</span>
+                  <InfoOutlined className="info-icon" />
+                </div>
+                <AdsClick className="step-click-icon" />
               </div>
               {/* Row 3: Full width (empty for CLICK) */}
             </div>
@@ -366,15 +370,19 @@ function StepsPanel(props: StepsPanelProps) {
             <div className="step-content step-content-full">
               {/* Row 1: Play icon - Step number - Required icon */}
               <div className="step-row-1">
-                <PlayIcon className="play-icon" />
-                <span className="step-number-text">Step {stepNumber}</span>
-                {isRequired && <RequiredIcon className="required-icon" />}
+                <span className="step-number-text">Step {stepNumber}*</span>
               </div>
               {/* Row 2: Label at left, stored tag at right */}
               <div className="step-row-2">
                 <span className="step-label">{step.label || 'Input'}</span>
                 {step.storeValue && (
-                  <Chip label="Stored" size="small" sx={{ height: 20, fontSize: '0.7rem' }} />
+                  <Chip 
+                  icon={<InsertDriveFile className="stored-icon" />}
+                  label="Stored"
+                  size="small" 
+                  sx={{ height: 20, fontSize: '0.7rem', backgroundColor: '#b6deb7',color: '#4caf50' }} 
+                  className="stored-chip"
+                  />
                 )}
               </div>
               {/* Row 3: Full width text field */}
@@ -404,9 +412,9 @@ function StepsPanel(props: StepsPanelProps) {
             <div className="step-content step-content-full">
               {/* Row 1: Play icon - Step number - Required icon */}
               <div className="step-row-1">
-                <PlayIcon className="play-icon" />
-                <span className="step-number-text">Step {stepNumber}</span>
-                {isRequired && <RequiredIcon className="required-icon" />}
+                {/* <PlayIcon className="play-icon" /> */}
+                <span className="step-number-text">Step {stepNumber}*</span>
+                {isRequired}
               </div>
               {/* Row 2: Label at left, stored tag at right */}
               <div className="step-row-2">
@@ -439,9 +447,9 @@ function StepsPanel(props: StepsPanelProps) {
             <div className="step-content step-content-full">
               {/* Row 1: Play icon - Step number - Required icon */}
               <div className="step-row-1">
-                <PlayIcon className="play-icon" />
-                <span className="step-number-text">Step {stepNumber}</span>
-                {isRequired && <RequiredIcon className="required-icon" />}
+                {/* <PlayIcon className="play-icon" /> */}
+                <span className="step-number-text">Step {stepNumber}*</span>
+                {isRequired}
               </div>
               {/* Row 2: Label at left, stored tag at right */}
               <div className="step-row-2">
@@ -474,9 +482,9 @@ function StepsPanel(props: StepsPanelProps) {
             <div className="step-content step-content-full">
               {/* Row 1: Play icon - Step number - Required icon */}
               <div className="step-row-1">
-                <PlayIcon className="play-icon" />
-                <span className="step-number-text">Step {stepNumber}</span>
-                {isRequired && <RequiredIcon className="required-icon" />}
+                {/* <PlayIcon className="play-icon" /> */}
+                <span className="step-number-text">Step {stepNumber}*</span>
+                {isRequired}
               </div>
               {/* Row 2: Label at left, stored tag at right */}
               <div className="step-row-2">

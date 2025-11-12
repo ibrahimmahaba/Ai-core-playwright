@@ -129,16 +129,19 @@
 }
 .step-click-icons {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  align-items: stretch;
+  gap: 18px;
   flex-shrink: 0;
-  padding: 4px 8px;
+  /* padding: 4px 8px; */
 }
 
 .step-info-icon {
-  font-size: 22px;
+  font-size: 10px;
   color: #666;
-  min-width: 22px;
+  min-width: 12px;
+  padding-left: 12px;
+  left: 12px;
+  margin-left: 12px;
 }
 
 .step-click-icon {
@@ -216,7 +219,7 @@
 /* Step content full width */
 .step-content-full {
   width: 100%;
-  padding-right: 48px;
+
 }
 
 /* Step row 1: Play icon - Step number - Required icon */
@@ -250,6 +253,9 @@
   margin-bottom: 8px;
 }
 
+.step-row-2 .step-type-with-icon{
+  display: flex;
+}
 .step-label {
   font-weight: 600;
 }
@@ -261,7 +267,8 @@
   width: 100%;
   justify-content: flex-start;
   position: relative;
-  padding-left: 0;
+  padding-left: 10px;
+  border: none;
 }
 
 .accordion-indicator-line {
@@ -300,13 +307,14 @@
 .steps-tab-accordion-group {
   display: flex;
   flex-direction: column;
+  border: none;
   gap: 0;
 }
 
 .steps-accordion {
   border-radius: 0;
   border: none;
-  box-shadow: none;
+  box-shadow: none !important;
   border-bottom: 2px solid #e0e0e0;
 }
 
@@ -342,4 +350,17 @@
 
 .steps-accordion .MuiAccordionDetails-root {
   padding: 16px;
+}
+
+.stored-chip{
+  background-color: #b6deb7 !important;
+  color: #28892b !important;
+  height: 24px;
+  font-size: 0.8rem;
+  padding: 10px !important;
+}
+
+.stored-icon{
+  color: #28892b !important; ;
+  font-size: 14px;
 }

@@ -5,9 +5,9 @@ import { useSendStep } from "../../hooks/useSendStep";
 import { preferSelectorFromProbe } from "../../hooks/usePreferSelector";
 import { useProbeAt } from "../../hooks/useProbeAt";
 import { useSkipStep } from "../../hooks/useSkipStep";
-import { IconButton, Stepper, Step, StepLabel, Box, StepIconProps } from "@mui/material";
+import { IconButton, Stepper, Step, StepLabel, Box } from "@mui/material";
 import { SkipPrevious as SkipPreviousIcon, Pause as PauseIcon, SkipNext as SkipNextIcon } from "@mui/icons-material";
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 
 function StepsBottomSection(props : StepsBottomSectionProps) {
@@ -414,24 +414,25 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
     const lastTabIdRef = useRef<string | null>(null);
 
     useEffect(() => {
+      // Reset when tab changes
       if(activeTabId !== lastTabIdRef.current) {
         initialTotalRef.current = 0;
         lastTabIdRef.current = activeTabId;
       }
 
-      // First, try to get total from tabs (most reliable source)
+      // Strategy: Capture the maximum value we've ever seen
+      // This should be the initial total when steps first load
+      
+      // First priority: Check tabs (they should have the full list)
       if(tabs && activeTabId) {
         const activeTab = tabs.find(t => t.id === activeTabId);
-        if(activeTab && activeTab.actions && activeTab.actions.length > 0) {
-          // Use tab's actions length as the total (it should have all steps)
-          if(activeTab.actions.length > initialTotalRef.current) {
-            initialTotalRef.current = activeTab.actions.length;
-          }
+        if(activeTab && activeTab.actions && activeTab.actions.length > initialTotalRef.current) {
+          initialTotalRef.current = activeTab.actions.length;
         }
       }
       
-      // Fallback: track the maximum editedData length we've seen
-      // This captures the initial total when steps first load
+      // Second priority: Check editedData (capture maximum)
+      // Note: editedData decreases as steps execute, so we only update if it's larger
       if(editedData && editedData.length > initialTotalRef.current) {
         initialTotalRef.current = editedData.length;
       }
@@ -441,16 +442,33 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
     // This ensures we show all steps even as they're executed
     const totalSteps = initialTotalRef.current > 0 ? initialTotalRef.current : (editedData?.length || 0);
     const remainingSteps = editedData?.length || 0;
-    // Calculate current step: if we started with 5 steps and have 3 remaining, we're on step 3 (5-3+1)
-    // But for stepper (0-indexed), we want activeStep to be 2 (step 3 - 1)
-    const currentStep = totalSteps > 0 && remainingSteps < totalSteps 
-      ? totalSteps - remainingSteps 
-      : (totalSteps > 0 ? 1 : 0);
+    
+    // Calculate current step: 
+    // - If we have 5 total steps and 5 remaining, we've completed 0, so we're on step 1
+    // - If we have 5 total steps and 4 remaining, we've completed 1, so we're on step 2
+    // - Formula: completedSteps = totalSteps - remainingSteps
+    // - currentStep = completedSteps + 1 (1-indexed for display)
+    // - For stepper activeStep (0-indexed): activeStep = currentStep - 1 = completedSteps
+    const completedSteps = totalSteps > 0 ? Math.max(0, totalSteps - remainingSteps) : 0;
+    const currentStep = totalSteps > 0 ? completedSteps + 1 : 0;
+    
+    // Debug logging - check browser console to see these values
+    console.log('Stepper Debug:', {
+      totalSteps,
+      remainingSteps,
+      completedSteps,
+      currentStep,
+      activeStepForStepper: currentStep - 1,
+      initialTotal: initialTotalRef.current,
+      editedDataLength: editedData?.length,
+      tabsActionsLength: tabs?.find(t => t.id === activeTabId)?.actions?.length
+    });
+    
     const progressPercentage = totalSteps > 0 ? ((currentStep / totalSteps) * 100) : 0;
 
     // Custom StepIcon component with white circles and blue for active
-    const CustomStepIcon = (props: StepIconProps) => {
-      const { active, completed, icon } = props;
+    const CustomStepIcon = (props: { active?: boolean; completed?: boolean; icon?: React.ReactNode }) => {
+      const { active, icon } = props;
       const stepNumber = typeof icon === 'number' ? icon : parseInt(icon?.toString() || '0');
       
       return (

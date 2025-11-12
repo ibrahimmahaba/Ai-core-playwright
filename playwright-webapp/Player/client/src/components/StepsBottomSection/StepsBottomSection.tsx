@@ -5,9 +5,9 @@ import { useSendStep } from "../../hooks/useSendStep";
 import { preferSelectorFromProbe } from "../../hooks/usePreferSelector";
 import { useProbeAt } from "../../hooks/useProbeAt";
 import { useSkipStep } from "../../hooks/useSkipStep";
-import { IconButton } from "@mui/material";
+import { IconButton, Stepper, Step, StepLabel, Box } from "@mui/material";
 import { SkipPrevious as SkipPreviousIcon, Pause as PauseIcon, SkipNext as SkipNextIcon } from "@mui/icons-material";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 
 function StepsBottomSection(props : StepsBottomSectionProps) {
@@ -410,8 +410,32 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
     }
 
     const [isPaused, setIsPaused] = useState(false);
-    const totalSteps = editedData?.length || 0;
-    const currentStep = totalSteps > 0 ? totalSteps - (editedData?.length || 0) + 1 : 0;
+    // const totalSteps = editedData?.length || 0;
+    // const currentStep = totalSteps > 0 ? totalSteps - (editedData?.length || 0) + 1 : 0;
+    const initialTotalRef = useRef<number>(0);
+    const lastTabIdRef = useRef<string | null>(null);
+
+    useEffect(() => {
+      if(activeTabId !== lastTabIdRef.current) {
+        initialTotalRef.current = 0;
+        lastTabIdRef.current = activeTabId;
+      }
+
+      if(editedData && editedData.length > initialTotalRef.current) {
+        initialTotalRef.current = editedData.length;
+      } 
+
+      if(tabs && activeTabId) {
+        const activeTab = tabs.find(t => t.id === activeTabId);
+        if(activeTab && activeTab.actions && activeTab.actions.length > initialTotalRef.current) {
+          initialTotalRef.current = activeTab.actions.length;
+        }
+      }
+    }, [editedData, activeTabId, tabs]);
+
+    const totalSteps = initialTotalRef.current || editedData?.length || 0;
+    const remainingSteps = editedData?.length || 0;
+    const currentStep = totalSteps > 0 ? Math.max(0, totalSteps - remainingSteps) : 0;
     const progressPercentage = totalSteps > 0 ? ((currentStep / totalSteps) * 100) : 0;
 
     function handlePreviousStep() {
@@ -442,7 +466,20 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
                     <SkipNextIcon />
                 </IconButton>
             </div>
-            <div className="remote-runner-progress-bar">
+            { totalSteps > 0 &&  (
+              <Box sx={{ width: '100%', maxWidth: 600, px:2 }}>
+                <Stepper activeStep={currentStep - 1} alternativeLabel>
+                    {Array.from({ length: totalSteps }).map((_, index) => (
+                        <Step key={index}>
+                            <StepLabel>
+                                {index + 1}
+                            </StepLabel>
+                        </Step>
+                    ))}
+                </Stepper>
+              </Box>
+            )}
+            {/* <div className="remote-runner-progress-bar">
                 <div className="remote-runner-progress-bar-track">
                     <div 
                         className="remote-runner-progress-bar-fill" 
@@ -452,7 +489,7 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
                 <div className="remote-runner-progress-text">
                     Step {currentStep} of {totalSteps}
                 </div>
-            </div>
+            </div> */}
 
             {/* {showData && (
                 <div className="steps-container">

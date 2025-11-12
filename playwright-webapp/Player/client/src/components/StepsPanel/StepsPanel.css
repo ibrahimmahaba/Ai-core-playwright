@@ -58,7 +58,7 @@
   border-color: #1976d2;
 }
 
-.step-checkbox {
+.step-toggle {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -259,14 +259,14 @@
   display: flex;
   align-items: center;
   width: 100%;
-  justify-content: flex-end;
+  justify-content: flex-start;
   position: relative;
-  padding-right: 48px;
+  padding-left: 48px;
 }
 
 .accordion-indicator-line {
   position: absolute;
-  right: 40px;
+  left: 0px;
   top: 50%;
   transform: translateY(-50%);
   width: 4px;
@@ -283,8 +283,8 @@
 }
 
 .accordion-title-right {
-  text-align: right;
-  margin-right: 12px;
+  text-align: left;
+  margin-left: 12px;
 }
 
 .accordion-checkbox {
@@ -315,15 +315,15 @@
 
 .steps-accordion .MuiAccordionSummary-root {
   padding: 0 16px;
-  flex-direction: row-reverse;
+  flex-direction: row;
 }
 
 .steps-accordion .MuiAccordionSummary-content {
   margin: 0;
-  justify-content: flex-end;
+  justify-content: flex-start;
   align-items: center;
   position: relative;
-  padding-right: 48px;
+  padding-left: 48px;
 }
 
 .steps-accordion .MuiAccordionDetails-root {

@@ -1,7 +1,6 @@
 import type { Action, Step, TabData } from "../../types";
 import './StepsPanel.css';
 import TextField from '@mui/material/TextField';
-import Checkbox from '@mui/material/Checkbox';
 import { PlayArrow as PlayIcon, Star as RequiredIcon } from "@mui/icons-material";
 import type { SyntheticEvent } from 'react';
 import { useState, useEffect, useCallback } from 'react';
@@ -15,6 +14,7 @@ import {
   Button,
   Typography,
   Chip,
+  Switch
 } from "@mui/material";
 
 interface StepsPanelProps {
@@ -331,8 +331,8 @@ function StepsPanel(props: StepsPanelProps) {
       case "CLICK":
         return (
           <div key={index} className="step-item step-item-click">
-            <div className="step-checkbox step-checkbox-absolute">
-              <Checkbox 
+            <div className="step-toggle step-toggle-absolute">
+              <Switch 
                 checked={isSelected} 
                 onChange={(e) => handleStepSelection(tabKey, index, e.target.checked)}
                 disabled 
@@ -357,8 +357,8 @@ function StepsPanel(props: StepsPanelProps) {
         const currentText = getValue(tabKey, index, 'text', step.isPassword ? "••••••••" : step.text);
         return (
           <div key={index} className="step-item step-item-type">
-            <div className="step-checkbox step-checkbox-absolute">
-              <Checkbox 
+            <div className="step-toggle step-toggle-absolute">
+              <Switch 
                 checked={isSelected}
                 onChange={(e) => handleStepSelection(tabKey, index, e.target.checked)}
               />
@@ -395,8 +395,8 @@ function StepsPanel(props: StepsPanelProps) {
         const currentDeltaY = getValue(tabKey, index, 'deltaY', String(step.deltaY ?? 0));
         return (
           <div key={index} className="step-item step-item-type">
-            <div className="step-checkbox step-checkbox-absolute">
-              <Checkbox 
+            <div className="step-toggle step-toggle-absolute">
+              <Switch 
                 checked={isSelected}
                 onChange={(e) => handleStepSelection(tabKey, index, e.target.checked)}
               />
@@ -430,8 +430,8 @@ function StepsPanel(props: StepsPanelProps) {
         const currentWait = getValue(tabKey, index, 'wait', String(step.waitAfterMs ?? 0));
         return (
           <div key={index} className="step-item step-item-type">
-            <div className="step-checkbox step-checkbox-absolute">
-              <Checkbox 
+            <div className="step-toggle step-toggle-absolute">
+              <Switch 
                 checked={isSelected}
                 onChange={(e) => handleStepSelection(tabKey, index, e.target.checked)}
               />
@@ -465,8 +465,8 @@ function StepsPanel(props: StepsPanelProps) {
         const currentUrl = getValue(tabKey, index, 'url', step.url);
         return (
           <div key={index} className="step-item step-item-type">
-            <div className="step-checkbox step-checkbox-absolute">
-              <Checkbox 
+            <div className="step-toggle step-toggle-absolute">
+              <Switch 
                 checked={isSelected}
                 onChange={(e) => handleStepSelection(tabKey, index, e.target.checked)}
               />
@@ -512,8 +512,8 @@ function StepsPanel(props: StepsPanelProps) {
       
   //     return (
   //       <div key={index} className="step-item step-item-type">
-  //         <div className="step-checkbox">
-  //           <Checkbox defaultChecked />
+  //         <div className="step-toggle">
+  //           <Switch defaultChecked />
   //         </div>
   //         <div className="step-number">Step: {stepNumber}</div>
   //         <div className="step-content">
@@ -540,8 +540,8 @@ function StepsPanel(props: StepsPanelProps) {
   //   if ("CLICK" in action) {
   //     return (
   //       <div key={index} className="step-item step-item-click">
-  //         <div className="step-checkbox">
-  //           <Checkbox defaultChecked disabled/>
+  //         <div className="step-toggle">
+  //           <Switch defaultChecked disabled/>
   //         </div>
   //         <div className="step-number">Step: {stepNumber}</div>
   //         <div className="step-content step-content-click ">
@@ -562,8 +562,8 @@ function StepsPanel(props: StepsPanelProps) {
       
   //     return (
   //       <div key={index} className="step-item step-item-type">
-  //         <div className="step-checkbox">
-  //           <Checkbox defaultChecked />
+  //         <div className="step-toggle">
+  //           <Switch defaultChecked />
   //         </div>
   //         <div className="step-number">Step: {stepNumber}</div>
   //         <div className="step-content">
@@ -593,8 +593,8 @@ function StepsPanel(props: StepsPanelProps) {
       
   //     return (
   //       <div key={index} className="step-item step-item-type">
-  //         <div className="step-checkbox">
-  //           <Checkbox defaultChecked />
+  //         <div className="step-toggle">
+  //           <Switch defaultChecked />
   //         </div>
   //         <div className="step-number">Step: {stepNumber}</div>
   //         <div className="step-content">
@@ -624,8 +624,8 @@ function StepsPanel(props: StepsPanelProps) {
       
   //     return (
   //       <div key={index} className="step-item step-item-type">
-  //         <div className="step-checkbox">
-  //           <Checkbox defaultChecked />
+  //         <div className="step-toggle">
+  //           <Switch defaultChecked />
   //         </div>
   //         <div className="step-number">Step: {stepNumber}</div>
   //         <div className="step-content">
@@ -879,23 +879,7 @@ function StepsPanel(props: StepsPanelProps) {
                 >
                   {tab.title || tab.id} ({tabSteps.length})
                 </Typography>
-                <Checkbox
-                  checked={allStepsSelected}
-                  onChange={(e) => {
-                    const checked = e.target.checked;
-                    setSelectedSteps(prev => {
-                      const next = { ...prev };
-                      if (checked) {
-                        next[tabKey] = new Set(tabSteps.map((_, idx) => idx));
-                      } else {
-                        next[tabKey] = new Set();
-                      }
-                      return next;
-                    });
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                  className="accordion-checkbox"
-                />
+
               </Box>
             </AccordionSummary>
             <AccordionDetails>
@@ -950,7 +934,7 @@ function StepsPanel(props: StepsPanelProps) {
                 >
                   Steps ({(hasDefaultSteps ? defaultSteps.length : editedData.length)})
                 </Typography>
-                <Checkbox
+                <Switch
                   checked={allStepsSelected}
                   onChange={(e) => {
                     const checked = e.target.checked;
@@ -965,7 +949,7 @@ function StepsPanel(props: StepsPanelProps) {
                     });
                   }}
                   onClick={(e) => e.stopPropagation()}
-                  className="accordion-checkbox"
+                  className="accordion-toggle"
                 />
               </Box>
             </AccordionSummary>

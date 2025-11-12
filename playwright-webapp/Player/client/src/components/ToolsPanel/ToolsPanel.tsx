@@ -1,7 +1,9 @@
 import { Mouse as MouseIcon, ArrowUpward as ArrowUpIcon, ArrowDownward as ArrowDownIcon, 
   AccessTime as AccessTimeIcon, CropFree as CropIcon, 
-  AutoAwesome as AutoAwesomeIcon } from "@mui/icons-material";
+  AutoAwesome as AutoAwesomeIcon,
+  List as ListIcon} from "@mui/icons-material";
 import './ToolsPanel.css';
+
 
 interface ToolsPanelProps {
   onToolSelect: (tool: string) => void;
@@ -18,6 +20,8 @@ function ToolsPanel(props: ToolsPanelProps) {
     { id: "delay", label: "Add a short delay", icon: <AccessTimeIcon /> },
     { id: "crop", label: "Capture screen context", icon: <CropIcon /> },
     { id: "generate-steps", label: "Get AI recommendations", icon: <AutoAwesomeIcon /> },
+    { id: "show-contexts", icon: <ListIcon />, label: "Stored Contexts" }
+
   ];
 
   return (

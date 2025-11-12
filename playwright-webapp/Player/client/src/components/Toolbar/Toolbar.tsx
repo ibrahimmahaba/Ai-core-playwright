@@ -15,14 +15,17 @@ import InputsPanel from "../InputsPanel/InputsPanel";
 import ToolsPanel from "../ToolsPanel/ToolsPanel";
 import GenerateStepsPanel from "../GenerateStepsPanel/GenerateStepsPanel";
 import './Toolbar.css';
-// import StoredContextsSidebar from '../StoredContexts/StoredContextsSidebar';
+import StoredContextsSidebar from '../StoredContexts/StoredContextsSidebar';
 
 function Toolbar(props: ToolbarProps) {
   const { sessionId, insightId, shot, setShot, mode, setMode, steps, setSteps, setLoading,
-    generationUserPrompt, setGenerationUserPrompt, selectedModel, setSelectedModel, modelOptions, tabId, editedData, setEditedData, selectedRecording, tabs, setActiveTabId, isSessionExpired } = props;
+    generationUserPrompt, setGenerationUserPrompt, selectedModel, setSelectedModel, modelOptions, tabId, editedData,
+    setEditedData, selectedRecording, tabs, setActiveTabId, isSessionExpired,
+    storedContexts, setStoredContexts } = props;
   
   const [showPanel, setShowPanel] = useState(false);
-  
+  const [showContextsSidebar, setShowContextsSidebar] = useState(false);
+
 
     const viewport: Viewport = {
         width: shot?.width ?? 1280,
@@ -250,6 +253,9 @@ function Toolbar(props: ToolbarProps) {
                     if (prompt) setGenerationUserPrompt(prompt);
                     setMode("generate-steps");
                   }
+                  else if(tool == "show-contexts"){
+                    setShowContextsSidebar(!showContextsSidebar);
+                  }
                 }}
                 // selectedTool={mode === "click" ? "click" : mode === "crop" ? "crop" : undefined}
               />
@@ -285,7 +291,21 @@ function Toolbar(props: ToolbarProps) {
                 }}
               />
             )}
+             {mode === "show-contexts" && storedContexts && storedContexts.length > 0 && (
+                <span className="toolbar-button-badge">
+                  {storedContexts.length > 9 ? '9+' : storedContexts.length}
+                </span>
+              )}
           </div>
+          {showContextsSidebar && (
+            <StoredContextsSidebar
+              storedContexts={storedContexts || []}
+              setStoredContexts={setStoredContexts || (() => {})}
+              sessionId={sessionId}
+              insightId={insightId}
+              onClose={() => setShowContextsSidebar(false)}
+            />
+      )}
         </div>
       )}
     </>

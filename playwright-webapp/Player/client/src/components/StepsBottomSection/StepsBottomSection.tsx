@@ -5,7 +5,7 @@ import { useSendStep } from "../../hooks/useSendStep";
 import { preferSelectorFromProbe } from "../../hooks/usePreferSelector";
 import { useProbeAt } from "../../hooks/useProbeAt";
 import { useSkipStep } from "../../hooks/useSkipStep";
-import { IconButton, Stepper, Step, StepLabel, Box } from "@mui/material";
+import { IconButton, Stepper, Step, StepLabel, Box, StepIconProps } from "@mui/material";
 import { SkipPrevious as SkipPreviousIcon, Pause as PauseIcon, SkipNext as SkipNextIcon } from "@mui/icons-material";
 import { useEffect, useRef, useState } from "react";
 
@@ -410,8 +410,6 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
     }
 
     const [isPaused, setIsPaused] = useState(false);
-    // const totalSteps = editedData?.length || 0;
-    // const currentStep = totalSteps > 0 ? totalSteps - (editedData?.length || 0) + 1 : 0;
     const initialTotalRef = useRef<number>(0);
     const lastTabIdRef = useRef<string | null>(null);
 
@@ -421,22 +419,62 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
         lastTabIdRef.current = activeTabId;
       }
 
-      if(editedData && editedData.length > initialTotalRef.current) {
-        initialTotalRef.current = editedData.length;
-      } 
-
+      // First, try to get total from tabs (most reliable source)
       if(tabs && activeTabId) {
         const activeTab = tabs.find(t => t.id === activeTabId);
-        if(activeTab && activeTab.actions && activeTab.actions.length > initialTotalRef.current) {
-          initialTotalRef.current = activeTab.actions.length;
+        if(activeTab && activeTab.actions && activeTab.actions.length > 0) {
+          // Use tab's actions length as the total (it should have all steps)
+          if(activeTab.actions.length > initialTotalRef.current) {
+            initialTotalRef.current = activeTab.actions.length;
+          }
         }
+      }
+      
+      // Fallback: track the maximum editedData length we've seen
+      // This captures the initial total when steps first load
+      if(editedData && editedData.length > initialTotalRef.current) {
+        initialTotalRef.current = editedData.length;
       }
     }, [editedData, activeTabId, tabs]);
 
-    const totalSteps = initialTotalRef.current || editedData?.length || 0;
+    // Use the tracked initial total if available, otherwise use current editedData length
+    // This ensures we show all steps even as they're executed
+    const totalSteps = initialTotalRef.current > 0 ? initialTotalRef.current : (editedData?.length || 0);
     const remainingSteps = editedData?.length || 0;
-    const currentStep = totalSteps > 0 ? Math.max(0, totalSteps - remainingSteps) : 0;
+    // Calculate current step: if we started with 5 steps and have 3 remaining, we're on step 3 (5-3+1)
+    // But for stepper (0-indexed), we want activeStep to be 2 (step 3 - 1)
+    const currentStep = totalSteps > 0 && remainingSteps < totalSteps 
+      ? totalSteps - remainingSteps 
+      : (totalSteps > 0 ? 1 : 0);
     const progressPercentage = totalSteps > 0 ? ((currentStep / totalSteps) * 100) : 0;
+
+    // Custom StepIcon component with white circles and blue for active
+    const CustomStepIcon = (props: StepIconProps) => {
+      const { active, completed, icon } = props;
+      const stepNumber = typeof icon === 'number' ? icon : parseInt(icon?.toString() || '0');
+      
+      return (
+        <Box
+          sx={{
+            width: 32,
+            height: 32,
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: active ? '#1976d2' : '#ffffff',
+            border: '2px solid',
+            borderColor: active ? '#1976d2' : '#e0e0e0',
+            color: active ? '#ffffff' : '#666666',
+            fontWeight: 'bold',
+            fontSize: '14px',
+            transition: 'all 0.3s ease',
+          }}
+        >
+          {stepNumber}
+        </Box>
+      );
+    };
 
     function handlePreviousStep() {
         // Go to previous step - this would need to be implemented based on your step history
@@ -467,11 +505,26 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
                 </IconButton>
             </div>
             { totalSteps > 0 &&  (
-              <Box sx={{ width: '100%', maxWidth: 600, px:2 }}>
-                <Stepper activeStep={currentStep - 1} alternativeLabel>
+              <Box sx={{ width: '100%', maxWidth: 800, px: 2, py: 1 }}>
+                <Stepper 
+                  activeStep={currentStep - 1} 
+                  alternativeLabel
+                  sx={{
+                    '& .MuiStepConnector-line': {
+                      borderTopWidth: 2,
+                      borderColor: '#e0e0e0',
+                    },
+                    '& .MuiStepConnector-active .MuiStepConnector-line': {
+                      borderColor: '#1976d2',
+                    },
+                    '& .MuiStepConnector-completed .MuiStepConnector-line': {
+                      borderColor: '#1976d2',
+                    },
+                  }}
+                >
                     {Array.from({ length: totalSteps }).map((_, index) => (
-                        <Step key={index}>
-                            <StepLabel>
+                        <Step key={index} completed={index < currentStep - 1}>
+                            <StepLabel StepIconComponent={CustomStepIcon}>
                                 {index + 1}
                             </StepLabel>
                         </Step>

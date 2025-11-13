@@ -4,7 +4,7 @@ import './StepsBottomSection.css';
 import { useSendStep } from "../../hooks/useSendStep";
 import { preferSelectorFromProbe } from "../../hooks/usePreferSelector";
 import { useProbeAt } from "../../hooks/useProbeAt";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { PlayArrow, ChevronRight, ExpandMore } from '@mui/icons-material';
 import { CircularProgress } from '@mui/material';
 
@@ -24,6 +24,12 @@ function StepsBottomSection(props: StepsBottomSectionProps) {
   const [currentTabSteps, setCurrentTabSteps] = useState<PageData[]>([]);
   const [executedSteps, setExecutedSteps] = useState<Set<number>>(new Set());
   const [errorSteps, setErrorSteps] = useState<Set<number>>(new Set());
+  const [isExecutingAll, setIsExecutingAll] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const isPausedRef = useRef(false);
+  useEffect(() => {
+    isPausedRef.current = isPaused;
+  }, [isPaused]);
 
   const { sendStep } = useSendStep({
     insightId: insightId,
@@ -58,7 +64,7 @@ function StepsBottomSection(props: StepsBottomSectionProps) {
   }, [activeTabId, allStepsByTab]);
 
   const loadAllSteps = async () => {
-    
+
     try {
       const pixel = `GetAllSteps(sessionId="${sessionId}", fileName="${selectedRecording}");`;
       const res = await runPixel(pixel, insightId);
@@ -105,19 +111,46 @@ function StepsBottomSection(props: StepsBottomSectionProps) {
 
   };
 
-  const executeSingleStep = async (stepId: number) => {
+  const handleExecuteAllClick = () => {
+    // Start fresh
+    if (!isExecutingAll && !isPaused) {
+      setIsPaused(false);
+      setIsExecutingAll(true);
+      executeAllStepsLoop();
+      return;
+    }
+
+    // Currently executing → Pause
+    if (isExecutingAll && !isPaused) {
+      setIsPaused(true);          // loop sees isPausedRef and returns
+      // ❌ remove this: setIsExecutingAll(false);
+      return;
+    }
+
+    // Paused → Continue
+    if (!isExecutingAll && isPaused) {
+      setIsPaused(false);
+      setIsExecutingAll(true);
+      executeAllStepsLoop();      // continues from remaining steps
+    }
+  };
+
+  const executeSingleStep = async (
+    stepId: number
+  ): Promise<{ requestedPause: boolean }> => {
     setExecutingStepId(stepId);
     setLoading(true);
 
     try {
-      // Find the step in allStepsByTab (search all tabs)
+      // 1) Find the step (search all tabs)
       let stepData: any = null;
       let stepTabId: string = activeTabId;
 
       for (const [tabId, pages] of Object.entries(allStepsByTab)) {
         for (const page of pages) {
-          stepData = page.steps.find(s => s.id === stepId);
-          if (stepData) {
+          const found = page.steps.find((s: any) => s.id === stepId);
+          if (found) {
+            stepData = found;
             stepTabId = tabId;
             break;
           }
@@ -127,19 +160,17 @@ function StepsBottomSection(props: StepsBottomSectionProps) {
 
       if (!stepData) {
         console.error("Step not found:", stepId);
-        setLoading(false);
-        return;
+        return { requestedPause: false };
       }
 
       const actionTabId = stepTabId || activeTabId || "tab-1";
 
-      // Handle CONTEXT steps (show crop overlay)
-      if (stepData.type === 'CONTEXT') {
+      // 2) Handle CONTEXT steps (show crop overlay)
+      if (stepData.type === "CONTEXT") {
         const coords = stepData.multiCoords;
 
         if (coords && coords.length >= 2) {
           const imgRect = imgRef?.current?.getBoundingClientRect();
-          console.log("imgRect:", imgRect);
 
           const displayWidth = imgRect?.width ?? 1280;
           const displayHeight = imgRect?.height ?? 800;
@@ -151,57 +182,60 @@ function StepsBottomSection(props: StepsBottomSectionProps) {
 
           const scaled = coords.map((c: any) => ({
             x: Math.round(c.x * scaleX),
-            y: Math.round(c.y * scaleY)
+            y: Math.round(c.y * scaleY),
           }));
 
           setCurrentCropArea({
             startX: scaled[0].x,
             startY: scaled[0].y,
             endX: scaled[1].x,
-            endY: scaled[1].y
+            endY: scaled[1].y,
           });
 
           setVisionPopup({
             x: scaled[1].x,
             y: scaled[0].y,
             query: stepData.prompt,
-            response: null
+            response: null,
           });
           setMode("crop");
 
           setCrop({
-            unit: 'px',
+            unit: "px",
             x: scaled[0].x,
             y: scaled[0].y,
             width: scaled[1].x - scaled[0].x,
-            height: scaled[1].y - scaled[0].y
+            height: scaled[1].y - scaled[0].y,
           });
         }
 
         // Mark as executed
-        setExecutedSteps(prev => new Set([...prev, stepId]));
-        setErrorSteps(prev => {
+        setExecutedSteps((prev) => new Set([...prev, stepId]));
+        setErrorSteps((prev) => {
           const newSet = new Set(prev);
           newSet.delete(stepId);
           return newSet;
         });
 
-        setExecutingStepId(null);
-        setLoading(false);
-
-        //should wait for crop to be closed before proceeding
-
+        // (Optional) you could also setIsPaused(true) here if you want Execute-All
+        // to wait until the crop interaction is done. For now we don't pause:
+        return { requestedPause: false };
       }
 
-      // Handle TYPE steps - check if we need to show overlay first
-      if (stepData.type === 'TYPE' && stepData.storeValue && !overlay) {
+      // 3) Handle TYPE steps that require overlay
+      if (stepData.type === "TYPE" && stepData.storeValue && !overlay) {
         console.log("TYPE step requires input, showing overlay");
 
         // fetch the probe data if not already present
         let probeData = stepData.probe;
         if (!probeData && stepData.coords) {
           try {
-            probeData = await useProbeAt(stepData.coords, sessionId, insightId, actionTabId);
+            probeData = await useProbeAt(
+              stepData.coords,
+              sessionId,
+              insightId,
+              actionTabId
+            );
           } catch (err) {
             console.error("Failed to probe element:", err);
           }
@@ -209,91 +243,116 @@ function StepsBottomSection(props: StepsBottomSectionProps) {
 
         setOverlay({
           kind: "input",
-          probe: { ...probeData},
+          probe: { ...probeData },
           draftValue: stepData.text || "",
-          draftLabel: stepData.label
+          draftLabel: stepData.label,
         });
 
-        setExecutingStepId(null);
-        setLoading(false);
-        //return;
-        //should wait for input overlay to be submitted before proceeding
+        // We don't pause the loop automatically here; Execute-All can just continue.
+        return { requestedPause: false };
       }
 
-      // If no recording file, execute directly via sendStep
+      // 4) If no recording file, execute directly via sendStep
       if (!selectedRecording) {
         console.log("Executing step directly via sendStep");
 
         try {
-          if (stepData.type === 'CLICK') {
-            const p = await useProbeAt(stepData.coords, sessionId, insightId, actionTabId);
-            await sendStep({
-              type: "CLICK",
-              coords: stepData.coords,
-              viewport,
-              timestamp: Date.now(),
-              waitAfterMs: 1000,
-              selector: preferSelectorFromProbe(p) || { strategy: "css", value: "body" }
-            }, actionTabId);
-          } else if (stepData.type === 'TYPE') {
+          if (stepData.type === "CLICK") {
+            const p = await useProbeAt(
+              stepData.coords,
+              sessionId,
+              insightId,
+              actionTabId
+            );
+            await sendStep(
+              {
+                type: "CLICK",
+                coords: stepData.coords,
+                viewport,
+                timestamp: Date.now(),
+                waitAfterMs: 1000,
+                selector: preferSelectorFromProbe(p) || {
+                  strategy: "css",
+                  value: "body",
+                },
+              },
+              actionTabId
+            );
+          } else if (stepData.type === "TYPE") {
             const text = overlay?.draftValue ?? stepData.text;
-            await sendStep({
-              type: "TYPE",
-              coords: stepData.coords || { x: 0, y: 0 },
-              text: text,
-              label: stepData.label,
-              isPassword: stepData.isPassword || false,
-              viewport,
-              timestamp: Date.now(),
-              waitAfterMs: 1000,
-              storeValue: false,
-              selector: preferSelectorFromProbe(stepData.probe) ?? { strategy: "css", value: "body" }
-            }, actionTabId);
-          } else if (stepData.type === 'SCROLL') {
-            await sendStep({
-              type: "SCROLL",
-              coords: { x: 0, y: 0 },
-              deltaY: stepData.deltaY,
-              viewport,
-              timestamp: Date.now(),
-              waitAfterMs: 500
-            }, actionTabId || "tab-1");
-          } else if (stepData.type === 'WAIT') {
-            await new Promise(resolve => setTimeout(resolve, stepData.waitAfterMs || 1000));
-          } else if (stepData.type === 'NAVIGATE') {
-            await sendStep({
-              type: "NAVIGATE",
-              url: stepData.url,
-              viewport,
-              timestamp: Date.now(),
-              waitAfterMs: 2000
-            }, actionTabId);
+            await sendStep(
+              {
+                type: "TYPE",
+                coords: stepData.coords || { x: 0, y: 0 },
+                text: text,
+                label: stepData.label,
+                isPassword: stepData.isPassword || false,
+                viewport,
+                timestamp: Date.now(),
+                waitAfterMs: 1000,
+                storeValue: false,
+                selector:
+                  preferSelectorFromProbe(stepData.probe) ?? {
+                    strategy: "css",
+                    value: "body",
+                  },
+              },
+              actionTabId
+            );
+          } else if (stepData.type === "SCROLL") {
+            await sendStep(
+              {
+                type: "SCROLL",
+                coords: { x: 0, y: 0 },
+                deltaY: stepData.deltaY,
+                viewport,
+                timestamp: Date.now(),
+                waitAfterMs: 500,
+              },
+              actionTabId || "tab-1"
+            );
+          } else if (stepData.type === "WAIT") {
+            // Local WAIT: just delay on the frontend
+            await new Promise((resolve) =>
+              setTimeout(resolve, stepData.waitAfterMs || 1000)
+            );
+          } else if (stepData.type === "NAVIGATE") {
+            await sendStep(
+              {
+                type: "NAVIGATE",
+                url: stepData.url,
+                viewport,
+                timestamp: Date.now(),
+                waitAfterMs: 2000,
+              },
+              actionTabId
+            );
           }
 
           // Mark as executed successfully
-          setExecutedSteps(prev => new Set([...prev, stepId]));
-          setErrorSteps(prev => {
+          setExecutedSteps((prev) => new Set([...prev, stepId]));
+          setErrorSteps((prev) => {
             const newSet = new Set(prev);
             newSet.delete(stepId);
             return newSet;
           });
 
           setOverlay(null);
+
+          return { requestedPause: false };
         } catch (err) {
-          console.error('Step execution failed:', err);
-          setErrorSteps(prev => new Set([...prev, stepId]));
-          throw err;
-        } finally {
-          setLoading(false);
+          console.error("Step execution failed:", err);
+          setErrorSteps((prev) => new Set([...prev, stepId]));
+          alert("Step execution failed: " + err);
+          return { requestedPause: false };
         }
-        return;
       }
 
-      // Execute via ReplaySingleStep reactor
+      // 5) Execute via ReplaySingleStep reactor (recording path)
       console.log("Executing step via ReplaySingleStep pixel");
-      let pixel;
+      let pixel: string;
 
-      if (stepData.type === 'TYPE') {
+      if (stepData.type === "TYPE") {
         let paramValues: Record<string, string> | undefined = undefined;
         if (overlay?.draftValue !== undefined) {
           paramValues = { [stepData.label]: overlay.draftValue };
@@ -302,7 +361,9 @@ function StepsBottomSection(props: StepsBottomSectionProps) {
         }
 
         if (paramValues) {
-          pixel = `ReplaySingleStep(sessionId="${sessionId}", fileName="${selectedRecording}", stepId=${stepId}, tabId="${actionTabId}", paramValues=[${JSON.stringify(paramValues)}]);`;
+          pixel = `ReplaySingleStep(sessionId="${sessionId}", fileName="${selectedRecording}", stepId=${stepId}, tabId="${actionTabId}", paramValues=[${JSON.stringify(
+            paramValues
+          )}]);`;
         } else {
           pixel = `ReplaySingleStep(sessionId="${sessionId}", fileName="${selectedRecording}", stepId=${stepId}, tabId="${actionTabId}");`;
         }
@@ -317,22 +378,34 @@ function StepsBottomSection(props: StepsBottomSectionProps) {
       console.log("ReplaySingleStep output:", output);
 
       // Check for errors
-      if (output.status === 'failed' || output.error) {
-        console.error('Step execution failed:', output.error);
-        setErrorSteps(prev => new Set([...prev, stepId]));
-        alert('Step execution failed: ' + output.error);
-        setLoading(false);
-        setExecutingStepId(null);
-        return;
+      if (output.status === "failed" || output.error) {
+        console.error("Step execution failed:", output.error);
+        setErrorSteps((prev) => new Set([...prev, stepId]));
+        alert("Step execution failed: " + output.error);
+        return { requestedPause: false };
       }
 
-      // Mark as executed successfully
-      setExecutedSteps(prev => new Set([...prev, stepId]));
-      setErrorSteps(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(stepId);
-        return newSet;
-      });
+      // 🔴 IMPORTANT: if backend says shouldStop, pause immediately
+      if (output.shouldStop === true) {
+        // Mark as executed successfully
+        setExecutedSteps((prev) => new Set([...prev, stepId]));
+        setErrorSteps((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(stepId);
+          return newSet;
+        });
+
+        // Set paused so UI can show "Continue"
+        setIsPaused(true);
+
+        // Update screenshot if provided
+        if (output.screenshot) {
+          setShot(output.screenshot);
+        }
+
+        // Tell the Execute-All loop to stop right now
+        return { requestedPause: true };
+      }
 
       // Check if this action opened a new tab
       const isNewTab = output.isNewTab;
@@ -342,15 +415,15 @@ function StepsBottomSection(props: StepsBottomSectionProps) {
       if (isNewTab && newTabId && tabs && setTabs && setActiveTabId) {
         console.log("New tab detected:", newTabId, tabTitle);
 
-        const tabExists = tabs.find(t => t.id === newTabId);
+        const tabExists = tabs.find((t) => t.id === newTabId);
 
-        setTabs(prevTabs => {
-          const updatedTabs = prevTabs.map(tab => {
+        setTabs((prevTabs) => {
+          const updatedTabs = prevTabs.map((tab) => {
             if (tab.id === newTabId) {
               return {
                 id: newTabId,
                 title: tabTitle || newTabId,
-                actions: []
+                actions: [],
               };
             }
             return tab;
@@ -360,7 +433,7 @@ function StepsBottomSection(props: StepsBottomSectionProps) {
             updatedTabs.push({
               id: newTabId,
               title: tabTitle || newTabId,
-              actions: []
+              actions: [],
             });
           }
 
@@ -376,17 +449,26 @@ function StepsBottomSection(props: StepsBottomSectionProps) {
         setShot(output.screenshot);
       }
 
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 300));
 
+      // Mark as executed successfully
+      setExecutedSteps((prev) => new Set([...prev, stepId]));
+      setErrorSteps((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(stepId);
+        return newSet;
+      });
+
+      return { requestedPause: false };
     } catch (err) {
-      console.error('Step execution failed:', err);
-      setErrorSteps(prev => new Set([...prev, stepId]));
-      alert('Step execution failed: ' + err);
+      console.error("Step execution failed:", err);
+      setErrorSteps((prev) => new Set([...prev, stepId]));
+      alert("Step execution failed: " + err);
+      return { requestedPause: false };
     } finally {
       setExecutingStepId(null);
       setLoading(false);
     }
-
   };
 
   const executePageSteps = async (pageIndex: number) => {
@@ -406,19 +488,37 @@ function StepsBottomSection(props: StepsBottomSectionProps) {
 
   };
 
-  const executeAllSteps = async () => {
+  const executeAllStepsLoop = async (): Promise<void> => {
     setLoading(true);
-    for (const page of currentTabSteps) {
-      for (const step of page.steps) {
-        // Skip already executed steps
-        if (executedSteps.has(step.id)) {
-          console.log("Skipping already executed step:", step.id);
-          continue;
+    try {
+      for (const page of currentTabSteps) {
+        for (const step of page.steps) {
+          // If user manually paused, stop immediately
+          if (isPausedRef.current) {
+            return;   // no more ReplaySingleStep
+          }
+
+          // Skip already executed steps
+          if (executedSteps.has(step.id)) {
+            continue;
+          }
+
+          const { requestedPause } = await executeSingleStep(step.id);
+
+          if (requestedPause) {
+            // Backend told us to stop (shouldStop === true)
+            // EXIT RIGHT HERE: no next step runs
+            return;
+          }
         }
-        await executeSingleStep(step.id);
       }
+
+      // finished everything normally → we're not paused anymore
+      setIsPaused(false);
+    } finally {
+      setLoading(false);
+      setIsExecutingAll(false);   // ✅ always reset when loop ends (even on pause)
     }
-    setLoading(false);
   };
 
   const togglePageExpansion = (pageIndex: number) => {
@@ -461,9 +561,11 @@ function StepsBottomSection(props: StepsBottomSectionProps) {
         <div className="steps-list-sidebar">
           <div className="steps-list-header">
             <h3>All Steps</h3>
-            <button onClick={executeAllSteps} disabled={loadingSteps}>
+            <button onClick={handleExecuteAllClick} disabled={loadingSteps}>
               <PlayArrow fontSize="small" />
-              Execute All
+              {(!isExecutingAll && !isPaused) && 'Execute All'}
+              {(isExecutingAll && !isPaused) && 'Pause'}
+              {(!isExecutingAll && isPaused) && 'Continue'}
             </button>
           </div>
 

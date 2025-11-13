@@ -5,6 +5,7 @@ import { useSendStep } from "../../hooks/useSendStep";
 import { preferSelectorFromProbe } from "../../hooks/usePreferSelector";
 import { useProbeAt } from "../../hooks/useProbeAt";
 import { useSkipStep } from "../../hooks/useSkipStep";
+import { useCallback } from "react";
 
 
 function StepsBottomSection(props : StepsBottomSectionProps) {
@@ -13,7 +14,7 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
         overlay, setOverlay, sessionId, selectedRecording, 
         setLoading, insightId, setEditedData, updatedData, setUpdatedData, setShot,
         setHighlight, steps, setSteps, shot, activeTabId, tabs, setTabs , setActiveTabId,
-        setCurrentCropArea, setVisionPopup, setMode, setCrop, imgRef
+        setCurrentCropArea, setVisionPopup, setMode, setCrop, imgRef, pauseLiveWhile
     } = props
 
     const { sendStep } = useSendStep({
@@ -37,6 +38,7 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
         setTimeout(() => setHighlight(null), 4000); 
       }
       async function handleNextStep() {
+        await pauseLiveWhile(async () => {
         const nextAction = editedData[0];
         console.log("Handling next action:", nextAction);
         console.log("Selected recording:", selectedRecording);
@@ -280,6 +282,7 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
         setIsLastPage(output.isLastPage);
         setShot(output.screenshot);
         setOverlay(null);
+        });
       }
     
       async function handleExecuteAll() {
@@ -388,16 +391,20 @@ function StepsBottomSection(props : StepsBottomSectionProps) {
         setShot(output.screenshot);
       }
 
-    const { handleSkipStep } = useSkipStep({
-      sessionId,
-      selectedRecording,
-      insightId,
+    const { handleSkipStep: rawHandleSkipStep } = useSkipStep({
+        sessionId,
+        selectedRecording,
+        insightId,
       setEditedData,
       setIsLastPage,
       setOverlay,
       setLoading,
       activeTabId: activeTabId || "",
     });
+
+    const handleSkipStep = useCallback(async () => {
+        await pauseLiveWhile(() => rawHandleSkipStep());
+    }, [pauseLiveWhile, rawHandleSkipStep]);
 
     function handleSkipAll() {
         setEditedData([]);

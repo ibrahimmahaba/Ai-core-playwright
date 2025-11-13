@@ -95,8 +95,12 @@ function Header(props : HeaderProps) {
     }
 
     const name = selectedRecording;
-
+    const wasLive = live;
+    if (wasLive) {
+      setLive(false);
+    }
     setLoading(true);
+    let screenshotLoaded = false;
     
     try {
     let pixel = `ReplayStep (sessionId = "${sessionId}", fileName = "${name}", executeAll=false);`;
@@ -123,11 +127,17 @@ function Header(props : HeaderProps) {
     setShowData(true);
     setIsLastPage(output.isLastPage);
     setShot(output.screenshot);
+    screenshotLoaded = !!output.screenshot;
     } catch (err) {
       console.error("Error loading recording:", err);
       alert("Error loading recording: " + err);
     } finally {
       setLoading(false);
+      if (screenshotLoaded) {
+        setLive(true);
+      } else {
+        setLive(wasLive);
+      }
     }
   }
 

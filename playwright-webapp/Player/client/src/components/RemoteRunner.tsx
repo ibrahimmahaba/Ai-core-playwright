@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
 import { runPixel } from "@semoss/sdk";
 import { checkSessionExpired, setSessionExpiredCallback } from "../utils/errorHandler";
 import {
@@ -38,7 +38,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
   const [showData, setShowData] = React.useState(false);
   const [editedData, setEditedData] = React.useState<Action[]>([]);
   const [updatedData, setUpdatedData] = React.useState<Action[]>([]);
-  const [live, setLive] = useState(true);
+  const [live, setLive] = useState(false);
   const [intervalMs] = useState(1000);
   const [selectedRecording, setSelectedRecording] = useState<string | null>(null);
   const [lastPage, setIsLastPage] = useState(false);
@@ -237,7 +237,20 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     setActiveTabId: setActiveTabId
   });
 
-  const { handleSkipStep } = useSkipStep({
+  const pauseLiveWhile = useCallback(
+    async (action: () => Promise<unknown>): Promise<unknown> => {
+      const shouldResume = live;
+      if (shouldResume) setLive(false);
+      try {
+        return await action();
+      } finally {
+        if (shouldResume) setLive(true);
+      }
+    },
+    [live, setLive]
+  );
+
+  const { handleSkipStep: rawHandleSkipStep } = useSkipStep({
     sessionId,
     selectedRecording,
     insightId,
@@ -247,6 +260,10 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     setLoading,
     activeTabId
   });
+
+  const handleSkipStep = useCallback(async () => {
+    await pauseLiveWhile(() => rawHandleSkipStep());
+  }, [pauseLiveWhile, rawHandleSkipStep]);
 
   const { renderStepLabels } = useOverlaySteps({
     shot,
@@ -417,6 +434,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
   };
 
   async function handleNextStep() {
+    await pauseLiveWhile(async () => {
     const nextAction = editedData[0];
     
     if (!nextAction) {
@@ -614,6 +632,7 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
     setIsLastPage(output.isLastPage);
     setShot(output.screenshot);
     setOverlay(null);
+    });
   }
 
 
@@ -1268,7 +1287,8 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       setMode={setMode} 
       setCrop={setCrop} 
       imgRef={imgRef}
-    />
+      pauseLiveWhile={pauseLiveWhile}
+      />
 
     </div>
   );

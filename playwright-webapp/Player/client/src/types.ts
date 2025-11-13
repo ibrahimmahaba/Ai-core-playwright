@@ -207,6 +207,7 @@ export type NetworkStatusResponse = {
     setMode: React.Dispatch<React.SetStateAction<string>>;
     setCrop: React.Dispatch<React.SetStateAction<Crop| undefined>>;
     imgRef: React.RefObject<HTMLImageElement | null>;
+    pauseLiveWhile: (fn: () => Promise<unknown>) => Promise<unknown>;
   }
 
   export interface VisionPopup {x: number; y: number; query: string; response: string | null;}

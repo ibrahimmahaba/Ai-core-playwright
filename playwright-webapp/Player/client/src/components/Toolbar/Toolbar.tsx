@@ -131,25 +131,6 @@ function Toolbar(props: ToolbarProps) {
     <>
       {/* First column: Sidebar icons */}
       <div className="toolbar-container">
-        {/* Action buttons */}
-        {([
-          { m: "fetch-screenshot", icon: <SyncIcon />, label: "Refresh" },
-        ] as { m: string; icon: JSX.Element; label: string }[]).map(({ m, icon, label }) => {
-          return (
-            <button
-              key={m}
-              onClick={async () => {
-                if (m === "fetch-screenshot") {
-                  await fetchScreenshot();
-                }
-              }}
-              title={label}
-              className="toolbar-button"
-            >
-              {icon}
-            </button>
-          );
-        })}
         
         {/* Panel toggle buttons */}
         {toolbarItems.map(({ m, icon, label }) => {

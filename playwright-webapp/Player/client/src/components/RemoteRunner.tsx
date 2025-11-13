@@ -11,7 +11,7 @@ import ReactCrop, { type Crop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { rgba } from 'polished';
 import type { Action, Coords, CropArea, Overlay, Probe, ProbeRect, RemoteRunnerProps, ReplayPixelOutput, ScreenshotResponse, Step, Viewport
-  , modelGeneratedSteps, ExtractedElement, ExtractionData, ModelOption, TabData } from "../types";
+  , modelGeneratedSteps, ExtractedElement, ExtractionData, ModelOption, TabData, NetworkStatusResponse } from "../types";
 import { useSendStep } from "../hooks/useSendStep";
 import { preferSelectorFromProbe } from "../hooks/usePreferSelector";
 import Toolbar from "./Toolbar/Toolbar";
@@ -25,6 +25,7 @@ import { useOverlaySteps } from "../hooks/useOverlaySteps";
 import { Tabs, Tab, Box } from "@mui/material";
 import {Insight}  from 'https://cdn.jsdelivr.net/npm/@semoss/sdk@1.0.0-beta.29/+esm';
 
+const BUSY_POLL_DELAY_MS = 250;
 
 export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps) {
 
@@ -32,10 +33,12 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
   const [shot, setShot] = useState<ScreenshotResponse>();
   const [steps, setSteps] = useState<Step[]>([]);
   const imgRef = useRef<HTMLImageElement>(null);
+  const lastActivityRef = useRef<number>(0);
+  const lastUrlRef = useRef<string | null>(null);
   const [showData, setShowData] = React.useState(false);
   const [editedData, setEditedData] = React.useState<Action[]>([]);
   const [updatedData, setUpdatedData] = React.useState<Action[]>([]);
-  const [live, setLive] = useState(false);
+  const [live, setLive] = useState(true);
   const [intervalMs] = useState(1000);
   const [selectedRecording, setSelectedRecording] = useState<string | null>(null);
   const [lastPage, setIsLastPage] = useState(false);
@@ -72,18 +75,77 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
   }, []);
 
   useEffect(() => {
+    lastActivityRef.current = 0;
+    lastUrlRef.current = null;
+  }, [sessionId, activeTabId]);
+
+  useEffect(() => {
     if (!sessionId || !live) return;
     let cancelled = false;
-    const tick = async () => {
-      if (cancelled) return;
-      try { await fetchScreenshot(); }
-      finally {
-        if (!cancelled && live) setTimeout(tick, intervalMs);
+    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    const monitorLiveReplay = async () => {
+      try {
+        await fetchScreenshot();
+      } catch (err) {
+        console.error("Initial live screenshot fetch failed:", err);
+      }
+
+      let awaitingSettled = false;
+      let observedActivity = lastActivityRef.current;
+
+      while (!cancelled && live) {
+        try {
+          const status = await checkNetworkIdle();
+          if (cancelled || !live) break;
+
+          if (!status) {
+            await sleep(awaitingSettled ? BUSY_POLL_DELAY_MS : intervalMs);
+            continue;
+          }
+
+          const activityChanged = status.lastActivityTs > observedActivity;
+          const urlChanged = status.currentUrl && status.currentUrl !== lastUrlRef.current;
+
+          if (urlChanged) {
+            lastUrlRef.current = status.currentUrl!;
+            observedActivity = Math.max(observedActivity, status.lastActivityTs);
+            lastActivityRef.current = observedActivity;
+            awaitingSettled = false;
+            await fetchScreenshot();
+            await sleep(BUSY_POLL_DELAY_MS);
+            continue;
+          }
+
+          if (!status.isNetworkIdle) {
+            awaitingSettled = true;
+            observedActivity = Math.max(observedActivity, status.lastActivityTs);
+            lastActivityRef.current = observedActivity;
+            if (status.currentUrl) {
+              lastUrlRef.current = status.currentUrl;
+            }
+            await sleep(BUSY_POLL_DELAY_MS);
+            continue;
+          }
+
+          if (awaitingSettled || activityChanged) {
+            await fetchScreenshot();
+            awaitingSettled = false;
+            observedActivity = Math.max(observedActivity, status.lastActivityTs);
+            lastActivityRef.current = observedActivity;
+          }
+
+          await sleep(intervalMs);
+        } catch (err) {
+          console.error("Live replay polling error:", err);
+          await sleep(intervalMs);
+        }
       }
     };
-    tick();
+
+    monitorLiveReplay();
     return () => { cancelled = true; };
-  }, [sessionId, live, intervalMs]);
+  }, [sessionId, live, intervalMs, activeTabId]);
 
     useEffect(() => {
     // Auto-show input overlay for TYPE steps
@@ -275,6 +337,38 @@ export default function RemoteRunner({ sessionId, insightId }: RemoteRunnerProps
       }   
     } catch (err) {
       console.error("fetchScreenshot error:", err);
+    }
+  }
+
+  async function checkNetworkIdle(tabIdParam?: string): Promise<NetworkStatusResponse | null> {
+    if (!sessionId) return null;
+    const targetTabId = tabIdParam || activeTabId || "tab-1";
+    try {
+      let pixel = `CheckNetworkIdle ( sessionId = "${sessionId}", tabId="${targetTabId}" )`;
+      const res = await runPixel(pixel, insightId);
+
+      if (checkSessionExpired(res.pixelReturn)) {
+        return null;
+      }
+
+      const pixelReturn = res.pixelReturn?.[0] as { output?: Record<string, unknown> } | undefined;
+      const output = pixelReturn?.output ?? {};
+
+      const toBoolean = (value: unknown, fallback = false) =>
+        typeof value === "boolean" ? value : value != null ? Boolean(value) : fallback;
+      const toNumber = (value: unknown, fallback = 0) =>
+        typeof value === "number" ? value : Number(value ?? fallback);
+
+      return {
+        isNetworkIdle: toBoolean(output["isNetworkIdle"]),
+        inFlightRequests: toNumber(output["inFlightRequests"]),
+        lastActivityTs: toNumber(output["lastActivityTs"]),
+        quietMillis: toNumber(output["quietMillis"], intervalMs),
+        currentUrl: typeof output["currentUrl"] === "string" ? output["currentUrl"] : undefined,
+      };
+    } catch (err) {
+      console.error("checkNetworkIdle error:", err);
+      return null;
     }
   }
 

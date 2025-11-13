@@ -40,11 +40,19 @@ export type CropArea = {
     isTextControl?: boolean;
   };
   
-  export type ScreenshotResponse = {
+export type ScreenshotResponse = {
     base64Png: string;
     width: number;
     height: number;
     deviceScaleFactor: number;
+  };
+
+export type NetworkStatusResponse = {
+    isNetworkIdle: boolean;
+    inFlightRequests: number;
+    lastActivityTs: number;
+    quietMillis: number;
+    currentUrl?: string | null;
   };
   
   export type Coords = { x: number; y: number };
